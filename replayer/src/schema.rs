@@ -1,15 +1,17 @@
+use replay_engine::decoded_instructions::{deserialize_base64, deserialize_u64, serialize_base64};
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
-use replay_engine::decoded_instructions::{deserialize_u64, deserialize_base64, serialize_base64};
 
-pub use replay_engine::decoded_instructions::{DecodedInstruction, DecodedProgramDeployInstruction, DecodedWhirlpoolInstruction};
+pub use replay_engine::decoded_instructions::{
+    DecodedInstruction, DecodedProgramDeployInstruction, DecodedWhirlpoolInstruction,
+};
 
 /*
 
 Whirlpool State File JSON Schema
 
 A whirlpool state file (whirlpool-state-yyyymmdd.json.gz) is GZIP compressed JSON file with the following schema:
- 
+
 {
   slot: u64,
   blockHeight: u64,
@@ -27,20 +29,26 @@ A whirlpool state file (whirlpool-state-yyyymmdd.json.gz) is GZIP compressed JSO
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct WhirlpoolState {
-  pub slot: u64,
-  pub block_height: u64,
-  pub block_time: i64,
-  pub accounts: Vec<WhirlpoolStateAccount>,
-  #[serde(deserialize_with = "deserialize_base64", serialize_with = "serialize_base64")]
-  pub program_data: Vec<u8>,
+    pub slot: u64,
+    pub block_height: u64,
+    pub block_time: i64,
+    pub accounts: Vec<WhirlpoolStateAccount>,
+    #[serde(
+        deserialize_with = "deserialize_base64",
+        serialize_with = "serialize_base64"
+    )]
+    pub program_data: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct WhirlpoolStateAccount {
-  pub pubkey: String,
-  #[serde(deserialize_with = "deserialize_base64", serialize_with = "serialize_base64")]
-  pub data: Vec<u8>,
+    pub pubkey: String,
+    #[serde(
+        deserialize_with = "deserialize_base64",
+        serialize_with = "serialize_base64"
+    )]
+    pub data: Vec<u8>,
 }
 
 /*
@@ -79,35 +87,53 @@ Each line is a JSON object with the following schema:
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct WhirlpoolTransaction {
-  pub slot: u64,
-  pub block_height: u64,
-  pub block_time: i64,
-  pub transactions: Vec<Transaction>,
+    pub slot: u64,
+    pub block_height: u64,
+    pub block_time: i64,
+    pub transactions: Vec<Transaction>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
-  pub index: u32,
-  pub signature: String,
-  pub payer: String,
-  pub balances: Vec<TransactionBalance>,
-  pub instructions: Vec<TransactionInstruction>,
+    pub index: u32,
+    pub signature: String,
+    pub payer: String,
+    pub balances: Vec<TransactionBalance>,
+    pub instructions: Vec<TransactionInstruction>,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionBalance {
-  pub account: String,
-  #[serde(deserialize_with = "deserialize_u64")]
-  pub pre: u64,
-  #[serde(deserialize_with = "deserialize_u64")]
-  pub post: u64,
+    pub account: String,
+    #[serde(deserialize_with = "deserialize_u64")]
+    pub pre: u64,
+    #[serde(deserialize_with = "deserialize_u64")]
+    pub post: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TransactionInstruction {
-  pub name: String,
-  pub payload: Value,
+    pub name: String,
+    pub payload: Value,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone)]
+pub struct ParsedInstruction {
+    pub signature: String,
+    pub instruction_type: String,
+    pub pool_address: String,
+    pub swap_a_ab: bool,
+    pub fee_rate: i16,
+    pub amount_in: i64,
+    pub amount_out: i64,
+    pub tick_spacing: i16,
+    pub sqrt_price_pre: i64,
+    pub sqrt_price_post: i64,
+    pub token_a: String,
+    pub token_b: String,
+    pub price: String,
+    pub date_time: String,
 }

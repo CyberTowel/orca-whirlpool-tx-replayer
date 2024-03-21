@@ -1,0 +1,383 @@
+mod replay_saver;
+use anchor_client::{self, Cluster};
+use anchor_lang::solana_program::pubkey::Pubkey;
+use clap::Parser;
+use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
+// use mpl_token_metadata::accounts::Metadata;
+use anchor_lang::prelude::AccountInfo;
+use mpl_token_metadata::{
+    assertions::metadata,
+    metadata_seeds,
+    pda::find_metadata_account,
+    state::{Metadata, TokenMetadataAccount},
+};
+use replay_saver::instruction_callback::parse_instruction;
+use solana_account_decoder::{UiAccountEncoding, UiDataSliceConfig};
+use solana_client::{
+    rpc_client::RpcClient,
+    rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
+    rpc_filter::{Memcmp, MemcmpEncodedBytes, MemcmpEncoding, RpcFilterType},
+};
+use solana_program::{bpf_loader, bpf_loader_upgradeable};
+use solana_sdk::{
+    account_info,
+    program_error::ProgramError,
+    signature::Keypair,
+    signer::Signer,
+    transaction::{Transaction, VersionedTransaction},
+};
+use std::rc::Rc;
+use tokio::task::JoinSet;
+use tokio_postgres::{Error, NoTls};
+use whirlpool_replayer::{ReplayUntil, SlotCallback, WhirlpoolReplayer};
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[clap(long, id = "directory")]
+    cache_dir: Option<String>,
+
+    #[clap(short, long, id = "filename")]
+    save_as: Option<String>,
+
+    #[clap(long, id = "slot")]
+    stop_slot: Option<u64>,
+
+    #[clap(long, id = "lieke")]
+    lieke: Option<String>,
+
+    #[clap(long, id = "blockHeight")]
+    stop_block_height: Option<u64>,
+
+    #[clap(long, id = "blockTime")]
+    stop_block_time: Option<i64>,
+
+    #[clap(id = "path|url")]
+    storage: String,
+
+    #[clap(id = "yyyymmdd")]
+    yyyymmdd: String,
+}
+
+fn create_pool() -> Pool {
+    // let mut cfg = Config::new();
+    let mut pg_config = tokio_postgres::Config::new();
+    pg_config.host("static.236.19.181.135.clients.your-server.de");
+    // cfg.host(pg_config.host_path("/run/postgresql"););
+    pg_config.user("postgres");
+    pg_config.password("JD*kFWVQ3ZK4f9Q");
+    pg_config.dbname("sol_whirlpool_execs");
+    let mgr_config = ManagerConfig {
+        recycling_method: RecyclingMethod::Fast,
+    };
+    let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
+    let pool = Pool::builder(mgr).max_size(16).build().unwrap();
+    return pool;
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Error> {
+    let args = Args::parse();
+
+    let token_address = "7BgBvyjrZX1YKz4oh9mjb8ZScatkkwb8DzFx7LoiVkM3";
+
+    // const SPL_TOKEN_PROGRAM_ID: Pubkey =
+    //     solana_program::pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
+    // 8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR
+
+    // 2SYZWm9WeCXb7LBX7dqXgk1dfF5Xa7wJobDSLos8urXp
+
+    // CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J
+    const SPL_TOKEN_PROGRAM_ID: Pubkey =
+        solana_program::pubkey!("2SYZWm9WeCXb7LBX7dqXgk1dfF5Xa7wJobDSLos8urXp");
+
+    println!("SPL_TOKEN, {}", SPL_TOKEN_PROGRAM_ID.to_string());
+
+    // let anchor = anchor_client::Client::new_with_options(
+    //     anchor_client::Cluster::Localnet,
+    //     std::rc::Rc::new(Keypair::new()),
+    //     solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+    // );
+
+    let cluster = Cluster::Mainnet;
+
+    let client = anchor_client::Client::new_with_options(
+        cluster,
+        std::rc::Rc::new(Keypair::new()),
+        solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+    );
+
+    let testing = client.program(SPL_TOKEN_PROGRAM_ID);
+
+    let dolar = testing.unwrap();
+
+    let (asdfasdfe, test2adf) = find_metadata_account(&SPL_TOKEN_PROGRAM_ID);
+
+    println!("tadsfsdf {:?}", asdfasdfe);
+
+    // let adfadsf = metadata_seeds!();
+
+    // let testingDolar = dolar.
+
+    // let ixs = testing.unwrap().request();
+
+    // let dolar = ixs
+    //     .get_account_with_commitment(
+    //         &SPL_TOKEN_PROGRAM_ID,
+    //         filters,
+    //         solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+    //     )
+    //     .await
+    //     .unwrap();
+
+    // client.program(program_id);
+
+    let connection = RpcClient::new_with_commitment(
+        // cluster,
+        "https://solana-mainnet.api.syndica.io/api-token/31LXqG31wuwf82G821o7odUPqZnuxHjkaeCtsbDmVFyorPVtZgcTt3fd9to6CNEaMMRHMwJHASa4WQsttc15zhLwnLbZ8qNTQxekxymxfhSFzda3mhpp4F95xLmZKqjPueVMBWCdYUA32dPCjm8w9SzSebRWtmocZVs1m9KsbFq4MGvgsKtxYJvc86QEqJtdzcn82BVcpsXV7Cmbr4oL3j37yyi8RfLGCDdoQo2mUKC8xDPocCB4rMsb8PM7JB8kLsPWEdCeGsfwb66wBMVGyT8zr9fZsB6fxJvMjgP5W1xyL2BnCVRZ1dotGawiwung88pxuy84o1tpTpmJWHqwFdxHKCWQwxXeJysZ81DzCY3X9nVdxbMpUnz9tJVzFMSwxNomKFT925ogVNgYHYzV2TCBYSKyj53s8xiKZU6X4nAGXFkpTRXGHbnAvi8cRB9cPXaQyc2Yad6GxUeCTyPQqPJ8fZ8gHZmPCF9UKv836Ao93AawumPL1e4RdLScW".to_string(),
+        solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+    );
+
+    // let filters = Some(vec![
+    //     RpcFilterType::Memcmp(Memcmp {
+    //         offset: 32,
+    //         bytes: MemcmpEncodedBytes::Base58(MY_WALLET_ADDRESS.to_string()),
+    //         encoding: Some(MemcmpEncoding::Binary),
+    //     }),
+    //     RpcFilterType::DataSize(165),
+    // ]);
+    // let filters = Some(vec![
+    //     // RpcFilterType::Memcmp(Memcmp {
+    //     //     offset: 32,
+    //     //     bytes: MemcmpEncodedBytes::Base58(token_address.to_string()),
+    //     //     encoding: Some(MemcmpEncoding::Binary),
+    //     // }),
+    //     RpcFilterType::DataSize(165),
+    // ]);
+
+    // let accounts = connection
+    //     .get_program_accounts_with_config(
+    //         &SPL_TOKEN_PROGRAM_ID,
+    //         RpcProgramAccountsConfig {
+    //             filters,
+    //             account_config: RpcAccountInfoConfig {
+    //                 data_slice: Some(UiDataSliceConfig {
+    //                     offset: 0, // number of bytes
+    //                     length: 0, // number of bytes
+    //                 }),
+    //                 encoding: Some(UiAccountEncoding::Base64),
+    //                 commitment: Some(connection.commitment()),
+    //                 ..RpcAccountInfoConfig::default()
+    //             },
+    //             ..RpcProgramAccountsConfig::default()
+    //         },
+    //     )
+    //     .unwrap();
+
+    // let testingAccount = testing
+    //     .get_account_with_commitment(
+    //         &SPL_TOKEN_PROGRAM_ID,
+    //         filters,
+    //         solana_sdk::commitment_config::CommitmentConfig::confirmed(),
+    //     )
+    //     .await
+    //     .unwrap();
+
+    //         let connection = RpcClient::new_with_commitment(
+    // ::get_account(&connection, SPL_TOKEN_PROGRAM_ID, filters)
+    //         .await
+    //         .unwrap();
+
+    let mut testingAccount = connection.get_account(&asdfasdfe);
+
+    let mut dolar = connection.get_token_account_balance(&SPL_TOKEN_PROGRAM_ID);
+
+    println!("dolar adfas asdfsadfasd adfs a: {:?}", dolar);
+
+    const SPL_TOKEN_PROGRAM_ID_2: Pubkey =
+        solana_program::pubkey!("CrvdFVNXk17q6iSpm1j3in7ZGHgtpkABu9P5P1kZPxun");
+
+    let doalradsfsd = connection.get_token_supply(&SPL_TOKEN_PROGRAM_ID_2);
+
+    println!("balance accounts: {:?}", doalradsfsd);
+
+    return Ok(());
+
+    let mut unrwapeed = testingAccount.unwrap();
+
+    let adf = AccountInfo::new(
+        &SPL_TOKEN_PROGRAM_ID,
+        false,
+        false,
+        &mut unrwapeed.lamports,
+        &mut unrwapeed.data,
+        &mut unrwapeed.owner,
+        true,
+        unrwapeed.rent_epoch,
+    );
+
+    println!("adf: {:?}", adf);
+
+    let metadata: Result<Metadata, ProgramError> = Metadata::from_account_info(&adf);
+    // let metadata = match metadata {
+    //     Ok(metadata) => metadata,
+    //     Err(err) => {
+    //         println!("Error: {:?}", err);
+    //         // return Err((Error(err)));
+    //     }
+    // };
+    println!("metadata : {:#?}", metadata);
+    println!("metadata2 : {:#?}", adf);
+    return Ok(());
+    // println!("accounts tester : {:?}", unrwapeed);
+
+    // let program = client.program(SPL_TOKEN_PROGRAM_ID);
+
+    // let accounts = client
+    //     .get_program_accounts_with_config(
+    //         &spl_token::ID,
+    //         RpcProgramAccountsConfig {
+    //             filters,
+    //             account_config: RpcAccountInfoConfig {
+    //                 encoding: Some(UiAccountEncoding::Base64),
+    //                 commitment: Some(connection.commitment()),
+    //                 ..RpcAccountInfoConfig::default()
+    //             },
+    //             ..RpcProgramAccountsConfig::default()
+    //         },
+    //     )
+    //     .unwrap();
+
+    // println!("testingDolar: {:?}", program.get_name().await);
+
+    // return Ok(());
+
+    println!("args: {:?}", args.lieke);
+
+    let base_path_or_url: String = args.storage;
+    let yyyymmdd: String = args.yyyymmdd;
+
+    let until_condition = if args.stop_slot.is_some() {
+        ReplayUntil::Slot(args.stop_slot.unwrap())
+    } else if args.stop_block_height.is_some() {
+        ReplayUntil::BlockHeight(args.stop_block_height.unwrap())
+    } else if args.stop_block_time.is_some() {
+        ReplayUntil::BlockTime(args.stop_block_time.unwrap())
+    } else {
+        ReplayUntil::End
+    };
+
+    let slot_callback: Option<SlotCallback> = Some(|_slot| {
+        println!(
+            "processing slot: {} (block_height={} block_time={}) ...",
+            _slot.slot, _slot.block_height, _slot.block_time
+        );
+    });
+
+    let mut replayer = if base_path_or_url.starts_with("https://") {
+        if args.cache_dir.is_some() {
+            let cache_dir = args.cache_dir.unwrap();
+            WhirlpoolReplayer::build_with_remote_file_storage_with_local_cache(
+                &base_path_or_url,
+                &yyyymmdd,
+                &cache_dir,
+                false,
+            )
+        } else {
+            WhirlpoolReplayer::build_with_remote_file_storage(&base_path_or_url, &yyyymmdd)
+        }
+    } else {
+        WhirlpoolReplayer::build_with_local_file_storage(&base_path_or_url, &yyyymmdd)
+    };
+
+    replayer.replay(until_condition, slot_callback, parse_instruction);
+
+    println!("Whirlpool replayer finished ...");
+
+    let pool = create_pool();
+
+    let mut instructions_to_save = JoinSet::new();
+
+    if (args.lieke == Some("test".to_string())) {
+        println!("Dont in database");
+        return Ok(());
+    }
+
+    println!("save in database");
+
+    for instruction in replayer.parsed_instructions {
+        let pool_inner = pool.clone();
+        instructions_to_save.spawn(async move {
+            let client = pool_inner.get().await.unwrap();
+
+            // tick_spacing_pre,
+            // tick_spacing_post
+            // $4::SMALLINT,
+            // $4::SMALLINT
+            let stmt = client
+                .prepare_cached(
+                    "INSERT INTO sol_whirlpool_events (
+                    signature, 
+                    tick_spacing, 
+                    instruction_type, 
+                    fee_rate, 
+                    pool_address, 
+                    amount_in, 
+                    amount_out,
+                    sqrt_price_pre, 
+                    sqrt_price_post, 
+                    token_a, 
+                    token_b,
+                    price_formatted
+            ) VALUES ($1::TEXT, 
+                    $2::SMALLINT, 
+                    $3::TEXT, 
+                    $4::SMALLINT, 
+                    $5::TEXT,
+                    $6::BIGINT, 
+                    $7::BIGINT,
+                    $8::BIGINT,
+                    $9::BIGINT, 
+                    $10::TEXT,
+                    $11::TEXT,
+                    $12::TEXT
+                    )",
+                )
+                .await
+                .unwrap();
+
+            client
+                .query(
+                    &stmt,
+                    &[
+                        &instruction.signature,
+                        &instruction.tick_spacing,
+                        &instruction.instruction_type,
+                        &instruction.fee_rate,
+                        &instruction.pool_address,
+                        &instruction.amount_in,
+                        &instruction.amount_out,
+                        &instruction.sqrt_price_pre,
+                        &instruction.sqrt_price_post,
+                        &instruction.token_a,
+                        &instruction.token_b,
+                        &instruction.price,
+                    ],
+                )
+                .await
+                .unwrap();
+
+            instruction.signature
+        });
+    }
+
+    let mut crawled_signatures: Vec<String> = Vec::new();
+
+    while let Some(res) = instructions_to_save.join_next().await {
+        let idx = res.unwrap();
+        crawled_signatures.push(idx);
+    }
+
+    println!("saved, {} items", crawled_signatures.len());
+
+    Ok(())
+}

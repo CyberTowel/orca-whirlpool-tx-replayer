@@ -13,7 +13,7 @@ pub mod io;
 pub mod schema;
 pub mod util;
 
-use schema::{Transaction, WhirlpoolTransaction};
+use schema::{ParsedInstruction, Transaction, WhirlpoolTransaction};
 use tokio::sync::Mutex;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -33,23 +33,26 @@ pub type InstructionCallback = fn(
     &DecodedWhirlpoolInstruction,
     &AccountMap,
     &ReplayInstructionResult,
+    &mut Vec<ParsedInstruction>,
 );
 
 pub type AsyncSlotCallback = Box<dyn Fn(&Slot) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send>;
 pub type AsyncInstructionCallback = Box<
     dyn Fn(
-        &Slot,
-        &Transaction,
-        &String,
-        &DecodedWhirlpoolInstruction,
-        &AccountMap,
-        &ReplayInstructionResult
-    ) -> Pin<Box<dyn 'static + Future<Output = ()> + Send>> + Send
+            &Slot,
+            &Transaction,
+            &String,
+            &DecodedWhirlpoolInstruction,
+            &AccountMap,
+            &ReplayInstructionResult,
+        ) -> Pin<Box<dyn 'static + Future<Output = ()> + Send>>
+        + Send,
 >;
 
 pub struct WhirlpoolReplayer {
     replay_engine: ReplayEngine,
     transaction_iter: Box<dyn Iterator<Item = WhirlpoolTransaction> + Send>,
+    pub parsed_instructions: Vec<ParsedInstruction>,
 }
 
 impl WhirlpoolReplayer {
@@ -82,9 +85,12 @@ impl WhirlpoolReplayer {
             util::convert_accounts_to_account_map(&state.accounts),
         );
 
+        let parsed_instructions: Vec<ParsedInstruction> = Vec::new();
+
         return WhirlpoolReplayer {
             replay_engine,
             transaction_iter: Box::new(transaction_iter),
+            parsed_instructions: parsed_instructions,
         };
     }
 
@@ -115,9 +121,12 @@ impl WhirlpoolReplayer {
             util::convert_accounts_to_account_map(&state.accounts),
         );
 
+        let parsed_instructions: Vec<ParsedInstruction> = Vec::new();
+
         return WhirlpoolReplayer {
             replay_engine,
             transaction_iter: Box::new(transaction_iter),
+            parsed_instructions: parsed_instructions,
         };
     }
 
@@ -161,9 +170,12 @@ impl WhirlpoolReplayer {
             util::convert_accounts_to_account_map(&state.accounts),
         );
 
+        let parsed_instructions: Vec<ParsedInstruction> = Vec::new();
+
         return WhirlpoolReplayer {
             replay_engine,
             transaction_iter: Box::new(transaction_iter),
+            parsed_instructions: parsed_instructions,
         };
     }
 
@@ -183,7 +195,8 @@ impl WhirlpoolReplayer {
         &mut self,
         cond: ReplayUntil,
         slot_callback: Option<SlotCallback>,
-        instruction_callback: Option<InstructionCallback>,
+        // instruction_callback: Option<InstructionCallback>,
+        instruction_callback: InstructionCallback,
     ) {
         let mut next_whirlpool_transaction = self.transaction_iter.next();
         while next_whirlpool_transaction.is_some() {
@@ -227,16 +240,17 @@ impl WhirlpoolReplayer {
                                 .replay_instruction(&whirlpool_instruction)
                                 .unwrap();
 
-                            if let Some(callback) = instruction_callback {
-                                callback(
-                                    &slot,
-                                    &transaction,
-                                    &name,
-                                    &whirlpool_instruction,
-                                    self.replay_engine.get_accounts(),
-                                    &result,
-                                );
-                            }
+                            // if let Some(callback) = instruction_callback {
+                            instruction_callback(
+                                &slot,
+                                &transaction,
+                                &name,
+                                &whirlpool_instruction,
+                                self.replay_engine.get_accounts(),
+                                &result,
+                                &mut self.parsed_instructions,
+                            );
+                            // }
                         }
                     }
                 }
@@ -306,7 +320,8 @@ impl WhirlpoolReplayer {
                                     &name,
                                     &whirlpool_instruction,
                                     &accounts,
-                                    &result);
+                                    &result,
+                                );
                                 c.await;
                             }
                         }
@@ -317,7 +332,6 @@ impl WhirlpoolReplayer {
             next_whirlpool_transaction = self.transaction_iter.next();
         }
     }
-
 }
 
 fn has_reached_until_condition(cond: &ReplayUntil, slot: Slot) -> bool {
