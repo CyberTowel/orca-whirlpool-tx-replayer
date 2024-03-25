@@ -129,13 +129,15 @@ pub mod raydium {
 
         let item: PriceDbItem = PriceDbItem {
             price: price.to_string(),
-            datetime: "testing".to_string(),
+            datetime: DateTime::from_timestamp(testing_blocktime, 0)
+                .unwrap()
+                .to_string(),
             signature: signature.to_string(),
             token_a_amount: amount_token_a_test.to_string(),
             token_b_amount: amount_token_b_test.to_string(),
             pool_address: "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR".to_string(),
-            token_a_address: "S".to_string(),
-            token_b_address: "".to_string(),
+            token_a_address: "So11111111111111111111111111111111111111112".to_string(),
+            token_b_address: "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J".to_string(),
         };
 
         return item;
