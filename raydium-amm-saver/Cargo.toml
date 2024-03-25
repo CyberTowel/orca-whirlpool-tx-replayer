@@ -1,0 +1,27 @@
+[package]
+name = "raydium-amm-saver"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-postgres = "0.7.10"
+# rust_decimal = "1.34"
+rust_decimal = {version = "1.34.3", features=  ["maths"] }
+rust_decimal_macros = "1.34"
+clap = { workspace = true }
+whirlpool_base = { workspace = true }
+anchor-lang = { workspace = true }
+deadpool-postgres = "0.12.1"
+# Struct sqlx::types::Decimal
+solana-program = "=1.16.18"
+anchor-client = "0.29.0"
+solana-sdk = "=1.16.18"
+solana-client = "=1.16.18"
+solana-transaction-status = "=1.16.18"
+solana-account-decoder = "=1.16.18"
+mpl-token-metadata = { version = "1.9.0", features = ["no-entrypoint"] }
+chrono = "0.4.35"
+
+# internal
+whirlpool-replayer = { path = "../replayer" }

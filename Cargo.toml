@@ -3,7 +3,8 @@ members = [
   "replay-engine",
   "replayer",
  ## "whirlpool-replay-command",
-  "whirlpool-replay-saver"
+  "whirlpool-replay-saver", 
+  "raydium-amm-saver"
 ]
 
 resolver = "2"
