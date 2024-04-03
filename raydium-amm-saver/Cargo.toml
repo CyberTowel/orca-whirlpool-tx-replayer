@@ -5,9 +5,9 @@ edition = { workspace = true }
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-tokio-postgres = "0.7.10"
+tokio-postgres = { version = "0.7.10", features=["with-chrono-0_4"]}
 # rust_decimal = "1.34"
-rust_decimal = {version = "1.34.3", features=  ["maths"] }
+rust_decimal = {version = "1.34.3", features = ["maths", "db-postgres"] }
 rust_decimal_macros = "1.34"
 clap = { workspace = true }
 whirlpool_base = { workspace = true }
@@ -27,3 +27,5 @@ whirlpool-replayer = { path = "../replayer" }
 async-trait = "0.1.79"
 arl = "0.2.0"
 deadpool-postgres = "0.12.1"
+num = "0.4.1"
+num-bigfloat = "1.7.1"

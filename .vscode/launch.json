@@ -1,0 +1,112 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'replay-engine'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=replay-engine"],
+        "filter": {
+          "name": "replay-engine",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'whirlpool-replayer'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=whirlpool-replayer"],
+        "filter": {
+          "name": "whirlpool-replayer",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'whirlpool-replay-saver'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=whirlpool-replay-saver",
+          "--package=whirlpool-replay-saver"
+        ],
+        "filter": {
+          "name": "whirlpool-replay-saver",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'whirlpool-replay-saver'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--bin=whirlpool-replay-saver",
+          "--package=whirlpool-replay-saver"
+        ],
+        "filter": {
+          "name": "whirlpool-replay-saver",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'raydium-amm-saver'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=raydium-amm-saver",
+          "--package=raydium-amm-saver"
+        ],
+        "filter": {
+          "name": "raydium-amm-saver",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'raydium-amm-saver'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--bin=raydium-amm-saver",
+          "--package=raydium-amm-saver"
+        ],
+        "filter": {
+          "name": "raydium-amm-saver",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
