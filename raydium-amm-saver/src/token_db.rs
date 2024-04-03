@@ -1,14 +1,11 @@
-use std::{str::FromStr, sync::Arc};
-
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDateTime, Utc};
 use deadpool::managed::RecycleResult;
 use deadpool::managed::{self, Metrics, Pool};
 use deadpool_postgres::Manager;
-use deadpool_postgres::{ManagerConfig, RecyclingMethod};
 use rust_decimal::Decimal;
-use std::io::{Error, ErrorKind};
-use tokio_postgres::{types::Timestamp, Error as TPError};
+use std::{str::FromStr, sync::Arc};
+use tokio_postgres::Error as TPError;
 
 use crate::raydium_saver::pg_saving::create_db_pool;
 
@@ -39,7 +36,11 @@ impl managed::Manager for DbClientPoolManager {
         ))
     }
 
-    async fn recycle(&self, obj: &mut Self::Type, metrics: &Metrics) -> RecycleResult<Self::Error> {
+    async fn recycle(
+        &self,
+        _obj: &mut Self::Type,
+        _metrics: &Metrics,
+    ) -> RecycleResult<Self::Error> {
         Ok(())
     }
 }
@@ -56,7 +57,7 @@ pub type RpcPool = managed::Pool<TokenDbClient>;
 pub struct DbTokenTesterInner {
     // pool: Option<Arc<DbTokenTester>>,
     // runtime: Option<tokio::runtime::Runtime>,
-    sender: Box<dyn RpcSender + Send + Sync>,
+    _sender: Box<dyn RpcSender + Send + Sync>,
 }
 
 // pub trait Clone: Sized {
@@ -70,7 +71,7 @@ pub struct DbTokenTesterInner {
 pub struct DbTokenMethods {
     // pool: Option<Pool<Manager>>,
     // runtime: Option<tokio::runtime::Runtime>,
-    sender: Arc<DbTokenTesterInner>,
+    _sender: Arc<DbTokenTesterInner>,
 }
 
 pub struct TokenDbClient {
@@ -86,7 +87,7 @@ impl Drop for TokenDbClient {
 }
 
 impl DbTokenMethods {
-    pub async fn send(&self, testing: bool) -> Result<bool, TPError> {
+    pub async fn send(&self, _testing: bool) -> Result<bool, TPError> {
         let url = "testing";
         println!("url: {}", url);
         Ok(true)
@@ -135,11 +136,6 @@ impl TokenDbClient {
 
         return result;
 
-        // println!("result: {:?}", result);
-    }
-
-    pub fn test_sender(&self, testing: bool) {
-        let result = self.invoke(self.test_sender_inn(testing));
         // println!("result: {:?}", result);
     }
 
@@ -236,7 +232,7 @@ impl DbTokenMethods {
         Self {
             // pool: None,
             // pool: None,
-            sender: Arc::new(DbTokenTesterInner::new_sender_inner(sender)),
+            _sender: Arc::new(DbTokenTesterInner::new_sender_inner(sender)),
         }
     }
 
@@ -252,7 +248,7 @@ impl DbTokenMethods {
 impl DbTokenTesterInner {
     pub fn new_sender_inner<T: RpcSender + Send + Sync + 'static>(sender: T) -> Self {
         Self {
-            sender: Box::new(sender),
+            _sender: Box::new(sender),
             // pool: None,
         }
     }

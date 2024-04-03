@@ -1,10 +1,6 @@
 pub mod instruction_callback {
-
     use anchor_lang::AccountDeserialize;
-    use clap::Error;
     use mpl_token_metadata::{
-        assertions::metadata,
-        metadata_seeds,
         pda::find_metadata_account,
         state::{Metadata, TokenMetadataAccount},
     };
@@ -201,7 +197,7 @@ pub mod instruction_callback {
         decimals_a: u8,
         decimals_b: u8,
     ) -> String {
-        if (decimals_b > decimals_a) {
+        if decimals_b > decimals_a {
             return "0".to_string();
         }
         let sqrt_price_x64_decimal = Decimal::from_str(&sqrt_price_x64.to_string()).unwrap();
@@ -250,16 +246,16 @@ pub mod instruction_callback {
         return doalradsfsd.unwrap().decimals;
     }
 
-    pub fn get_token_metadata(connection: &RpcClient, token: &str) -> Metadata {
+    pub fn _get_token_metadata(connection: &RpcClient, token: &str) -> Metadata {
         let pub_key = Pubkey::from_str(token).unwrap();
 
         let spl_token_program_id: Pubkey = solana_program::pubkey!(pub_key);
 
         let (meta_data_account, _other) = find_metadata_account(&spl_token_program_id);
 
-        let mut testingAccount = connection.get_account(&meta_data_account);
+        let testing_account = connection.get_account(&meta_data_account);
 
-        let mut account_info = testingAccount.unwrap();
+        let mut account_info = testing_account.unwrap();
 
         let adf = AccountInfo::new(
             &pub_key,

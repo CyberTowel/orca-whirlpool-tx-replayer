@@ -1,33 +1,9 @@
 mod replay_saver;
-use anchor_client::{self, Cluster};
-// use anchor_lang::solana_program::pubkey::Pubkey;
 use clap::Parser;
 use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
-// use mpl_token_metadata::accounts::Metadata;
-use anchor_lang::prelude::AccountInfo;
-use mpl_token_metadata::{
-    assertions::metadata,
-    metadata_seeds,
-    pda::find_metadata_account,
-    state::{Metadata, TokenMetadataAccount},
-};
 use replay_saver::instruction_callback::parse_instruction;
-use solana_account_decoder::{UiAccountEncoding, UiDataSliceConfig};
-use solana_client::{
-    rpc_client::RpcClient,
-    rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
-    rpc_filter::{Memcmp, MemcmpEncodedBytes, MemcmpEncoding, RpcFilterType},
-};
-use solana_program::{bpf_loader, bpf_loader_upgradeable};
-use solana_sdk::{
-    account_info,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    signature::Keypair,
-    signer::Signer,
-    transaction::{Transaction, VersionedTransaction},
-};
-use std::{collections::HashMap, rc::Rc, str::FromStr};
+use solana_client::rpc_client::RpcClient;
+use std::collections::HashMap;
 use tokio::task::JoinSet;
 use tokio_postgres::{Error, NoTls};
 use whirlpool_replayer::{ReplayUntil, SlotCallback, WhirlpoolReplayer};
@@ -81,7 +57,7 @@ fn create_pool() -> Pool {
 async fn main() -> Result<(), Error> {
     let args = Args::parse();
 
-    let token_address = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
+    // let token_address = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
 
     let rpc_connection = RpcClient::new_with_commitment(
         // cluster,
@@ -191,7 +167,7 @@ async fn main() -> Result<(), Error> {
         // println!("testing, {:#?}", price);
     }
 
-    if (args.lieke == Some("test".to_string())) {
+    if args.lieke == Some("test".to_string()) {
         println!("Dont in database");
         return Ok(());
     }
