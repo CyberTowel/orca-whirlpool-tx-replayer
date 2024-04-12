@@ -26,12 +26,17 @@ pub fn parser_transaction(
 
     let transaction_parsed = Transaction::new(&transaction);
 
+    let pool_coin_token_account = "Ffo9MEhfH5tBBkZMi1vWVpZLqmbDKvEWJhW3XyMQz4QY";
+    let amm_target_orders = "EM9ebwJyrenPmgXQyn9aR5X2tiJssrVPwLSZXxmg2dLy";
+
     let token_amounts = get_token_amounts(
         &transaction,
         &transaction_parsed.account_keys,
         &transaction_parsed.ubo,
         &transaction_parsed.token_a_address,
         &transaction_parsed.token_b_address,
+        &pool_coin_token_account,
+        &amm_target_orders,
     );
 
     let price_token_a_18 = db_client
@@ -78,15 +83,15 @@ pub fn parser_transaction(
     //         "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR".to_string(),
     //     );
 
-    //     println!(
-    //         "
+    // println!(
+    //     "
     // ---- token amounts ----
     // {:#?}
 
     // ---- token amounts USD ----
     // {:#?} ",
-    //         token_amounts, token_amounts_usd
-    //     );
+    //     token_amounts, token_amounts_usd
+    // );
 
     let item_to_save = PriceItem {
         signature: signature.to_string(),

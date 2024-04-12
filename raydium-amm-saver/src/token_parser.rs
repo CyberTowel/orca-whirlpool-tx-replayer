@@ -35,17 +35,28 @@ pub fn get_token_amounts(
     ubo: &str,
     token_a_address: &str,
     token_b_address: &str,
+    token_a_taa: &str,
+    token_b_taa: &str,
 ) -> TokenAmountsSwap {
-    let token_changes_by_wallet = parse_balance_changes(rpc_transaction, account_keys);
+    let (token_changes_by_wallet, changes_by_token_account_address) =
+        parse_balance_changes(rpc_transaction, account_keys);
 
     let token_changes_ubo = token_changes_by_wallet.get(ubo).unwrap();
-    let token_changes_pool = token_changes_by_wallet.get(RAYDIUM_AUTHORITY).unwrap();
+    let token_changes_pool_old = token_changes_by_wallet.get(RAYDIUM_AUTHORITY).unwrap();
+
+    let token_changes_pool_new_a = changes_by_token_account_address.get(token_a_taa).unwrap();
+    let token_changes_pool_new_b = changes_by_token_account_address.get(token_b_taa).unwrap();
+
+    let token_changes_pool = merge_hashmap(
+        token_changes_pool_new_a.clone(),
+        token_changes_pool_new_b.clone(),
+    );
 
     let token_amounts_a =
-        parse_token_amounts(token_changes_ubo, token_changes_pool, token_a_address);
+        parse_token_amounts(token_changes_ubo, &token_changes_pool, token_a_address);
 
     let token_amounts_b =
-        parse_token_amounts(token_changes_ubo, token_changes_pool, token_b_address);
+        parse_token_amounts(token_changes_ubo, &token_changes_pool, token_b_address);
 
     let token_b_price_rel = BigFloat::from_i64(token_amounts_a.amount_total_pool)
         / BigFloat::from_i64(token_amounts_b.amount_total_pool);
@@ -73,10 +84,45 @@ pub fn get_token_amounts(
     return token_amounts_swap;
 }
 
+fn merge_hashmap(
+    mut map1: HashMap<std::string::String, BalanceChange>,
+    map2: HashMap<std::string::String, BalanceChange>,
+) -> HashMap<std::string::String, BalanceChange> {
+    for (item, change) in map2.clone().into_iter() {
+        if map1.contains_key(&item) {
+            let existing = map1.get(&item).unwrap();
+            let new_balance = change.balance_post;
+            let new_diff = change.difference;
+
+            let new_balance_post = existing.balance_post + new_balance;
+            let new_diff_post = existing.difference + new_diff;
+
+            let new_change = BalanceChange {
+                balance_pre: existing.balance_pre,
+                balance_post: new_balance_post,
+                difference: new_diff_post,
+                mint: existing.mint.clone(),
+                owner: existing.owner.clone(),
+            };
+
+            map1.insert(item, new_change);
+        } else {
+            map1.insert(item, change);
+        }
+    }
+
+    return map1;
+
+    // map1.into_iter().chain(map2).collect()
+}
+
 pub fn parse_balance_changes(
     transaction: &EncodedConfirmedTransactionWithStatusMeta,
     account_keys: &Vec<Value>,
-) -> HashMap<std::string::String, HashMap<std::string::String, BalanceChange>> {
+) -> (
+    HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>,
+    HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>,
+) {
     let post_balances = transaction.transaction.clone().meta.unwrap().post_balances;
     let pre_balances = transaction.transaction.clone().meta.unwrap().pre_balances;
 
@@ -98,18 +144,43 @@ pub fn parse_balance_changes(
 
     let mut changes_by_owner: HashMap<String, HashMap<String, BalanceChange>> = HashMap::new();
 
+    let mut changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChange>> =
+        HashMap::new();
+
     for balance in post_token_balances.unwrap() {
         let owner: Option<String> = balance.owner.clone().into();
         let mint = balance.mint.clone();
         let amount = balance.ui_token_amount.amount;
         let owner_address = owner.unwrap();
 
+        let index_usize = balance.account_index.to_usize().unwrap();
+        // println!(
+        //     "post_balances account index: {:#?}, address at index {:#?}",
+        //     balance``.account_index, account_keys[index_usize]
+        // );
+
+        let pub_key_token_address = account_keys[index_usize]["pubkey"].as_str().unwrap();
+
         let owner_entry = changes_by_owner.entry(owner_address.clone());
         let token_entry = owner_entry.or_default().entry(mint.clone());
+
+        let token_account_address_entry =
+            changes_by_token_account_address.entry(pub_key_token_address.to_string());
+
+        let token_entry_token_account_address =
+            token_account_address_entry.or_default().entry(mint.clone());
 
         let amount_64 = amount.parse::<i64>().unwrap();
 
         *token_entry.or_default() = BalanceChange {
+            balance_pre: 0,
+            balance_post: amount_64,
+            difference: 0,
+            mint: mint.clone(),
+            owner: owner_address.clone(),
+        };
+
+        *token_entry_token_account_address.or_default() = BalanceChange {
             balance_pre: 0,
             balance_post: amount_64,
             difference: 0,
@@ -124,15 +195,30 @@ pub fn parse_balance_changes(
         let amount = balance.ui_token_amount.amount;
         let owner_address = owner.unwrap();
 
+        let index_usize = balance.account_index.to_usize().unwrap();
+        let pub_key_token_address = account_keys[index_usize]["pubkey"].as_str().unwrap();
+
         let owner_entry = changes_by_owner.entry(owner_address);
         let token_entry = owner_entry.or_default().entry(mint.clone());
+
+        let token_account_address_entry =
+            changes_by_token_account_address.entry(pub_key_token_address.to_string());
+
+        let token_entry_token_account_address =
+            token_account_address_entry.or_default().entry(mint.clone());
 
         let amount_64 = amount.parse::<i64>().unwrap();
 
         let existing_entry = token_entry.or_default();
 
+        let existing_entry_token_account = token_entry_token_account_address.or_default();
+
         existing_entry.balance_pre = amount_64;
         existing_entry.difference = existing_entry.balance_post - amount_64;
+
+        existing_entry_token_account.balance_pre = amount_64;
+        existing_entry_token_account.difference =
+            existing_entry_token_account.balance_post - amount_64;
     }
 
     for (index, account_key) in account_keys.iter().enumerate() {
@@ -152,10 +238,19 @@ pub fn parse_balance_changes(
         let owner_entry = changes_by_owner.entry(pubkey.to_string());
         let token_entry = owner_entry.or_default().entry("sol".to_string());
 
-        *token_entry.or_default() = item;
+        let token_account_address_entry =
+            changes_by_token_account_address.entry(pubkey.to_string());
+
+        let token_entry_token_account_address = token_account_address_entry
+            .or_default()
+            .entry("sol".to_string());
+
+        *token_entry.or_default() = item.clone();
+
+        *token_entry_token_account_address.or_default() = item.clone();
     }
 
-    return changes_by_owner;
+    return (changes_by_owner, changes_by_token_account_address);
 }
 
 pub fn get_price(token_b_price_rel: f64, token_a_price: &String) -> Result<(f64, f64), Error> {
@@ -219,20 +314,20 @@ fn parse_token_amounts(
         //
         //
 
-        let native_sol_amount_pool = token_changes_pool.get("sol");
-        let amount_pool = match native_sol_amount_pool {
-            Some(x) => x.balance_post,
-            None => 0,
-        };
+        // let native_sol_amount_pool = token_changes_pool.get("sol");
+        // let amount_pool = match native_sol_amount_pool {
+        //     Some(x) => x.balance_post,
+        //     None => 0,
+        // };
 
-        token_amount_pool += amount_pool;
+        // token_amount_pool += amount_pool;
 
-        let amount_diff_pool_ne = match native_sol_amount_pool {
-            Some(x) => x.difference,
-            None => 0,
-        };
+        // let amount_diff_pool_ne = match native_sol_amount_pool {
+        //     Some(x) => x.difference,
+        //     None => 0,
+        // };
 
-        amount_diff_pool += amount_diff_pool_ne;
+        // amount_diff_pool += amount_diff_pool_ne;
     }
 
     let token_perc_ubo = parse_token_amount_rounded(token_amount_ubo, token_amount_pool);
