@@ -9,13 +9,23 @@ use tokio_postgres::Error as TPError;
 
 use crate::raydium_saver::pg_saving::create_db_pool;
 
-pub fn testing() {
-    println!("Hello World");
-}
+pub fn testing() {}
 
 pub type DbPool = managed::Pool<DbClientPoolManager>;
 
 pub struct DbClientPoolManager {}
+
+#[derive(Debug, Clone)]
+pub struct PriceItem {
+    pub signature: String,
+    pub token_a_address: String,
+    pub token_b_address: String,
+    pub token_a_price_usd: String,
+    pub token_b_price_usd: String,
+    pub token_a_price_usd_formatted: String,
+    pub token_b_price_usd_formatted: String,
+    pub datetime: String,
+}
 
 // pub trait SetDb {
 //     type DbPool;
@@ -89,7 +99,7 @@ impl Drop for TokenDbClient {
 impl DbTokenMethods {
     pub async fn send(&self, _testing: bool) -> Result<bool, TPError> {
         let url = "testing";
-        println!("url: {}", url);
+
         Ok(true)
     }
 }
@@ -132,29 +142,106 @@ impl TokenDbClient {
 
         // let db_connect = self.db_pool.clone();
 
-        let result = self.invoke(self.test_db_inn(transaction_datetime));
+        let result = self.invoke(self.get_usd_price_sol_inn(transaction_datetime));
 
         return result;
 
         // println!("result: {:?}", result);
     }
 
-    pub async fn test_db_inn(&self, transaction_datetime: String) -> DbResult<Decimal> {
-        // let result = self.sender.send(testing).await;
+    pub fn insert_token_price(&self, input: PriceItem) -> Result<(), TPError> {
+        let result = self.invoke(self.insert_token_price_inn(input));
 
-        // let datetime = "2021-10-01T00:00:00Z";
+        return result;
 
-        // println!("{:?}", transaction_datetime);
+        // println!("result: {:?}", result);
+    }
 
+    pub async fn insert_token_price_inn(&self, input: PriceItem) -> Result<(), TPError> {
+        let rolar: DateTime<Utc> = chrono::DateTime::from_str(&input.datetime).unwrap();
+
+        let dolar = self.db_pool.clone();
+        let datetime_param: NaiveDateTime = rolar.naive_utc();
+
+        let db_connect = match dolar {
+            Some(x) => x,
+            None => panic!("No db connection"),
+        };
+
+        let client = db_connect.get().await.unwrap();
+
+        let stmt = client
+            .prepare_cached(
+                "INSERT INTO token_prices (
+            signature, 
+            token_a_address,
+            token_b_address,
+            token_a_price_usd,
+            token_b_price_usd,
+            token_a_price_usd_formatted,
+            token_b_price_usd_formatted,
+            datetime,
+            oracle_id
+    ) VALUES ($1::TEXT, 
+            $2::TEXT, 
+            $3::TEXT, 
+            $4::NUMERIC, 
+            $5::NUMERIC,
+            $6::NUMERIC, 
+            $7::NUMERIC,
+            $8::TIMESTAMP,
+            $9::TEXT
+            ) ON CONFLICT ON CONSTRAINT token_prices_ts_orcacle DO update set
+            token_a_price_usd = excluded.token_a_price_usd,
+            token_b_price_usd = excluded.token_b_price_usd,
+            token_a_price_usd_formatted = excluded.token_a_price_usd_formatted,
+            token_b_price_usd_formatted = excluded.token_b_price_usd_formatted, 
+            crawled = now()::timestamp with time zone
+            ;",
+            )
+            .await
+            .unwrap();
+
+        client
+            .query(
+                &stmt,
+                &[
+                    &input.signature,
+                    &input.token_a_address,
+                    &input.token_b_address,
+                    &Decimal::from_str(&input.token_a_price_usd).unwrap(),
+                    &Decimal::from_str(&input.token_b_price_usd).unwrap(),
+                    &Decimal::from_str(&input.token_a_price_usd_formatted).unwrap(),
+                    &Decimal::from_str(&input.token_b_price_usd_formatted).unwrap(),
+                    &datetime_param,
+                    &"feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
+                ],
+            )
+            .await
+            .unwrap();
+
+        return Ok(());
+    }
+
+    pub async fn test_sender_inn(&self, testing: bool) -> DbResult<bool> {
+        let result = self.sender.send(testing).await;
+
+        return Ok(result.unwrap());
+    }
+
+    fn invoke<T, F: std::future::Future<Output = DbResult<T>>>(&self, f: F) -> DbResult<T> {
+        // `block_on()` panics if called within an asynchronous execution context. Whereas
+        // `block_in_place()` only panics if called from a current_thread runtime, which is the
+        // lesser evil.
+        tokio::task::block_in_place(move || self.runtime.as_ref().expect("runtime").block_on(f))
+    }
+
+    pub async fn get_usd_price_sol_inn(&self, transaction_datetime: String) -> DbResult<Decimal> {
         let statement =
-            "SELECT * FROM token_prices WHERE token_address = $1 AND conversion_ref = 'USD'
+            "SELECT * FROM token_prices_temp WHERE token_address = $1 AND conversion_ref = 'USD'
                     order by abs(extract(epoch from (timestamp - $2))) limit 1";
 
         let rolar: DateTime<Utc> = chrono::DateTime::from_str(&transaction_datetime).unwrap();
-
-        // let dolar = Timestamp::Value(rolar.timestamp() as i64);
-
-        // println!("{:?}", dolar);
 
         let dolar = self.db_pool.clone();
         let datetime_param: NaiveDateTime = rolar.naive_utc();
@@ -182,29 +269,22 @@ impl TokenDbClient {
 
         let dolar2: Decimal = row.get("value_num");
 
-        println!(
-            "value from db {:?} for datetime, ${:?}",
-            Some(dolar2),
-            rolar
-        );
-
         return Ok(dolar2);
     }
 
-    pub async fn test_sender_inn(&self, testing: bool) -> DbResult<bool> {
-        let result = self.sender.send(testing).await;
+    // pub async fn test_sender_inn(&self, testing: bool) -> DbResult<bool> {
+    //     let result = self.sender.send(testing).await;
 
-        return Ok(result.unwrap());
-    }
+    //     return Ok(result.unwrap());
+    // }
 
-    fn invoke<T, F: std::future::Future<Output = DbResult<T>>>(&self, f: F) -> DbResult<T> {
-        // `block_on()` panics if called within an asynchronous execution context. Whereas
-        // `block_in_place()` only panics if called from a current_thread runtime, which is the
-        // lesser evil.
-        tokio::task::block_in_place(move || self.runtime.as_ref().expect("runtime").block_on(f))
-    }
+    // fn invoke<T, F: std::future::Future<Output = DbResult<T>>>(&self, f: F) -> DbResult<T> {
+    //     // `block_on()` panics if called within an asynchronous execution context. Whereas
+    //     // `block_in_place()` only panics if called from a current_thread runtime, which is the
+    //     // lesser evil.
+    //     tokio::task::block_in_place(move || self.runtime.as_ref().expect("runtime").block_on(f))
+    // }
 }
-
 // pub trait DbTokenTrait {
 //     async fn send(&self, testing: bool) -> Result<usize, TPError>;
 //     fn url(&self) -> String;
