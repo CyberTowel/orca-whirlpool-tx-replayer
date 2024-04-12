@@ -42,7 +42,11 @@ pub mod raydium {
         let mut crawled_signatures: Vec<String> = Vec::new();
 
         while let Some(res) = signatures_to_process.join_next().await {
-            let idx = res.unwrap();
+            // let idx = res.unwrap();
+            let idx = match res {
+                Ok(_) => res.unwrap(),
+                Err(_) => "".to_string(),
+            };
             crawled_signatures.push(idx);
         }
     }
