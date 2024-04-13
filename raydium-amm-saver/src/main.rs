@@ -26,7 +26,7 @@ async fn main() {
 
     let db_pool = DbPool::builder(db_mgr).max_size(20).build().unwrap();
 
-    let limiter = RateLimiter::new(300, Duration::from_secs(1));
+    let limiter = RateLimiter::new(1500, Duration::from_secs(1));
 
     let pool_id = "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR";
     let pub_key = Pubkey::from_str(pool_id).unwrap();
