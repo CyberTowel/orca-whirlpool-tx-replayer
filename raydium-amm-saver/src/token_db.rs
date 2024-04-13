@@ -5,9 +5,12 @@ use deadpool::managed::{self, Metrics, Pool};
 use deadpool_postgres::Manager;
 use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
+use tokio_postgres::types::Json;
 use tokio_postgres::Error as TPError;
+// use tokio_postgres::types::Json;
 
 use crate::raydium_saver::pg_saving::create_db_pool;
+use crate::token_parser::TokenAmountsPriced;
 
 pub fn testing() {}
 
@@ -25,6 +28,12 @@ pub struct PriceItem {
     pub token_a_price_usd_formatted: String,
     pub token_b_price_usd_formatted: String,
     pub datetime: String,
+    pub signer: String,
+    pub ubo: String,
+    pub pool_address: String,
+    pub usd_total_pool: String,
+    pub token_a_usd: TokenAmountsPriced,
+    pub token_b_usd: TokenAmountsPriced,
 }
 
 // pub trait SetDb {
@@ -181,7 +190,13 @@ impl TokenDbClient {
             token_a_price_usd_formatted,
             token_b_price_usd_formatted,
             datetime,
-            oracle_id
+            oracle_id, 
+            signer, 
+            ubo, 
+            pool_address,
+            usd_total_pool, 
+            token_a_usd,
+            token_b_usd
     ) VALUES ($1::TEXT, 
             $2::TEXT, 
             $3::TEXT, 
@@ -190,12 +205,24 @@ impl TokenDbClient {
             $6::NUMERIC, 
             $7::NUMERIC,
             $8::TIMESTAMP,
-            $9::TEXT
+            $9::TEXT, 
+            $10::TEXT, 
+            $11::TEXT, 
+            $12::TEXT, 
+            $13::NUMERIC,
+            $14::JSON,
+            $15::JSON
             ) ON CONFLICT ON CONSTRAINT token_prices_ts_orcacle DO update set
             token_a_price_usd = excluded.token_a_price_usd,
             token_b_price_usd = excluded.token_b_price_usd,
             token_a_price_usd_formatted = excluded.token_a_price_usd_formatted,
             token_b_price_usd_formatted = excluded.token_b_price_usd_formatted, 
+            signer = excluded.signer,
+            ubo = excluded.ubo,
+            pool_address = excluded.pool_address,
+            usd_total_pool = excluded.usd_total_pool,
+            token_a_usd = excluded.token_a_usd,
+            token_b_usd = excluded.token_b_usd,
             crawled = now()::timestamp with time zone
             ;",
             )
@@ -215,6 +242,12 @@ impl TokenDbClient {
                     &Decimal::from_str(&input.token_b_price_usd_formatted).unwrap(),
                     &datetime_param,
                     &"feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
+                    &input.signer,
+                    &input.ubo,
+                    &input.pool_address,
+                    &Decimal::from_str(&input.usd_total_pool).unwrap(),
+                    &Json::<TokenAmountsPriced>(input.token_a_usd),
+                    &Json::<TokenAmountsPriced>(input.token_b_usd),
                 ],
             )
             .await

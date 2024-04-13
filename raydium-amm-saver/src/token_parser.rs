@@ -1,7 +1,7 @@
 use num::ToPrimitive;
 use num_bigfloat::{BigFloat, RoundingMode};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
 use solana_transaction_status::{
     EncodedConfirmedTransactionWithStatusMeta, UiTransactionTokenBalance,
 };
@@ -20,7 +20,7 @@ pub struct BalanceChange {
     pub difference: i64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenAmountsSwapPriced {
     pub token_amounts_a: TokenAmountsPriced,
     pub token_amounts_b: TokenAmountsPriced,
@@ -440,7 +440,7 @@ pub struct TokenAmountsSwap {
     pub token_b_address: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TokenAmounts {
     pub amount_total_pool: i64,
     pub amount_diff_pool: i64,
@@ -671,7 +671,7 @@ pub fn parse_pricing_to_token_amounts_new(
     return token_amounts_priced;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenAmountsPriced {
     pub usd_total_pool: f64,
     pub usd_total_ubo: f64,

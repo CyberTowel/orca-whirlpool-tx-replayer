@@ -93,6 +93,8 @@ pub fn parser_transaction(
     //     token_amounts, token_amounts_usd
     // );
 
+    // let token_a_usd_json = serde_json::to_string(&token_amounts_usd.token_amounts_a).unwrap();
+
     let item_to_save = PriceItem {
         signature: signature.to_string(),
         token_a_address: transaction_parsed.token_a_address.to_string(),
@@ -102,7 +104,15 @@ pub fn parser_transaction(
         token_a_price_usd_formatted: token_amounts_usd.price_usd_token_a_formatted.to_string(),
         token_b_price_usd_formatted: token_amounts_usd.price_usd_token_b_formatted.to_string(),
         datetime: datetime,
+        signer: transaction_parsed.signer.to_string(),
+        ubo: transaction_parsed.ubo.to_string(),
+        pool_address: "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR".to_string(),
+        usd_total_pool: token_amounts_usd.usd_total_pool.to_string(),
+        token_a_usd: token_amounts_usd.token_amounts_a,
+        token_b_usd: token_amounts_usd.token_amounts_b,
     };
+
+    // let j = serde_json::to_string(&address)?;
 
     let testing = item_to_save.clone();
 
