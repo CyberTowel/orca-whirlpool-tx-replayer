@@ -110,6 +110,8 @@ pub fn parser_transaction(
         usd_total_pool: token_amounts_usd.usd_total_pool.to_string(),
         token_a_usd: token_amounts_usd.token_amounts_a,
         token_b_usd: token_amounts_usd.token_amounts_b,
+        token_amounts_a: token_amounts.token_amounts_a,
+        token_amounts_b: token_amounts.token_amounts_b,
     };
 
     // let j = serde_json::to_string(&address)?;

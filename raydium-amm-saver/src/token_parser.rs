@@ -337,8 +337,6 @@ fn parse_token_amounts(
         amount_total_ubo: token_amount_ubo,
         amount_diff_pool: amount_diff_pool,
         amount_diff_ubo: amount_diff_ubo,
-        perc_ubo: token_perc_ubo,
-        perc_ubo_formatted: token_perc_ubo.to_string(),
     };
 }
 
@@ -440,14 +438,12 @@ pub struct TokenAmountsSwap {
     pub token_b_address: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TokenAmounts {
     pub amount_total_pool: i64,
     pub amount_diff_pool: i64,
     pub amount_total_ubo: i64,
     pub amount_diff_ubo: i64,
-    pub perc_ubo: f64,
-    pub perc_ubo_formatted: String,
 }
 
 // pub fn parse_pricing_to_token_amounts(

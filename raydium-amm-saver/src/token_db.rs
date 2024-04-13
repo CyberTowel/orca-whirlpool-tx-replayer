@@ -10,7 +10,7 @@ use tokio_postgres::Error as TPError;
 // use tokio_postgres::types::Json;
 
 use crate::raydium_saver::pg_saving::create_db_pool;
-use crate::token_parser::TokenAmountsPriced;
+use crate::token_parser::{TokenAmounts, TokenAmountsPriced};
 
 pub fn testing() {}
 
@@ -34,6 +34,8 @@ pub struct PriceItem {
     pub usd_total_pool: String,
     pub token_a_usd: TokenAmountsPriced,
     pub token_b_usd: TokenAmountsPriced,
+    pub token_amounts_a: TokenAmounts,
+    pub token_amounts_b: TokenAmounts,
 }
 
 // pub trait SetDb {
@@ -196,7 +198,9 @@ impl TokenDbClient {
             pool_address,
             usd_total_pool, 
             token_a_usd,
-            token_b_usd
+            token_b_usd, 
+            token_amounts_a, 
+            token_amounts_b
     ) VALUES ($1::TEXT, 
             $2::TEXT, 
             $3::TEXT, 
@@ -211,7 +215,9 @@ impl TokenDbClient {
             $12::TEXT, 
             $13::NUMERIC,
             $14::JSON,
-            $15::JSON
+            $15::JSON,
+            $16::JSON,
+            $17::JSON
             ) ON CONFLICT ON CONSTRAINT token_prices_ts_orcacle DO update set
             token_a_price_usd = excluded.token_a_price_usd,
             token_b_price_usd = excluded.token_b_price_usd,
@@ -223,6 +229,8 @@ impl TokenDbClient {
             usd_total_pool = excluded.usd_total_pool,
             token_a_usd = excluded.token_a_usd,
             token_b_usd = excluded.token_b_usd,
+            token_amounts_a = excluded.token_amounts_a,
+            token_amounts_b = excluded.token_amounts_b,
             crawled = now()::timestamp with time zone
             ;",
             )
@@ -248,6 +256,8 @@ impl TokenDbClient {
                     &Decimal::from_str(&input.usd_total_pool).unwrap(),
                     &Json::<TokenAmountsPriced>(input.token_a_usd),
                     &Json::<TokenAmountsPriced>(input.token_b_usd),
+                    &Json::<TokenAmounts>(input.token_amounts_a),
+                    &Json::<TokenAmounts>(input.token_amounts_b),
                 ],
             )
             .await
