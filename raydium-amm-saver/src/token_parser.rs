@@ -337,6 +337,7 @@ fn parse_token_amounts(
         amount_total_ubo: token_amount_ubo,
         amount_diff_pool: amount_diff_pool,
         amount_diff_ubo: amount_diff_ubo,
+        token_address: token_address.to_string(),
     };
 }
 
@@ -440,6 +441,7 @@ pub struct TokenAmountsSwap {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TokenAmounts {
+    pub token_address: String,
     pub amount_total_pool: i64,
     pub amount_diff_pool: i64,
     pub amount_total_ubo: i64,
@@ -662,6 +664,7 @@ pub fn parse_pricing_to_token_amounts_new(
         usd_total_ubo_18: usd_total_ubo_18,
         usd_diff_ubo_18: usd_diff_ubo_18,
         usd_diff_pool_18: usd_diff_pool_18,
+        token_address: token_amounts.token_address.clone(),
     };
 
     return token_amounts_priced;
@@ -669,6 +672,7 @@ pub fn parse_pricing_to_token_amounts_new(
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenAmountsPriced {
+    pub token_address: String,
     pub usd_total_pool: f64,
     pub usd_total_ubo: f64,
     pub usd_diff_ubo: f64,

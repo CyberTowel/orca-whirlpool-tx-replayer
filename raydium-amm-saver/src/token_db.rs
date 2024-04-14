@@ -3,6 +3,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use deadpool::managed::RecycleResult;
 use deadpool::managed::{self, Metrics, Pool};
 use deadpool_postgres::Manager;
+use num::FromPrimitive;
 use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
 use tokio_postgres::types::Json;
@@ -32,10 +33,10 @@ pub struct PriceItem {
     pub ubo: String,
     pub pool_address: String,
     pub usd_total_pool: String,
-    pub token_a_usd: TokenAmountsPriced,
-    pub token_b_usd: TokenAmountsPriced,
-    pub token_amounts_a: TokenAmounts,
-    pub token_amounts_b: TokenAmounts,
+    // pub token_a_usd: TokenAmountsPriced,
+    // pub token_b_usd: TokenAmountsPriced,
+    // pub token_amounts_a: TokenAmounts,
+    // pub token_amounts_b: TokenAmounts,
 }
 
 // pub trait SetDb {
@@ -168,6 +169,166 @@ impl TokenDbClient {
         // println!("result: {:?}", result);
     }
 
+    pub fn insert_token_usd_values(
+        &self,
+        signature: &str,
+        input: &TokenAmountsPriced,
+    ) -> Result<(), TPError> {
+        let result = self.invoke(self.insert_token_usd_values_inn(signature, input));
+
+        return result;
+
+        // println!("result: {:?}", result);
+    }
+
+    pub fn insert_token_amounts(
+        &self,
+        signature: &str,
+        input: &TokenAmounts,
+    ) -> Result<(), TPError> {
+        let result = self.invoke(self.insert_token_amounts_inn(signature, input));
+
+        return result;
+
+        // println!("result: {:?}", result);
+    }
+
+    pub async fn insert_token_amounts_inn(
+        &self,
+        signature: &str,
+        input: &TokenAmounts,
+    ) -> Result<(), TPError> {
+        let dolar = self.db_pool.clone();
+
+        let db_connect = match dolar {
+            Some(x) => x,
+            None => panic!("No db connection"),
+        };
+
+        let client = db_connect.get().await.unwrap();
+
+        let stmt = client
+            .prepare_cached(
+                "INSERT INTO token_prices_token_amounts (
+            signature, 
+            token_address,
+            amount_total_pool,
+            amount_diff_pool,
+            amount_total_ubo,
+            amount_diff_ubo
+            ) VALUES ($1::TEXT, 
+                $2::TEXT,  
+                $3::NUMERIC,       
+                $4::NUMERIC, 
+                $5::NUMERIC,
+                $6::NUMERIC
+            ) ON CONFLICT ON CONSTRAINT token_prices_token_amounts_pkey DO Update
+            SET token_address = excluded.token_address,
+            amount_total_pool = excluded.amount_total_pool ,
+            amount_diff_pool = excluded.amount_diff_pool ,
+            amount_total_ubo = excluded.amount_total_ubo ,
+            amount_diff_ubo = excluded.amount_diff_ubo
+                ",
+            )
+            .await
+            .unwrap();
+
+        client
+            .query(
+                &stmt,
+                &[
+                    &signature,
+                    &input.token_address,
+                    &Decimal::from_i64(input.amount_total_pool).unwrap(),
+                    &Decimal::from_i64(input.amount_diff_pool).unwrap(),
+                    &Decimal::from_i64(input.amount_total_ubo).unwrap(),
+                    &Decimal::from_i64(input.amount_diff_ubo).unwrap(),
+                ],
+            )
+            .await
+            .unwrap();
+
+        return Ok(());
+    }
+
+    pub async fn insert_token_usd_values_inn(
+        &self,
+        signature: &str,
+        input: &TokenAmountsPriced,
+    ) -> Result<(), TPError> {
+        let dolar = self.db_pool.clone();
+
+        let db_connect = match dolar {
+            Some(x) => x,
+            None => panic!("No db connection"),
+        };
+
+        let client = db_connect.get().await.unwrap();
+
+        let stmt = client
+            .prepare_cached(
+                "INSERT INTO token_prices_usd_values (
+            signature, 
+            token_address,
+            usd_total_pool,
+            usd_total_ubo,
+            usd_diff_ubo,
+            usd_diff_pool,
+            token_price_usd,
+            usd_total_pool_18,
+            usd_total_ubo_18,
+            usd_diff_ubo_18,
+            usd_diff_pool_18
+            ) VALUES ($1::TEXT, 
+                $2::TEXT,  
+                $3::NUMERIC,       
+                $4::NUMERIC, 
+                $5::NUMERIC,
+                $6::NUMERIC, 
+                $7::NUMERIC,
+                $8::NUMERIC, 
+                $9::NUMERIC,
+                $10::NUMERIC, 
+                $11::NUMERIC
+            ) ON CONFLICT ON CONSTRAINT token_prices_usd_values_pkey DO Update
+            SET token_address = excluded.token_address,
+            usd_total_pool = excluded.usd_total_pool ,
+            usd_total_ubo = excluded.usd_total_ubo ,
+            usd_diff_ubo = excluded.usd_diff_ubo ,
+            usd_diff_pool = excluded.usd_diff_pool ,
+            token_price_usd = excluded.token_price_usd ,
+            usd_total_pool_18 = excluded.usd_total_pool_18 ,
+            usd_total_ubo_18 = excluded.usd_total_ubo_18 ,
+            usd_diff_ubo_18 = excluded.usd_diff_ubo_18 ,
+            usd_diff_pool_18 = excluded.usd_diff_pool_18  
+                ",
+            )
+            .await
+            .unwrap();
+
+        client
+            .query(
+                &stmt,
+                &[
+                    &signature,
+                    &input.token_address,
+                    &Decimal::from_f64(input.usd_total_pool).unwrap(),
+                    &Decimal::from_f64(input.usd_total_ubo).unwrap(),
+                    &Decimal::from_f64(input.usd_diff_ubo).unwrap(),
+                    &Decimal::from_f64(input.usd_diff_pool).unwrap(),
+                    &Decimal::from_f64(input.token_price_usd).unwrap(),
+                    &Decimal::from_i128(input.usd_total_pool_18).unwrap(),
+                    &Decimal::from_i128(input.usd_total_ubo_18).unwrap(),
+                    &Decimal::from_i128(input.usd_diff_ubo_18).unwrap(),
+                    &Decimal::from_i128(input.usd_diff_pool_18).unwrap(),
+                ],
+            )
+            .await
+            .unwrap();
+
+        return Ok(());
+    }
+
     pub async fn insert_token_price_inn(&self, input: PriceItem) -> Result<(), TPError> {
         let rolar: DateTime<Utc> = chrono::DateTime::from_str(&input.datetime).unwrap();
 
@@ -196,11 +357,7 @@ impl TokenDbClient {
             signer, 
             ubo, 
             pool_address,
-            usd_total_pool, 
-            token_a_usd,
-            token_b_usd, 
-            token_amounts_a, 
-            token_amounts_b
+            usd_total_pool
     ) VALUES ($1::TEXT, 
             $2::TEXT, 
             $3::TEXT, 
@@ -213,11 +370,7 @@ impl TokenDbClient {
             $10::TEXT, 
             $11::TEXT, 
             $12::TEXT, 
-            $13::NUMERIC,
-            $14::JSON,
-            $15::JSON,
-            $16::JSON,
-            $17::JSON
+            $13::NUMERIC
             ) ON CONFLICT ON CONSTRAINT token_prices_ts_orcacle DO update set
             token_a_price_usd = excluded.token_a_price_usd,
             token_b_price_usd = excluded.token_b_price_usd,
@@ -227,10 +380,6 @@ impl TokenDbClient {
             ubo = excluded.ubo,
             pool_address = excluded.pool_address,
             usd_total_pool = excluded.usd_total_pool,
-            token_a_usd = excluded.token_a_usd,
-            token_b_usd = excluded.token_b_usd,
-            token_amounts_a = excluded.token_amounts_a,
-            token_amounts_b = excluded.token_amounts_b,
             crawled = now()::timestamp with time zone
             ;",
             )
@@ -254,10 +403,10 @@ impl TokenDbClient {
                     &input.ubo,
                     &input.pool_address,
                     &Decimal::from_str(&input.usd_total_pool).unwrap(),
-                    &Json::<TokenAmountsPriced>(input.token_a_usd),
-                    &Json::<TokenAmountsPriced>(input.token_b_usd),
-                    &Json::<TokenAmounts>(input.token_amounts_a),
-                    &Json::<TokenAmounts>(input.token_amounts_b),
+                    // &Json::<TokenAmountsPriced>(input.token_a_usd),
+                    // &Json::<TokenAmountsPriced>(input.token_b_usd),
+                    // &Json::<TokenAmounts>(input.token_amounts_a),
+                    // &Json::<TokenAmounts>(input.token_amounts_b),
                 ],
             )
             .await
