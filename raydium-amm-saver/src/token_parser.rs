@@ -47,6 +47,8 @@ pub fn get_token_amounts(
     let token_changes_pool_new_a = changes_by_token_account_address.get(token_a_taa).unwrap();
     let token_changes_pool_new_b = changes_by_token_account_address.get(token_b_taa).unwrap();
 
+    // println!("token_changes_ubo: {:#?}", token_changes_ubo);
+
     let token_changes_pool = merge_hashmap(
         token_changes_pool_new_a.clone(),
         token_changes_pool_new_b.clone(),
@@ -175,7 +177,7 @@ pub fn parse_balance_changes(
         *token_entry.or_default() = BalanceChange {
             balance_pre: 0,
             balance_post: amount_64,
-            difference: 0,
+            difference: amount_64,
             mint: mint.clone(),
             owner: owner_address.clone(),
         };
@@ -183,7 +185,7 @@ pub fn parse_balance_changes(
         *token_entry_token_account_address.or_default() = BalanceChange {
             balance_pre: 0,
             balance_post: amount_64,
-            difference: 0,
+            difference: amount_64,
             mint: mint.clone(),
             owner: owner_address.clone(),
         };
@@ -194,6 +196,8 @@ pub fn parse_balance_changes(
         let mint = balance.mint.clone();
         let amount = balance.ui_token_amount.amount;
         let owner_address = owner.unwrap();
+
+        let owner_address_c = owner_address.clone();
 
         let index_usize = balance.account_index.to_usize().unwrap();
         let pub_key_token_address = account_keys[index_usize]["pubkey"].as_str().unwrap();

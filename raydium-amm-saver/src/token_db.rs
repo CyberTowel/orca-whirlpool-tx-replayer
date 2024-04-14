@@ -371,7 +371,8 @@ impl TokenDbClient {
             $11::TEXT, 
             $12::TEXT, 
             $13::NUMERIC
-            ) ON CONFLICT ON CONSTRAINT token_prices_ts_orcacle DO update set
+            ) ON CONFLICT ON CONSTRAINT token_prices_pkey DO update set
+            signature = excluded.signature,
             token_a_price_usd = excluded.token_a_price_usd,
             token_b_price_usd = excluded.token_b_price_usd,
             token_a_price_usd_formatted = excluded.token_a_price_usd_formatted,
@@ -386,7 +387,7 @@ impl TokenDbClient {
             .await
             .unwrap();
 
-        client
+        let tesitng = client
             .query(
                 &stmt,
                 &[
@@ -409,8 +410,8 @@ impl TokenDbClient {
                     // &Json::<TokenAmounts>(input.token_amounts_b),
                 ],
             )
-            .await
-            .unwrap();
+            .await;
+        // .unwrap();
 
         return Ok(());
     }
