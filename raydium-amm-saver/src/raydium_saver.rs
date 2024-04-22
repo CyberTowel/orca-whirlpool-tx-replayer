@@ -12,6 +12,7 @@ pub mod raydium {
     };
 
     use crate::token_db::DbClientPoolManager;
+    use crate::token_parser::PoolVars;
     use crate::transaction_parser::parser_transaction;
 
     use tokio::task::JoinSet;
@@ -21,6 +22,7 @@ pub mod raydium {
         rpc_connection: &deadpool::managed::Pool<RpcPoolManager>,
         limiter: &RateLimiter,
         db_pool: &deadpool::managed::Pool<DbClientPoolManager>,
+        poolvars: &PoolVars,
     ) {
         let mut signatures_to_process = JoinSet::new();
 
@@ -31,10 +33,12 @@ pub mod raydium {
 
             let db_client = db_pool.clone().get().await.unwrap();
 
+            let pool_vars_c = poolvars.clone();
+
             signatures_to_process.spawn(async move {
                 // wait for ratelimiting
                 tester.wait().await;
-                parser_transaction(&signature.signature, &connection, &db_client);
+                parser_transaction(&signature.signature, &connection, &db_client, &pool_vars_c);
                 return signature.signature;
             });
         }
@@ -65,7 +69,8 @@ pub mod raydium {
             Ok(RpcClient::new_with_commitment(
                 // cluster,
                 // "https://solana-mainnet.g.alchemy.com/v2/0uuM5dFqqhu79XiFtEa4dZkfLZDlNOGZ",
-                "https://rpc.ankr.com/solana/71915acca8127aacb9f83c90556138f82decde6b7a66f5fad32d2e005c26ca8e",
+                // "https://rpc.ankr.com/solana/71915acca8127aacb9f83c90556138f82decde6b7a66f5fad32d2e005c26ca8e",
+                "http://66.248.205.6:8899",
                 // "https://solana-mainnet.api.syndica.io/api-token/31LXqG31wuwf82G821o7odUPqZnuxHjkaeCtsbDmVFyorPVtZgcTt3fd9to6CNEaMMRHMwJHASa4WQsttc15zhLwnLbZ8qNTQxekxymxfhSFzda3mhpp4F95xLmZKqjPueVMBWCdYUA32dPCjm8w9SzSebRWtmocZVs1m9KsbFq4MGvgsKtxYJvc86QEqJtdzcn82BVcpsXV7Cmbr4oL3j37yyi8RfLGCDdoQo2mUKC8xDPocCB4rMsb8PM7JB8kLsPWEdCeGsfwb66wBMVGyT8zr9fZsB6fxJvMjgP5W1xyL2BnCVRZ1dotGawiwung88pxuy84o1tpTpmJWHqwFdxHKCWQwxXeJysZ81DzCY3X9nVdxbMpUnz9tJVzFMSwxNomKFT925ogVNgYHYzV2TCBYSKyj53s8xiKZU6X4nAGXFkpTRXGHbnAvi8cRB9cPXaQyc2Yad6GxUeCTyPQqPJ8fZ8gHZmPCF9UKv836Ao93AawumPL1e4RdLScW".to_string(),
                 solana_sdk::commitment_config::CommitmentConfig::confirmed(),
             ))

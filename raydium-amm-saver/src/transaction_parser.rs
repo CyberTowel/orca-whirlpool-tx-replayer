@@ -1,4 +1,5 @@
 use crate::token_db::{PriceItem, TokenDbClient};
+use crate::token_parser::PoolVars;
 use crate::token_parser::{get_price, get_token_amounts, parse_combined};
 use crate::transaction::Transaction;
 use chrono::prelude::*;
@@ -12,6 +13,7 @@ pub fn parser_transaction(
     signature: &String,
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
+    poolvars: &PoolVars,
 ) {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
@@ -26,29 +28,39 @@ pub fn parser_transaction(
 
     let transaction_parsed = Transaction::new(&transaction);
 
-    let pool_coin_token_account = "Ffo9MEhfH5tBBkZMi1vWVpZLqmbDKvEWJhW3XyMQz4QY";
-    let amm_target_orders = "EM9ebwJyrenPmgXQyn9aR5X2tiJssrVPwLSZXxmg2dLy";
-
     let token_amounts = get_token_amounts(
         &transaction,
         &transaction_parsed.account_keys,
         &transaction_parsed.ubo,
-        &transaction_parsed.token_a_address,
-        &transaction_parsed.token_b_address,
-        &pool_coin_token_account,
-        &amm_target_orders,
+        &poolvars.token_a_address,
+        &poolvars.token_b_address,
+        &poolvars.pool_coin_token_account,
+        &poolvars.amm_target_orders,
     );
+
+    // println!("token_amounts {:#?}", token_amounts);
 
     let price_token_a_18 = db_client
         .get_usd_price_sol(transaction_parsed.datetime)
         .unwrap();
 
     let price = get_price(
-        token_amounts.price_usd_token_b,
+        &token_amounts.price_usd_token_b.to_string(),
         &price_token_a_18.to_string(),
     );
 
-    let (price_token_b_18, price_token_ref) = price.unwrap();
+    let (price_usd_18, price_token_ref, price_token_ref_18) = price.unwrap();
+
+    // println!(
+    //     "price_token_a_18 {:#?}\n
+    //     price_usd_18 {:#?}\n
+    //     price_token_ref {:#?}\n
+    //     price_token_ref_18 {:#?}",
+    //     price_token_a_18.to_string(),
+    //     price_usd_18,
+    //     price_token_ref,
+    //     price_token_ref_18
+    // );
     // println!(
     //     "price_usd: {:?}, {:?}, price_token_a: {:?}",
     //     price_token_b_18,
@@ -56,111 +68,83 @@ pub fn parser_transaction(
     //     price_token_a_18.to_string(),
     // );
 
+    //price usd $0.0001842
+
     let token_amounts_usd = parse_combined(
         &token_amounts,
         price_token_a_18.to_f64().unwrap(),
-        price_token_b_18,
+        price_usd_18,
     );
 
     let datetime = DateTime::from_timestamp(transaction_parsed.block_timestamp, 0)
         .unwrap()
         .to_rfc3339();
 
-    //     println!(
-    //         "
-    // ---- transaction info ----
-    // signer          {:#?},
-    // UBO             {:#?}
-    // datetime        {:#?}
-    // signature       {:#?}
-    // pool_address    {:#?}
-
-    // ",
-    //         transaction_parsed.signer,
-    //         transaction_parsed.ubo,
-    //         datetime,
-    //         signature,
-    //         "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR".to_string(),
-    //     );
-
-    // println!(
-    //     "
-    // ---- token amounts ----
-    // {:#?}
-
-    // ---- token amounts USD ----
-    // {:#?} ",
-    //     token_amounts, token_amounts_usd
-    // );
-
-    // let token_a_usd_json = serde_json::to_string(&token_amounts_usd.token_amounts_a).unwrap();
-
     let token_amounts_usd_c = token_amounts_usd.clone();
 
     let item_to_save = PriceItem {
         signature: signature.to_string(),
-        token_a_address: transaction_parsed.token_a_address.to_string(),
-        token_b_address: transaction_parsed.token_b_address.to_string(),
+        token_a_address: poolvars.token_a_address.to_string(),
+        token_b_address: poolvars.token_b_address.to_string(),
         token_a_price_usd: price_token_a_18.to_string(),
-        token_b_price_usd: price_token_b_18.to_string(),
+        token_b_price_usd: price_usd_18.to_string(),
         token_a_price_usd_formatted: token_amounts_usd_c.price_usd_token_a_formatted.to_string(),
         token_b_price_usd_formatted: token_amounts_usd_c.price_usd_token_b_formatted.to_string(),
         datetime: datetime,
         signer: transaction_parsed.signer.to_string(),
         ubo: transaction_parsed.ubo.to_string(),
-        pool_address: "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR".to_string(),
+        pool_address: poolvars.pool_id.to_string(),
         usd_total_pool: token_amounts_usd_c.usd_total_pool.to_string(),
-        // token_a_usd: token_amounts_usd_c.token_amounts_a,
-        // token_b_usd: token_amounts_usd_c.token_amounts_b,
-        // token_amounts_a: token_amounts.token_amounts_a,
-        // token_amounts_b: token_amounts.token_amounts_b,
+        price_token_ref: price_token_ref_18.to_string(),
+        price_token_ref_formatted: price_token_ref.to_string(),
+        block_number: transaction_parsed.block_number.to_string(),
     };
 
     // let j = serde_json::to_string(&address)?;
 
     let testing = item_to_save.clone();
 
-    let reponse = db_client.insert_token_price(item_to_save);
+    let reponse = db_client.save_token_values(item_to_save);
 
-    let response_token_usd_a =
-        db_client.insert_token_usd_values(&signature, &token_amounts_usd.token_amounts_a);
+    // let response_token_usd_a =
+    //     db_client.insert_token_usd_values(&signature, &token_amounts_usd.token_amounts_a);
 
-    if response_token_usd_a.is_err() {
-        println!(
-            "Error saving token usd values to db: {:#?}",
-            response_token_usd_a
-        );
-    }
+    // if response_token_usd_a.is_err() {
+    //     println!(
+    //         "Error saving token usd values to db: {:#?}",
+    //         response_token_usd_a
+    //     );
+    // }
 
-    let response_token_usd_b =
-        db_client.insert_token_usd_values(&signature, &token_amounts_usd.token_amounts_b);
+    // let response_token_usd_b =
+    //     db_client.insert_token_usd_values(&signature, &token_amounts_usd.token_amounts_b);
 
-    if response_token_usd_b.is_err() {
-        println!(
-            "Error saving token usd values to db: {:#?}",
-            response_token_usd_b
-        );
-    }
+    // if response_token_usd_b.is_err() {
+    //     println!(
+    //         "Error saving token usd values to db: {:#?}",
+    //         response_token_usd_b
+    //     );
+    // }
 
-    let response_token_amounts_a =
-        db_client.insert_token_amounts(&signature, &token_amounts.token_amounts_a);
+    // let response_token_amounts_a =
+    //     db_client.insert_token_amounts(&signature, &token_amounts.token_amounts_a);
 
-    if response_token_amounts_a.is_err() {
-        println!(
-            "Error saving token usd values to db: {:#?}",
-            response_token_amounts_a
-        );
-    }
+    // if response_token_amounts_a.is_err() {
+    //     println!(
+    //         "Error saving token usd values to db: {:#?}",
+    //         response_token_amounts_a
+    //     );
+    // }
 
-    let response_token_amounts_b =
-        db_client.insert_token_amounts(&signature, &token_amounts.token_amounts_b);
+    // let response_token_amounts_b =
+    //     db_client.insert_token_amounts(&signature, &token_amounts.token_amounts_b);
 
-    if response_token_amounts_b.is_err() {
-        println!(
-            "Error saving token usd values to db: {:#?}",
-            response_token_amounts_b
-        );
-    }
+    // if response_token_amounts_b.is_err() {
+    //     println!(
+    //         "Error saving token usd values to db: {:#?}",
+    //         response_token_amounts_b
+    //     );
+    // }
 
     if reponse.is_err() {
         println!("Error saving to db: {:#?}", reponse);

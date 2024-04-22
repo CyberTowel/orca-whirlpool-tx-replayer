@@ -33,10 +33,24 @@ pub struct PriceItem {
     pub ubo: String,
     pub pool_address: String,
     pub usd_total_pool: String,
+    pub price_token_ref: String,
+    pub price_token_ref_formatted: String,
+    pub block_number: String,
     // pub token_a_usd: TokenAmountsPriced,
     // pub token_b_usd: TokenAmountsPriced,
     // pub token_amounts_a: TokenAmounts,
     // pub token_amounts_b: TokenAmounts,
+}
+
+pub struct PriceItemDb {
+    pub conversion_ref: String,
+    pub token_address: String,
+    pub price: String,
+    pub datetime: String,
+    pub transaction_hash: String,
+    pub price_formatted: String,
+    pub oracle_id: String,
+    pub blocknumber: String,
 }
 
 // pub trait SetDb {
@@ -161,8 +175,8 @@ impl TokenDbClient {
         // println!("result: {:?}", result);
     }
 
-    pub fn insert_token_price(&self, input: PriceItem) -> Result<(), TPError> {
-        let result = self.invoke(self.insert_token_price_inn(input));
+    pub fn save_token_values(&self, input: PriceItem) -> Result<(), TPError> {
+        let result = self.invoke(self.save_token_values_inn(&input));
 
         return result;
 
@@ -329,7 +343,116 @@ impl TokenDbClient {
         return Ok(());
     }
 
-    pub async fn insert_token_price_inn(&self, input: PriceItem) -> Result<(), TPError> {
+    pub async fn save_token_values_inn(&self, input: &PriceItem) -> Result<(), TPError> {
+        let price_ref_1 = "USD";
+        let price_ref_2 = "SOL";
+
+        let value1 = PriceItemDb {
+            conversion_ref: price_ref_1.to_string(),
+            token_address: input.token_b_address.to_string(),
+            price: input.token_b_price_usd.to_string(),
+            datetime: input.datetime.to_string(),
+            transaction_hash: input.signature.to_string(),
+            price_formatted: input.token_b_price_usd_formatted.to_string(),
+            oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
+            blocknumber: input.block_number.to_string(),
+        };
+
+        let value2 = PriceItemDb {
+            conversion_ref: price_ref_2.to_string(),
+            token_address: input.token_b_address.to_string(),
+            price: input.price_token_ref.to_string(),
+            datetime: input.datetime.to_string(),
+            transaction_hash: input.signature.to_string(),
+            price_formatted: input.price_token_ref_formatted.to_string(),
+            oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
+            blocknumber: input.block_number.to_string(),
+        };
+
+        // price_token_ref
+
+        // let result = self.invoke(self.insert_token_price_inn(value1));
+
+        let result_1 = self.insert_token_price_inn(value1).await;
+        let result_2 = self.insert_token_price_inn(value2).await;
+
+        return Ok(());
+        // return result;
+    }
+
+    pub async fn insert_token_price_inn(&self, input: PriceItemDb) -> Result<(), TPError> {
+        //  conversion_ref, token_address, price_usd, datetime, transaction_hash, price_usd_formatted, oracle_id, blocknumber
+
+        let dolar = self.db_pool.clone();
+
+        let datetime_input: DateTime<Utc> = chrono::DateTime::from_str(&input.datetime).unwrap();
+        let datetime_pg: NaiveDateTime = datetime_input.naive_utc();
+
+        let db_connect = match dolar {
+            Some(x) => x,
+            None => panic!("No db connection"),
+        };
+
+        let client = db_connect.get().await.unwrap();
+
+        let stmt = client
+            .prepare_cached(
+                "INSERT INTO token_prices_v2 (
+            conversion_ref, 
+            token_address, 
+            price, 
+            datetime, 
+            transaction_hash, 
+            price_formatted, 
+            oracle_id, 
+            blocknumber
+    ) VALUES ($1::TEXT, 
+            $2::TEXT, 
+            $3::NUMERIC, 
+            $4::TIMESTAMP, 
+            $5::TEXT,
+            $6::NUMERIC, 
+            $7::TEXT,
+            $8::NUMERIC
+            ) ON CONFLICT ON CONSTRAINT token_prices_v2_pkey DO update set
+            conversion_ref=excluded.conversion_ref, 
+            token_address=excluded.token_address, 
+            price=excluded.price, 
+            datetime=excluded.datetime, 
+            transaction_hash=excluded.transaction_hash, 
+            price_formatted=excluded.price_formatted, 
+            oracle_id=excluded.oracle_id, 
+            blocknumber=excluded.blocknumber,
+            crawled_at = now()::timestamp with time zone
+            ;",
+            )
+            .await
+            .unwrap();
+
+        let insert_result = client
+            .query(
+                &stmt,
+                &[
+                    &input.conversion_ref,
+                    &input.token_address,
+                    &Decimal::from_str(&input.price).unwrap(),
+                    &datetime_pg,
+                    &input.transaction_hash,
+                    &Decimal::from_str(&input.price_formatted).unwrap(),
+                    &input.oracle_id.to_string(),
+                    &Decimal::from_str(&input.blocknumber).unwrap(),
+                ],
+            )
+            .await;
+
+        if (insert_result.is_err()) {
+            println!("error inserting: {:?}", insert_result);
+        }
+
+        return Ok(());
+    }
+
+    pub async fn insert_token_price_inn_ref(&self, input: PriceItem) -> Result<(), TPError> {
         let rolar: DateTime<Utc> = chrono::DateTime::from_str(&input.datetime).unwrap();
 
         let dolar = self.db_pool.clone();

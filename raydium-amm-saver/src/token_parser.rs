@@ -12,6 +12,15 @@ const RAYDIUM_AUTHORITY: &str = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1";
 pub enum Error {}
 
 #[derive(Default, Debug, Clone)]
+pub struct PoolVars {
+    pub pool_coin_token_account: String,
+    pub pool_id: String,
+    pub amm_target_orders: String,
+    pub token_a_address: String,
+    pub token_b_address: String,
+}
+
+#[derive(Default, Debug, Clone)]
 pub struct BalanceChange {
     pub owner: String,
     pub mint: String,
@@ -47,8 +56,6 @@ pub fn get_token_amounts(
     let token_changes_pool_new_a = changes_by_token_account_address.get(token_a_taa).unwrap();
     let token_changes_pool_new_b = changes_by_token_account_address.get(token_b_taa).unwrap();
 
-    // println!("token_changes_ubo: {:#?}", token_changes_ubo);
-
     let token_changes_pool = merge_hashmap(
         token_changes_pool_new_a.clone(),
         token_changes_pool_new_b.clone(),
@@ -60,8 +67,8 @@ pub fn get_token_amounts(
     let token_amounts_b =
         parse_token_amounts(token_changes_ubo, &token_changes_pool, token_b_address);
 
-    let token_b_price_rel = BigFloat::from_i64(token_amounts_a.amount_total_pool)
-        / BigFloat::from_i64(token_amounts_b.amount_total_pool);
+    let token_b_price_rel = BigFloat::from_i64(token_amounts_b.amount_total_pool)
+        / BigFloat::from_i64(token_amounts_a.amount_total_pool);
 
     let price_token_ref =
         token_b_price_rel * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-6)));
@@ -257,9 +264,13 @@ pub fn parse_balance_changes(
     return (changes_by_owner, changes_by_token_account_address);
 }
 
-pub fn get_price(token_b_price_rel: f64, token_a_price: &String) -> Result<(f64, f64), Error> {
-    let usd_price_token_b =
-        BigFloat::from_f64(token_b_price_rel) * BigFloat::from_str(token_a_price).unwrap();
+pub fn get_price(
+    token_b_price_rel: &String,
+    token_a_price: &String,
+) -> Result<(f64, f64, f64), Error> {
+    let token_b_tesitng = BigFloat::from_str(token_b_price_rel).unwrap();
+
+    let usd_price_token_b = token_b_tesitng * BigFloat::from_str(token_a_price).unwrap();
 
     let usd_price_token_dec =
         usd_price_token_b * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
@@ -271,7 +282,16 @@ pub fn get_price(token_b_price_rel: f64, token_a_price: &String) -> Result<(f64,
 
     let price_usd_18_rounded = price_usd_18.round(0, RoundingMode::ToOdd).to_f64();
 
-    Ok((price_usd_18_rounded, token_b_price_rel))
+    let token_b_price_rel_bf =
+        token_b_tesitng * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18)));
+
+    let token_b_price_rel_18 = token_b_price_rel_bf.round(0, RoundingMode::ToOdd).to_f64();
+
+    Ok((
+        price_usd_18_rounded,
+        token_b_tesitng.to_f64(),
+        token_b_price_rel_18,
+    ))
 }
 
 fn parse_token_amounts(

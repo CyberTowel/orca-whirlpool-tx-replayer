@@ -12,15 +12,16 @@ pub struct Transaction {
     pub block_timestamp: i64,
     pub datetime: String,
     // pub token_amounts: TokenAmounts,
-    pub token_a_address: String,
-    pub token_b_address: String,
+    // pub token_a_address: String,
+    // pub token_b_address: String,
     pub account_keys: Vec<Value>,
+    pub block_number: u64,
 }
 
 impl Transaction {
     pub fn new(rpc_transaction: &EncodedConfirmedTransactionWithStatusMeta) -> Transaction {
-        let token_a_address: &str = "So11111111111111111111111111111111111111112";
-        let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
+        // let token_a_address: &str = "So11111111111111111111111111111111111111112";
+        // let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
 
         let v = json!(rpc_transaction.transaction.transaction);
         let account_keys = v["message"]["accountKeys"].as_array().unwrap();
@@ -57,9 +58,10 @@ impl Transaction {
             ubo: ubo.to_string(),
             block_timestamp: rpc_transaction.block_time.unwrap(),
             datetime: datetime,
-            token_a_address: token_a_address.to_string(),
-            token_b_address: token_b_address.to_string(),
+            // token_a_address: token_a_address.to_string(),
+            // token_b_address: token_b_address.to_string(),
             account_keys: account_keys.clone(),
+            block_number: rpc_transaction.slot,
             // token_amounts: token_amounts,
         };
 
