@@ -26,10 +26,30 @@ pub fn parser_transaction(
         max_supported_transaction_version: Some(1),
     };
 
+    let signature_to_get = solana_sdk::signature::Signature::from_str(&signature).unwrap();
+
+    let transaction_status_err = rpc_connection
+        .get_signature_status(&signature_to_get)
+        .unwrap();
+
+    if transaction_status_err.is_some() && transaction_status_err.unwrap().is_err() {
+        println!("Error in transaction: {:#?}", signature);
+        return;
+    }
+
     let transaction_req = rpc_connection
         .get_transaction_with_config(&Signature::from_str(&signature).unwrap(), rpc_config);
 
     let transaction = transaction_req.unwrap();
+
+    // let testing_err = &transaction.transaction.meta.as_ref().unwrap().err;
+    // if (testing.is_some()) {
+    //     println!("Error in testing: {:#?}", testing);
+    //     println!("Error in testing_err: {:#?}", testing_err);
+    //     return;
+    // }
+
+    // return;
 
     let transaction_parsed = Transaction::new(&transaction);
 
