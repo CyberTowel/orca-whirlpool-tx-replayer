@@ -27,8 +27,14 @@ pub mod raydium {
         poolvars: &PoolVars,
     ) {
         let mut signatures_to_process = JoinSet::new();
+        // let testing = signatures.clone();
 
-        for signature in signatures {
+        // let result: Vec<_> = testing.iter().step_by(100).collect();
+
+        let testing: Vec<RpcConfirmedTransactionStatusWithSignature> =
+            signatures.into_iter().step_by(100).collect();
+
+        for signature in testing {
             let connection = rpc_connection.clone().get().await.unwrap();
 
             let tester = limiter.clone();
