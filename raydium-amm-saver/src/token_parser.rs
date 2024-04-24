@@ -1,3 +1,4 @@
+use anchor_client::anchor_lang::prelude::borsh::de;
 use num::ToPrimitive;
 use num_bigfloat::{BigFloat, RoundingMode};
 use serde::{Deserialize, Serialize};
@@ -5,7 +6,9 @@ use serde_json::Value;
 use solana_transaction_status::{
     EncodedConfirmedTransactionWithStatusMeta, UiTransactionTokenBalance,
 };
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, fmt::Binary, str::FromStr};
+
+use crate::{pool_state::LiquidityStateLayoutV4, transaction::Transaction};
 const RAYDIUM_AUTHORITY: &str = "5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1";
 
 #[derive(Debug)]
@@ -13,26 +16,26 @@ pub enum Error {}
 
 #[derive(Default, Debug, Clone)]
 pub struct PoolVars {
-    pub pool_coin_token_account: String,
+    // pub pool_coin_token_account: String,
     pub pool_id: String,
-    pub amm_target_orders: String,
-    pub token_a_address: String,
-    pub token_b_address: String,
+    // pub amm_target_orders: String,
+    // pub token_a_address: String,
+    // pub token_b_address: String,
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct BalanceChange {
     pub owner: String,
     pub mint: String,
-    pub balance_pre: i64,
-    pub balance_post: i64,
-    pub difference: i64,
+    pub balance_pre: f64,
+    pub balance_post: f64,
+    pub difference: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenAmountsSwapPriced {
-    pub token_amounts_a: TokenAmountsPriced,
-    pub token_amounts_b: TokenAmountsPriced,
+pub struct TokenAmountsSwapPricedToArchive {
+    pub token_amounts_a: TokenAmountsPricedToArchive,
+    pub token_amounts_b: TokenAmountsPricedToArchive,
     pub usd_total_pool: f64,
     pub price_usd_token_a_formatted: f64,
     pub price_usd_token_b_formatted: f64,
@@ -46,12 +49,15 @@ pub fn get_token_amounts(
     token_b_address: &str,
     token_a_taa: &str,
     token_b_taa: &str,
+    token_a_decimals: u64,
+    token_b_decimals: u64,
+    // pool_state: &LiquidityStateLayoutV4,
 ) -> TokenAmountsSwap {
     let (token_changes_by_wallet, changes_by_token_account_address) =
         parse_balance_changes(rpc_transaction, account_keys);
 
     let token_changes_ubo = token_changes_by_wallet.get(ubo).unwrap();
-    let token_changes_pool_old = token_changes_by_wallet.get(RAYDIUM_AUTHORITY).unwrap();
+    // let token_changes_pool_old = token_changes_by_wallet.get(RAYDIUM_AUTHORITY).unwrap();
 
     let token_changes_pool_new_a = changes_by_token_account_address.get(token_a_taa).unwrap();
     let token_changes_pool_new_b = changes_by_token_account_address.get(token_b_taa).unwrap();
@@ -61,33 +67,36 @@ pub fn get_token_amounts(
         token_changes_pool_new_b.clone(),
     );
 
-    let token_amounts_a =
-        parse_token_amounts(token_changes_ubo, &token_changes_pool, token_a_address);
+    let token_amounts_a = parse_token_amounts(
+        token_changes_ubo,
+        &token_changes_pool,
+        token_a_address,
+        token_a_decimals,
+    );
 
-    let token_amounts_b =
-        parse_token_amounts(token_changes_ubo, &token_changes_pool, token_b_address);
+    let token_amounts_b = parse_token_amounts(
+        token_changes_ubo,
+        &token_changes_pool,
+        token_b_address,
+        token_b_decimals,
+    );
 
-    let token_b_price_rel = BigFloat::from_i64(token_amounts_b.amount_total_pool)
-        / BigFloat::from_i64(token_amounts_a.amount_total_pool);
+    let token_b_price_rel = BigFloat::from_f64(token_amounts_b.amount_total_pool)
+        / BigFloat::from_f64(token_amounts_a.amount_total_pool);
 
-    let price_token_ref =
-        token_b_price_rel * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-6)));
+    // let decimals_correct = token_b_decimals as i64 - token_a_decimals as i64;
 
-    // println!(
-    //     "token_b_price_rel: {:#?}
-    //     token_amounts_a: {:#?}",
-    //     token_b_price_rel.to_f64().to_string(),
-    //     token_amounts_a
-    // );
+    // let price_token_ref = token_b_price_rel
+    //     * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(decimals_correct)));
 
     let token_amounts_swap = TokenAmountsSwap {
         token_a_address: token_a_address.to_string(),
         token_b_address: token_b_address.to_string(),
         token_amounts_a: token_amounts_a,
         token_amounts_b: token_amounts_b,
-        price_usd_token_b: price_token_ref.to_f64(),
-        price_token_b_rel: price_token_ref.to_f64(),
-        price_usd_token_b_formatted: price_token_ref.to_f64().to_string(),
+        price_usd_token_b: token_b_price_rel.to_f64(),
+        price_token_b_rel: token_b_price_rel.to_f64(),
+        price_usd_token_b_formatted: token_b_price_rel.to_f64().to_string(),
     };
 
     return token_amounts_swap;
@@ -179,10 +188,10 @@ pub fn parse_balance_changes(
         let token_entry_token_account_address =
             token_account_address_entry.or_default().entry(mint.clone());
 
-        let amount_64 = amount.parse::<i64>().unwrap();
+        let amount_64 = amount.parse::<f64>().unwrap();
 
         *token_entry.or_default() = BalanceChange {
-            balance_pre: 0,
+            balance_pre: 0.0,
             balance_post: amount_64,
             difference: amount_64,
             mint: mint.clone(),
@@ -190,7 +199,7 @@ pub fn parse_balance_changes(
         };
 
         *token_entry_token_account_address.or_default() = BalanceChange {
-            balance_pre: 0,
+            balance_pre: 0.0,
             balance_post: amount_64,
             difference: amount_64,
             mint: mint.clone(),
@@ -218,7 +227,7 @@ pub fn parse_balance_changes(
         let token_entry_token_account_address =
             token_account_address_entry.or_default().entry(mint.clone());
 
-        let amount_64 = amount.parse::<i64>().unwrap();
+        let amount_64 = amount.parse::<f64>().unwrap();
 
         let existing_entry = token_entry.or_default();
 
@@ -235,8 +244,8 @@ pub fn parse_balance_changes(
     for (index, account_key) in account_keys.iter().enumerate() {
         let pubkey = account_key["pubkey"].as_str().unwrap();
 
-        let pre = pre_balances[index].to_i64().unwrap();
-        let post = post_balances[index].to_i64().unwrap();
+        let pre = pre_balances[index].to_f64().unwrap();
+        let post = post_balances[index].to_f64().unwrap();
 
         let item = BalanceChange {
             balance_pre: pre,
@@ -264,73 +273,130 @@ pub fn parse_balance_changes(
     return (changes_by_owner, changes_by_token_account_address);
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct TokenPriceResult {
+    pub token_price_rel_to_ref: String,
+    pub token_price_usd_18: f64,
+    pub token_price_usd_fixed: f64,
+    pub token_ref_price_usd_18: f64,
+    pub token_ref_price_usd_fixed: f64,
+}
+
 pub fn get_price(
-    token_b_price_rel: &String,
-    token_a_price: &String,
-) -> Result<(f64, f64, f64), Error> {
-    let token_b_tesitng = BigFloat::from_str(token_b_price_rel).unwrap();
+    token_price_rel_a_to_b: &String,
+    token_ref: &String,
+    sol_price_db: &String,
+    decimals_correct: i64,
+) -> Result<TokenPriceResult, Error> {
+    let stable_coin_ref = token_ref == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    let token_price_rel_to_ref = BigFloat::from_str(token_price_rel_a_to_b).unwrap();
 
-    let usd_price_token_b = token_b_tesitng * BigFloat::from_str(token_a_price).unwrap();
+    let token_ref_price_usd_18 = if stable_coin_ref {
+        (BigFloat::from_i16(1) * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18))))
+            .to_f64()
+    } else {
+        BigFloat::from_str(sol_price_db).unwrap().to_f64()
+    };
 
-    let usd_price_token_dec =
-        usd_price_token_b * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+    let token_price_usd_18 = if stable_coin_ref {
+        // let start_value = BigFloat::from_i16(1) * BigFloat::from_f64(price_token_b_usd_18);
+        // println!("{:#?}", token_price_rel_a_to_b);
 
-    let price_token_usd = usd_price_token_dec.round(32, RoundingMode::ToOdd).to_f64();
+        let token_rel_to_ref = BigFloat::from_str(token_price_rel_a_to_b).unwrap();
 
-    let price_usd_18 = BigFloat::from_f64(price_token_usd)
-        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18)));
+        let token_price_base = BigFloat::from_f64(token_ref_price_usd_18) / token_rel_to_ref;
 
-    let price_usd_18_rounded = price_usd_18.round(0, RoundingMode::ToOdd).to_f64();
+        let token_price_18 = token_price_base
+            * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-decimals_correct)));
 
-    let token_b_price_rel_bf =
-        token_b_tesitng * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18)));
+        let _token_price_fixed =
+            token_price_18 * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
 
-    let token_b_price_rel_18 = token_b_price_rel_bf.round(0, RoundingMode::ToOdd).to_f64();
+        // println!(
+        //     "value {:#?} value_fixed {:#?}. decimals_correct {:#?}",
+        //     token_price_base.to_f64(),
+        //     token_price_fixed.to_f64().to_string(),
+        //     decimals_correct.to_f64()
+        // );
 
-    Ok((
-        price_usd_18_rounded,
-        token_b_tesitng.to_f64(),
-        token_b_price_rel_18,
-    ))
+        token_price_18
+    } else {
+        let usd_price_token_b = token_price_rel_to_ref * BigFloat::from_str(sol_price_db).unwrap();
+        // let usd_price_token_dec =
+        //     usd_price_token_b * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+        usd_price_token_b
+    };
+
+    let token_price_usd_fixed =
+        token_price_usd_18 * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    // println!(
+    //     "price_token_b_usd_18 {:#?}\ntoken_price_usd_fixed {:#?}\ntoken_price_rel_to_ref {:#?}",
+    //     token_price_usd_18.to_f64(),
+    //     token_price_usd_fixed.to_f64(),
+    //     token_price_rel_to_ref.to_f64()
+    // );
+
+    let token_ref_price_usd_fixed = BigFloat::from_f64(token_ref_price_usd_18)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    let result = TokenPriceResult {
+        token_price_rel_to_ref: token_price_rel_to_ref.to_string(),
+        token_price_usd_18: token_price_usd_18.to_f64(),
+        token_price_usd_fixed: token_price_usd_fixed.to_f64(),
+        token_ref_price_usd_18: token_ref_price_usd_18,
+        token_ref_price_usd_fixed: token_ref_price_usd_fixed.to_f64(),
+    };
+
+    Ok(result)
+
+    // Ok((
+    //     price_usd_18_rounded,
+    //     token_b_tesitng.to_f64(),
+    //     token_b_price_rel_18,
+    //     token_a_price_parsed,
+    // ))
 }
 
 fn parse_token_amounts(
     token_changes_ubo: &HashMap<String, BalanceChange>,
     token_changes_pool: &HashMap<String, BalanceChange>,
     token_address: &str,
+    token_decimals: u64,
 ) -> TokenAmounts {
     let mut token_amount_ubo = match token_changes_ubo.get(token_address) {
         Some(x) => x.balance_post,
-        None => 0,
+        None => 0.0,
     };
 
     let mut token_amount_pool = match token_changes_pool.get(token_address) {
         Some(x) => x.balance_post,
-        None => 0,
+        None => 0.0,
     };
 
     let mut amount_diff_ubo = match token_changes_ubo.get(token_address) {
         Some(x) => x.difference,
-        None => 0,
+        None => 0.0,
     };
 
     let mut amount_diff_pool = match token_changes_pool.get(token_address) {
         Some(x) => x.difference,
-        None => 0,
+        None => 0.0,
     };
 
     if token_address == "So11111111111111111111111111111111111111112" {
         let native_sol_amount = token_changes_ubo.get("sol");
         let amount = match native_sol_amount {
             Some(x) => x.balance_post,
-            None => 0,
+            None => 0.0,
         };
 
         token_amount_ubo += amount;
 
         let amount_diff = match native_sol_amount {
             Some(x) => x.difference,
-            None => 0,
+            None => 0.0,
         };
 
         amount_diff_ubo += amount_diff;
@@ -356,12 +422,48 @@ fn parse_token_amounts(
 
     let token_perc_ubo = parse_token_amount_rounded(token_amount_ubo, token_amount_pool);
 
+    let amount_total_pool_bf = BigFloat::from_f64(token_amount_pool)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
+
+    let token_amount_ubo_bf = BigFloat::from_f64(token_amount_ubo)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
+
+    let amount_diff_pool_bf = BigFloat::from_f64(amount_diff_pool)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
+
+    let amount_diff_ubo_bf = BigFloat::from_f64(amount_diff_ubo)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
+
+    let token_amount_pool_18 = amount_total_pool_bf
+        .round(32, RoundingMode::ToOdd)
+        .to_i128()
+        .unwrap();
+
+    let token_amount_ubo_18 = token_amount_ubo_bf
+        .round(32, RoundingMode::ToOdd)
+        .to_i128()
+        .unwrap();
+
+    let amount_diff_pool_18 = amount_diff_pool_bf
+        .round(32, RoundingMode::ToOdd)
+        .to_i128()
+        .unwrap();
+
+    let amount_diff_ubo_18 = amount_diff_ubo_bf
+        .round(32, RoundingMode::ToOdd)
+        .to_i128()
+        .unwrap();
+
     return TokenAmounts {
         amount_total_pool: token_amount_pool,
         amount_total_ubo: token_amount_ubo,
         amount_diff_pool: amount_diff_pool,
         amount_diff_ubo: amount_diff_ubo,
         token_address: token_address.to_string(),
+        amount_total_pool_18: token_amount_pool_18,
+        amount_total_ubo_18: token_amount_ubo_18,
+        amount_diff_pool_18: amount_diff_pool_18,
+        amount_diff_ubo_18: amount_diff_ubo_18,
     };
 }
 
@@ -442,10 +544,10 @@ fn parse_token_amounts(
 //     };
 // }
 
-fn parse_token_amount_rounded(token_amount: i64, token_amount_pool: i64) -> f64 {
-    let ubo_token_a_perc_f = BigFloat::from_i64(token_amount)
-        / BigFloat::from_i64(token_amount_pool)
-        * BigFloat::from_i64(100);
+fn parse_token_amount_rounded(token_amount: f64, token_amount_pool: f64) -> f64 {
+    let ubo_token_a_perc_f = BigFloat::from_f64(token_amount)
+        / BigFloat::from_f64(token_amount_pool)
+        * BigFloat::from_f64(100.0);
 
     let parse_token_amount_rounded = ubo_token_a_perc_f.round(32, RoundingMode::ToOdd).to_f64();
 
@@ -466,10 +568,14 @@ pub struct TokenAmountsSwap {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TokenAmounts {
     pub token_address: String,
-    pub amount_total_pool: i64,
-    pub amount_diff_pool: i64,
-    pub amount_total_ubo: i64,
-    pub amount_diff_ubo: i64,
+    pub amount_total_pool: f64,
+    pub amount_diff_pool: f64,
+    pub amount_total_ubo: f64,
+    pub amount_diff_ubo: f64,
+    pub amount_total_pool_18: i128,
+    pub amount_diff_pool_18: i128,
+    pub amount_total_ubo_18: i128,
+    pub amount_diff_ubo_18: i128,
 }
 
 // pub fn parse_pricing_to_token_amounts(
@@ -569,12 +675,40 @@ pub fn parse_combined(
     token_amounts: &TokenAmountsSwap,
     price_usd_token_a: f64,
     price_usd_token_b: f64,
-) -> TokenAmountsSwapPriced {
-    let token_prices_a =
-        parse_pricing_to_token_amounts_new(&token_amounts.token_amounts_a, price_usd_token_a, 9);
+    token_a_decimals: u64,
+    token_b_decimals: u64,
+) -> TokenAmountsSwapPricedToArchive {
+    let token_prices_a = parse_pricing_to_token_amounts_new(
+        &token_amounts.token_amounts_a,
+        price_usd_token_a,
+        token_a_decimals,
+    );
 
-    let token_prices_b =
-        parse_pricing_to_token_amounts_new(&token_amounts.token_amounts_b, price_usd_token_b, 3);
+    // println!(
+    //     "token_amounts, ${:#?}, price_usd_token_a {:#?}, token_a_decimals {:#?}",
+    //     token_amounts.token_amounts_a, price_usd_token_a, token_a_decimals
+    // );
+
+    // println!("token_prices_a {:#?}", token_prices_a);
+
+    // 546.995.808.8688806
+
+    // println!(
+    //     "token_amounts, ${:#?}, token_prices_b {:#?}",
+    //     token_amounts.token_amounts_a, token_prices_a
+    // );
+
+    let token_prices_b = parse_pricing_to_token_amounts_new(
+        &token_amounts.token_amounts_b,
+        price_usd_token_b,
+        token_b_decimals,
+    );
+
+    // println!(
+    //     "token_amounts, ${:#?}, token_prices_b {:#?}",
+    //     token_amounts.token_amounts_b, token_prices_b
+    // );
+
     let usd_total_pool = token_prices_a.usd_total_pool + token_prices_b.usd_total_pool;
     let usd_total_pool_rounded = BigFloat::from_f64(usd_total_pool)
         .round(32, RoundingMode::ToOdd)
@@ -594,7 +728,7 @@ pub fn parse_combined(
         .round(32, RoundingMode::ToOdd)
         .to_f64();
 
-    let return_value = TokenAmountsSwapPriced {
+    let return_value = TokenAmountsSwapPricedToArchive {
         token_amounts_a: token_prices_a,
         token_amounts_b: token_prices_b,
         usd_total_pool: usd_total_pool_rounded,
@@ -608,25 +742,35 @@ pub fn parse_combined(
 pub fn parse_pricing_to_token_amounts_new(
     token_amounts: &TokenAmounts,
     token_price_usd: f64,
-    token_decimals: i64,
-) -> TokenAmountsPriced {
+    token_decimals: u64,
+) -> TokenAmountsPricedToArchive {
     let token_a_price_usd_dec = BigFloat::from_f64(token_price_usd)
         * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
 
-    let token_amount_pool_a_decimals = BigFloat::from_i64(token_amounts.amount_total_pool)
-        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-token_decimals)));
+    let token_amount_pool_a_decimals = BigFloat::from_f64(token_amounts.amount_total_pool)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-(token_decimals as i64))));
 
     let usd_total_pool = token_amount_pool_a_decimals * token_a_price_usd_dec;
 
+    // println!(
+    //     "token_a_price_usd_dec {:#?}",
+    //     token_a_price_usd_dec.to_string()
+    // );
+    // println!(
+    //     "token_amount_pool_a_decimals {:#?}",
+    //     token_amount_pool_a_decimals.to_string()
+    // );
+    // println!("usd_total_pool {:#?}", usd_total_pool.to_string());
+
     // // ubo amounts
-    let token_amount_ubo_a_decimals = BigFloat::from_i64(token_amounts.amount_total_ubo)
-        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-token_decimals)));
+    let token_amount_ubo_a_decimals = BigFloat::from_f64(token_amounts.amount_total_ubo)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-(token_decimals as i64))));
 
-    let amount_diff_ubo_a_decimals = BigFloat::from_i64(token_amounts.amount_diff_ubo)
-        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-token_decimals)));
+    let amount_diff_ubo_a_decimals = BigFloat::from_f64(token_amounts.amount_diff_ubo)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-(token_decimals as i64))));
 
-    let amount_diff_pool_a_decimals = BigFloat::from_i64(token_amounts.amount_diff_pool)
-        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-token_decimals)));
+    let amount_diff_pool_a_decimals = BigFloat::from_f64(token_amounts.amount_diff_pool)
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-(token_decimals as i64))));
 
     let usd_total_ubo_a = token_amount_ubo_a_decimals * token_a_price_usd_dec;
 
@@ -678,7 +822,7 @@ pub fn parse_pricing_to_token_amounts_new(
         .to_i128()
         .unwrap();
 
-    let token_amounts_priced = TokenAmountsPriced {
+    let token_amounts_priced = TokenAmountsPricedToArchive {
         usd_total_pool: usd_total_pool_a_rounded,
         usd_total_ubo: usd_total_ubo_a_rounded,
         usd_diff_ubo: usd_diff_ubo_a_rounded,
@@ -695,7 +839,7 @@ pub fn parse_pricing_to_token_amounts_new(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenAmountsPriced {
+pub struct TokenAmountsPricedToArchive {
     pub token_address: String,
     pub usd_total_pool: f64,
     pub usd_total_ubo: f64,
@@ -709,4 +853,186 @@ pub struct TokenAmountsPriced {
     pub usd_diff_pool_18: i128,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenAmountsPriced {
+    usd_total_pool_18_rounded: f64,
+    usd_diff_pool_18_rounded: f64,
+    usd_total_ubo_18_rounded: f64,
+    usd_diff_ubo_18_rounded: f64,
+
+    usd_total_pool_18: f64,
+    usd_diff_pool_18: f64,
+    usd_total_ubo_18: f64,
+    usd_diff_ubo_18: f64,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SwapTokenAmountsPriced {
+    pub token_amounts_priced_a: TokenAmountsPriced,
+    pub token_amounts_priced_b: TokenAmountsPriced,
+    pub usd_total_pool_18: f64,
+    pub usd_total_pool_18_rounded: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenPriceOracleValues {
+    pub ubo: String,
+    pub signer: String,
+    pub pool_address: String,
+    pub token_address: String,
+    pub signature: String,
+
+    pub usd_total_pool: f64,
+    pub usd_total_ubo: f64,
+    pub usd_diff_ubo: f64,
+    pub usd_diff_pool: f64,
+
+    pub amount_total_pool: f64,
+    pub amount_diff_pool: f64,
+    pub amount_total_ubo: f64,
+    pub amount_diff_ubo: f64,
+}
+
 pub struct TokenAmountsPriced18 {}
+
+pub fn parse_token_price_oracle_values(
+    ubo: String,
+    signer: String,
+    pool_id: String,
+    token_address: String,
+    token_amounts: &TokenAmounts,
+    token_amounts_usd: &TokenAmountsPriced,
+    signature: &String,
+) -> TokenPriceOracleValues {
+    let tpo_values_a = TokenPriceOracleValues {
+        ubo: ubo,
+        signer: signer,
+        pool_address: pool_id,
+        token_address: token_address,
+        signature: signature.to_string(),
+
+        usd_total_pool: token_amounts_usd.usd_total_pool_18_rounded,
+        usd_total_ubo: token_amounts_usd.usd_total_ubo_18_rounded,
+        usd_diff_ubo: token_amounts_usd.usd_diff_ubo_18_rounded,
+        usd_diff_pool: token_amounts_usd.usd_diff_pool_18_rounded,
+
+        amount_total_pool: token_amounts.amount_total_pool.round(),
+        amount_diff_pool: token_amounts.amount_diff_pool,
+        amount_total_ubo: token_amounts.amount_total_ubo,
+        amount_diff_ubo: token_amounts.amount_diff_ubo,
+    };
+
+    return tpo_values_a;
+}
+
+pub fn parse_token_amounts_new(
+    token_amounts: &TokenAmountsSwap,
+    token_prices: &TokenPriceResult,
+    // token_a_decimals: u64,
+    // token_b_decimals: u64,
+) -> SwapTokenAmountsPriced {
+    let token_usd_a = multiply_token_amounts_to_usd(
+        &token_amounts.token_amounts_a,
+        &token_prices.token_ref_price_usd_18,
+    );
+
+    let token_usd_b = multiply_token_amounts_to_usd(
+        &token_amounts.token_amounts_b,
+        &token_prices.token_price_usd_18,
+    );
+
+    let usd_total_pool_18 = BigFloat::from_f64(token_usd_a.usd_total_pool_18)
+        + BigFloat::from_f64(token_usd_b.usd_total_pool_18);
+
+    let usd_total_pool_18_rounded = usd_total_pool_18.round(0, RoundingMode::ToOdd).to_f64();
+
+    let values = SwapTokenAmountsPriced {
+        token_amounts_priced_a: token_usd_a,
+        token_amounts_priced_b: token_usd_b,
+        usd_total_pool_18: usd_total_pool_18.to_f64(),
+        usd_total_pool_18_rounded,
+    };
+
+    return values;
+
+    // let usd_total_pool_18_b = parse_token_price_to_amount(
+    //     price_usd_token_b,
+    //     token_amounts.token_amounts_b.amount_total_pool_18,
+    // );
+
+    // println!("usd_total_pool_18 {:#?}", usd_total_pool_18.to_string());
+
+    // println!("usd_total_pool_18_b {:#?}", usd_total_pool_18_b.to_string());
+
+    // let usd_total_pool_fixed = BigFloat::from_f64(usd_total_pool_18)
+    //     * BigFloat::from(BigFloat::from(10)).pow(&BigFloat::from(-18));
+
+    // println!(
+    //     "usd_total_pool_fixed {:#?}",
+    //     usd_total_pool_fixed.to_string()
+    // );
+
+    // let amount_total_pool_fixed_a =
+    //     BigFloat::from_i64(token_amounts.token_amounts_a.amount_total_pool)
+    //         * BigFloat::from(BigFloat::from(10)).pow(&BigFloat::from(-(token_a_decimals as i64)));
+
+    // let amount_total_pool_fixed_b =
+    //     BigFloat::from_i64(token_amounts.token_amounts_b.amount_total_pool)
+    //         * BigFloat::from(BigFloat::from(10)).pow(&BigFloat::from(-(token_b_decimals as i64)));
+
+    // let amount_total_pool_fixed_a_from18 =
+    //     BigFloat::from_i128(token_amounts.token_amounts_a.amount_total_pool_18)
+    //         * BigFloat::from(BigFloat::from(10)).pow(&BigFloat::from(-18));
+}
+
+pub struct UsdMultiplierResult {
+    pub amount_18: f64,
+    pub amount_18_rounded: f64,
+}
+
+fn multiply_amounts(token_price_usd_18: &f64, amount_18: i128) -> UsdMultiplierResult {
+    let token_price_usd_fixed = BigFloat::from_f64(token_price_usd_18.clone())
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    let amount_fixed = BigFloat::from_i128(amount_18);
+
+    let total_amount_usd = token_price_usd_fixed * amount_fixed;
+
+    let total_amount_usd_rounded = total_amount_usd.round(0, RoundingMode::ToOdd).to_f64();
+    // .unwrap();
+
+    let rounded = total_amount_usd_rounded.round();
+
+    return UsdMultiplierResult {
+        amount_18: total_amount_usd.to_f64(),
+        amount_18_rounded: rounded,
+    };
+}
+
+fn multiply_token_amounts_to_usd(
+    token_amounts: &TokenAmounts,
+    token_price_18: &f64,
+) -> TokenAmountsPriced {
+    let usd_total_pool_18 = multiply_amounts(token_price_18, token_amounts.amount_total_pool_18);
+
+    let usd_diff_pool_18 = multiply_amounts(token_price_18, token_amounts.amount_diff_pool_18);
+
+    let usd_total_ubo_18 = multiply_amounts(token_price_18, token_amounts.amount_total_ubo_18);
+
+    let usd_diff_ubo_18 = multiply_amounts(token_price_18, token_amounts.amount_diff_ubo_18);
+
+    let token_amounts_priced = TokenAmountsPriced {
+        usd_total_pool_18: usd_total_pool_18.amount_18,
+        usd_total_pool_18_rounded: usd_total_pool_18.amount_18_rounded,
+
+        usd_diff_pool_18: usd_diff_pool_18.amount_18,
+        usd_diff_pool_18_rounded: usd_diff_pool_18.amount_18_rounded,
+
+        usd_total_ubo_18: usd_total_ubo_18.amount_18,
+        usd_total_ubo_18_rounded: usd_total_ubo_18.amount_18_rounded,
+
+        usd_diff_ubo_18: usd_diff_ubo_18.amount_18,
+        usd_diff_ubo_18_rounded: usd_diff_ubo_18.amount_18_rounded,
+    };
+
+    return token_amounts_priced;
+}

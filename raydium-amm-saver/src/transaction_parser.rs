@@ -1,6 +1,10 @@
+use crate::pool_state::LiquidityStateLayoutV4;
 use crate::token_db::{PriceItem, TokenDbClient};
-use crate::token_parser::PoolVars;
-use crate::token_parser::{get_price, get_token_amounts, parse_combined};
+use crate::token_parser::{
+    get_price, get_token_amounts, parse_combined, parse_token_amounts_new,
+    parse_token_price_oracle_values,
+};
+use crate::token_parser::{PoolVars, TokenPriceOracleValues};
 use crate::transaction::Transaction;
 use chrono::prelude::*;
 use num::traits::sign;
@@ -13,6 +17,7 @@ pub fn parser_transaction(
     signature: &String,
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
+    pool_state: &LiquidityStateLayoutV4,
     poolvars: &PoolVars,
 ) {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
@@ -32,24 +37,30 @@ pub fn parser_transaction(
         &transaction,
         &transaction_parsed.account_keys,
         &transaction_parsed.ubo,
-        &poolvars.token_a_address,
-        &poolvars.token_b_address,
-        &poolvars.pool_coin_token_account,
-        &poolvars.amm_target_orders,
+        &pool_state.quote_mint.to_string(),
+        &pool_state.base_mint.to_string(),
+        &pool_state.quote_vault.to_string(),
+        &pool_state.base_vault.to_string(),
+        pool_state.quote_decimal,
+        pool_state.base_decimal,
+        // pool_state,
     );
 
-    // println!("token_amounts {:#?}", token_amounts);
-
-    let price_token_a_18 = db_client
+    let sol_price_db = db_client
         .get_usd_price_sol(transaction_parsed.datetime)
         .unwrap();
 
-    let price = get_price(
-        &token_amounts.price_usd_token_b.to_string(),
-        &price_token_a_18.to_string(),
-    );
+    let decimals_correct = pool_state.quote_decimal as i64 - pool_state.base_decimal as i64;
 
-    let (price_usd_18, price_token_ref, price_token_ref_18) = price.unwrap();
+    let token_prices = get_price(
+        &token_amounts.price_usd_token_b.to_string(),
+        &pool_state.quote_mint.to_string(),
+        &sol_price_db.to_string(),
+        decimals_correct,
+    )
+    .unwrap();
+
+    // let (price_usd_18, price_token_ref, price_token_ref_18, token_a_price_parsed) = price.unwrap();
 
     // println!(
     //     "price_token_a_18 {:#?}\n
@@ -72,8 +83,19 @@ pub fn parser_transaction(
 
     let token_amounts_usd = parse_combined(
         &token_amounts,
-        price_token_a_18.to_f64().unwrap(),
-        price_usd_18,
+        token_prices.token_price_usd_18,
+        token_prices.token_ref_price_usd_18,
+        pool_state.quote_decimal,
+        pool_state.base_decimal,
+    );
+
+    let swap_token_amounts_priced = parse_token_amounts_new(
+        &token_amounts,
+        &token_prices,
+        // price.token_price_usd_18,
+        // price.token_ref_price_usd_18,
+        // pool_state.quote_decimal,
+        // pool_state.base_decimal,
     );
 
     let datetime = DateTime::from_timestamp(transaction_parsed.block_timestamp, 0)
@@ -84,19 +106,19 @@ pub fn parser_transaction(
 
     let item_to_save = PriceItem {
         signature: signature.to_string(),
-        token_a_address: poolvars.token_a_address.to_string(),
-        token_b_address: poolvars.token_b_address.to_string(),
-        token_a_price_usd: price_token_a_18.to_string(),
-        token_b_price_usd: price_usd_18.to_string(),
-        token_a_price_usd_formatted: token_amounts_usd_c.price_usd_token_a_formatted.to_string(),
-        token_b_price_usd_formatted: token_amounts_usd_c.price_usd_token_b_formatted.to_string(),
+        token_ref_address: pool_state.quote_mint.to_string(),
+        token_address: pool_state.base_mint.to_string(),
+        token_price_usd: sol_price_db.to_string(),
+        token_ref_price_usd: token_prices.token_ref_price_usd_18.to_string(),
+        token_price_usd_formatted: token_amounts_usd_c.price_usd_token_a_formatted.to_string(),
+        token_ref_price_usd_formatted: token_amounts_usd_c.price_usd_token_b_formatted.to_string(),
         datetime: datetime,
         signer: transaction_parsed.signer.to_string(),
         ubo: transaction_parsed.ubo.to_string(),
         pool_address: poolvars.pool_id.to_string(),
         usd_total_pool: token_amounts_usd_c.usd_total_pool.to_string(),
-        price_token_ref: price_token_ref_18.to_string(),
-        price_token_ref_formatted: price_token_ref.to_string(),
+        price_token_ref: token_prices.token_price_rel_to_ref.to_string(),
+        price_token_ref_formatted: token_prices.token_price_rel_to_ref.to_string(),
         block_number: transaction_parsed.block_number.to_string(),
     };
 
@@ -106,15 +128,61 @@ pub fn parser_transaction(
 
     let reponse = db_client.save_token_values(item_to_save);
 
-    // let response_token_usd_a =
-    //     db_client.insert_token_usd_values(&signature, &token_amounts_usd.token_amounts_a);
+    // let tpo_values_a = TokenPriceOracleValues {
+    //     ubo: transaction_parsed.ubo.to_string(),
+    //     signer: transaction_parsed.signer.to_string(),
+    //     pool_address: poolvars.pool_id.to_string(),
+    //     token_address: pool_state.base_mint.to_string(),
+    //     signature: signature.to_string(),
+    //     usd_total_pool: token_amounts_usd.token_amounts_a.usd_total_pool_18,
+    //     usd_total_ubo: token_amounts_usd.token_amounts_a.usd_total_ubo_18,
+    //     usd_diff_ubo: token_amounts_usd.token_amounts_a.usd_diff_ubo_18,
+    //     usd_diff_pool: token_amounts_usd.token_amounts_a.usd_diff_pool_18,
+    //     amount_total_pool: token_amounts.token_amounts_a.amount_total_pool,
+    //     amount_diff_pool: token_amounts.token_amounts_a.amount_diff_pool,
+    //     amount_total_ubo: token_amounts.token_amounts_a.amount_total_ubo,
+    //     amount_diff_ubo: token_amounts.token_amounts_a.amount_diff_ubo,
+    // };
 
-    // if response_token_usd_a.is_err() {
-    //     println!(
-    //         "Error saving token usd values to db: {:#?}",
-    //         response_token_usd_a
-    //     );
-    // }
+    let tpo_values_a = parse_token_price_oracle_values(
+        transaction_parsed.ubo.to_string(),
+        transaction_parsed.signer.to_string(),
+        poolvars.pool_id.to_string(),
+        pool_state.base_mint.to_string(),
+        &token_amounts.token_amounts_a,
+        &swap_token_amounts_priced.token_amounts_priced_a,
+        signature,
+    );
+
+    // println!("tpo_values_a {:#?}", tpo_values_a);
+
+    let tpo_values_b = parse_token_price_oracle_values(
+        transaction_parsed.ubo.to_string(),
+        transaction_parsed.signer.to_string(),
+        poolvars.pool_id.to_string(),
+        pool_state.quote_mint.to_string(),
+        &token_amounts.token_amounts_b,
+        &swap_token_amounts_priced.token_amounts_priced_b,
+        signature,
+    );
+
+    let response_token_usd_a = db_client.insert_token_usd_values(&signature, &tpo_values_a);
+
+    if response_token_usd_a.is_err() {
+        println!(
+            "Error saving token usd values to db: {:#?}",
+            response_token_usd_a
+        );
+    }
+
+    let response_token_usd_b = db_client.insert_token_usd_values(&signature, &tpo_values_b);
+
+    if response_token_usd_b.is_err() {
+        println!(
+            "Error saving token usd values to db: {:#?}",
+            response_token_usd_b
+        );
+    }
 
     // let response_token_usd_b =
     //     db_client.insert_token_usd_values(&signature, &token_amounts_usd.token_amounts_b);

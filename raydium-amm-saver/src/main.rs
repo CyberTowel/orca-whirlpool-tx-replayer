@@ -1,17 +1,27 @@
 mod raydium_saver;
+use anchor_client::anchor_lang::accounts::account;
 use arl::RateLimiter;
+use mpl_token_metadata::processor::print;
+use mpl_token_metadata::utils::get_mint_decimals;
 use raydium_saver::raydium::{batch_process_signatures, RpcPool, RpcPoolManager};
+use solana_account_decoder::parse_account_data::{self, parse_account_data, AccountAdditionalData};
+use solana_account_decoder::parse_token::get_token_account_mint;
+use solana_account_decoder::{UiAccountEncoding, UiDataSliceConfig};
+use solana_client::rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig};
 use solana_client::{
     rpc_client::GetConfirmedSignaturesForAddress2Config,
     rpc_response::RpcConfirmedTransactionStatusWithSignature,
 };
+use solana_sdk::account_info::AccountInfo;
 use solana_sdk::{pubkey::Pubkey, signature::Signature};
 use std::str::FromStr;
 use std::time::Duration;
 
+use crate::pool_state::get_pool_state;
 use crate::token_db::{DbClientPoolManager, DbPool};
 use crate::token_parser::PoolVars;
 
+pub mod pool_state;
 pub mod token_db;
 pub mod token_parser;
 pub mod transaction;
@@ -30,18 +40,18 @@ async fn main() {
     let limiter = RateLimiter::new(1000, Duration::from_secs(1));
 
     // values IDK
-    let pool_id = "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR";
-    let signature =
-        "3yTX6qVC5UZgB8zVa5n4Nh4kQoPPLnXZnTP9bWTaSuGQfj74yZcWtWzeUUk9xf2qVXkyDmw1VhaYvcBa4ZDoyfqu";
-    let pool_coin_token_account = "Ffo9MEhfH5tBBkZMi1vWVpZLqmbDKvEWJhW3XyMQz4QY";
-    let amm_target_orders = "EM9ebwJyrenPmgXQyn9aR5X2tiJssrVPwLSZXxmg2dLy";
-    let token_a_address: &str = "So11111111111111111111111111111111111111112";
-    let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
+    // let pool_id = "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR";
+    // let signature =
+    //     "3yTX6qVC5UZgB8zVa5n4Nh4kQoPPLnXZnTP9bWTaSuGQfj74yZcWtWzeUUk9xf2qVXkyDmw1VhaYvcBa4ZDoyfqu";
+    // let pool_coin_token_account = "Ffo9MEhfH5tBBkZMi1vWVpZLqmbDKvEWJhW3XyMQz4QY";
+    // let amm_target_orders = "EM9ebwJyrenPmgXQyn9aR5X2tiJssrVPwLSZXxmg2dLy";
+    // let token_a_address: &str = "So11111111111111111111111111111111111111112";
+    // let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
 
     // values SOL USDC
-    // let pool_id = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
-    // let signature =
-    //     "51eSdt1mU3eFdUR6bGyqYQU4n7TV4kKYKtQGu2RD5yiNeJE9Z1MFVstssDb2bk5mRPowa3CAcPrdZQbyp848Px2R";
+    let pool_id = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
+    let signature =
+        "rprLhWtWRWvRnmzPPYFVH5PL6aE2iST9sphXoDnze1CDz14GvpYPZFSNKBeieQ4U8PKNfU173pUL8ErJgwjp4ow";
     // let pool_coin_token_account = "DQyrAcCrDXQ7NeoqGgDCZwBvWDcYmFCjSb9JtteuvPpz";
     // let amm_target_orders = "HLmqeL62xR1QoZ1HKKbXRrdN1p3phKpxRMb2VVopvBBz"; // for this one it's - Pool Pc Token Account
     // let token_a_address: &str = "So11111111111111111111111111111111111111112";
@@ -49,13 +59,13 @@ async fn main() {
 
     let poolvars = PoolVars {
         pool_id: pool_id.to_string(),
-        pool_coin_token_account: pool_coin_token_account.to_string(),
-        amm_target_orders: amm_target_orders.to_string(),
-        token_a_address: token_a_address.to_string(),
-        token_b_address: token_b_address.to_string(),
+        // pool_coin_token_account: pool_coin_token_account.to_string(),
+        // amm_target_orders: amm_target_orders.to_string(),
+        // token_a_address: token_a_address.to_string(),
+        // token_b_address: token_b_address.to_string(),
     };
 
-    let pub_key = Pubkey::from_str(pool_id).unwrap();
+    let pool_state = get_pool_state(poolvars.pool_id.clone());
 
     let mut before_signature: Option<Signature> = None;
 
@@ -64,9 +74,13 @@ async fn main() {
     // )
     // .unwrap());
 
+    let pool_pubkey = Pubkey::from_str(&poolvars.pool_id).unwrap();
+
     let mut has_more = true;
 
     let mut batch = 0;
+
+    let testing_mode = false;
 
     while has_more == true {
         batch += 1;
@@ -87,10 +101,10 @@ async fn main() {
             };
 
         let signatures_to_process = rpc_connection
-            .get_signatures_for_address_with_config(&pub_key, signature_pagination_config)
+            .get_signatures_for_address_with_config(&pool_pubkey, signature_pagination_config)
             .unwrap();
 
-        if signatures_to_process.len() != 1000 {
+        if signatures_to_process.len() != 1000 || testing_mode == true {
             has_more = false;
         }
 
@@ -122,7 +136,21 @@ async fn main() {
 
         // let token_db_client: TokenDbClient = TokenDbClient::new(db_connect);
 
-        batch_process_signatures(signatures_to_process, &pool, &limiter, &db_pool, &poolvars).await;
+        let signatures_to_use = if testing_mode == true {
+            testing_singatures
+        } else {
+            signatures_to_process
+        };
+
+        batch_process_signatures(
+            signatures_to_use,
+            &pool,
+            &limiter,
+            &db_pool,
+            &pool_state,
+            &poolvars,
+        )
+        .await;
     }
 
     println!("Done");

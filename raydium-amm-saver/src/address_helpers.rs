@@ -26,3 +26,54 @@ pub fn get_accounts() {
     //     .map(|x| x.signature.to_string())
     //     .collect::<Vec<String>>();
 }
+
+fn token_info() {
+    let pubkey = Pubkey::from_str(&pool_coin_token_account).unwrap();
+
+    let mut account_info = rpc_connection.get_account(&pubkey).unwrap();
+
+    let mut data = account_info.data;
+
+    // let mut lamport1 = &mut account_info.clone().lamports;
+
+    let accounttesting = AccountInfo::new(
+        &pubkey,
+        true,
+        true,
+        &mut account_info.lamports,
+        &mut data,
+        &account_info.owner,
+        account_info.executable,
+        account_info.rent_epoch,
+    );
+
+    println!("accounttesting {:?}", accounttesting.data);
+
+    let dolar = accounttesting.data.as_ref().borrow().to_owned();
+
+    println!("dolar {:?}", dolar);
+
+    let additional_data = get_token_account_mint(&dolar)
+        .map(|key| get_mint_decimals(&accounttesting).ok())
+        .map(|decimals| AccountAdditionalData {
+            spl_token_decimals: decimals,
+        });
+
+    // let additional_data = Some(AccountAdditionalData {
+    //     spl_token_decimals: Some(8),
+    // });
+
+    println!("eting");
+
+    // let dadf = additional_data.unwrap();
+
+    let testing_owner = Pubkey::from_str("5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1").unwrap();
+
+    let testing =
+        parse_account_data(&pubkey, &accounttesting.owner, &dolar, additional_data).unwrap();
+
+    // println!("{:?}", data.unwrap());
+    // println!("{:?}", additional_data.unwrap());
+
+    // println!("{:#?}", data[0]);
+}

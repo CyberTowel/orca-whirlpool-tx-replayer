@@ -4,6 +4,7 @@ use deadpool::managed::RecycleResult;
 use deadpool::managed::{self, Metrics, Pool};
 use deadpool_postgres::Manager;
 use num::FromPrimitive;
+use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
 use tokio_postgres::types::Json;
@@ -11,7 +12,7 @@ use tokio_postgres::Error as TPError;
 // use tokio_postgres::types::Json;
 
 use crate::raydium_saver::pg_saving::create_db_pool;
-use crate::token_parser::{TokenAmounts, TokenAmountsPriced};
+use crate::token_parser::{TokenAmounts, TokenAmountsPricedToArchive, TokenPriceOracleValues};
 
 pub fn testing() {}
 
@@ -22,12 +23,12 @@ pub struct DbClientPoolManager {}
 #[derive(Debug, Clone)]
 pub struct PriceItem {
     pub signature: String,
-    pub token_a_address: String,
-    pub token_b_address: String,
-    pub token_a_price_usd: String,
-    pub token_b_price_usd: String,
-    pub token_a_price_usd_formatted: String,
-    pub token_b_price_usd_formatted: String,
+    pub token_ref_address: String,
+    pub token_address: String,
+    pub token_price_usd: String,
+    pub token_ref_price_usd: String,
+    pub token_price_usd_formatted: String,
+    pub token_ref_price_usd_formatted: String,
     pub datetime: String,
     pub signer: String,
     pub ubo: String,
@@ -42,6 +43,7 @@ pub struct PriceItem {
     // pub token_amounts_b: TokenAmounts,
 }
 
+#[derive(Debug, Clone)]
 pub struct PriceItemDb {
     pub conversion_ref: String,
     pub token_address: String,
@@ -186,7 +188,7 @@ impl TokenDbClient {
     pub fn insert_token_usd_values(
         &self,
         signature: &str,
-        input: &TokenAmountsPriced,
+        input: &TokenPriceOracleValues,
     ) -> Result<(), TPError> {
         let result = self.invoke(self.insert_token_usd_values_inn(signature, input));
 
@@ -198,7 +200,7 @@ impl TokenDbClient {
     pub fn insert_token_amounts(
         &self,
         signature: &str,
-        input: &TokenAmounts,
+        input: &TokenPriceOracleValues,
     ) -> Result<(), TPError> {
         let result = self.invoke(self.insert_token_amounts_inn(signature, input));
 
@@ -210,7 +212,7 @@ impl TokenDbClient {
     pub async fn insert_token_amounts_inn(
         &self,
         signature: &str,
-        input: &TokenAmounts,
+        input: &TokenPriceOracleValues,
     ) -> Result<(), TPError> {
         let dolar = self.db_pool.clone();
 
@@ -253,10 +255,10 @@ impl TokenDbClient {
                 &[
                     &signature,
                     &input.token_address,
-                    &Decimal::from_i64(input.amount_total_pool).unwrap(),
-                    &Decimal::from_i64(input.amount_diff_pool).unwrap(),
-                    &Decimal::from_i64(input.amount_total_ubo).unwrap(),
-                    &Decimal::from_i64(input.amount_diff_ubo).unwrap(),
+                    &Decimal::from_f64_retain(input.amount_total_pool).unwrap(),
+                    &Decimal::from_f64_retain(input.amount_diff_pool).unwrap(),
+                    &Decimal::from_f64_retain(input.amount_total_ubo).unwrap(),
+                    &Decimal::from_f64_retain(input.amount_diff_ubo).unwrap(),
                 ],
             )
             .await
@@ -268,7 +270,7 @@ impl TokenDbClient {
     pub async fn insert_token_usd_values_inn(
         &self,
         signature: &str,
-        input: &TokenAmountsPriced,
+        input: &TokenPriceOracleValues,
     ) -> Result<(), TPError> {
         let dolar = self.db_pool.clone();
 
@@ -281,60 +283,107 @@ impl TokenDbClient {
 
         let stmt = client
             .prepare_cached(
-                "INSERT INTO token_prices_usd_values (
-            signature, 
+                "INSERT INTO token_prices_oracle_values (
+            ubo,
+            signer,
+            pool_address,
             token_address,
+            transaction_hash, 
             usd_total_pool,
             usd_total_ubo,
             usd_diff_ubo,
             usd_diff_pool,
-            token_price_usd,
-            usd_total_pool_18,
-            usd_total_ubo_18,
-            usd_diff_ubo_18,
-            usd_diff_pool_18
+            amount_total_pool,
+            amount_diff_pool, 
+            amount_total_ubo, 
+            amount_diff_ubo
             ) VALUES ($1::TEXT, 
                 $2::TEXT,  
-                $3::NUMERIC,       
-                $4::NUMERIC, 
-                $5::NUMERIC,
-                $6::NUMERIC, 
-                $7::NUMERIC,
-                $8::NUMERIC, 
-                $9::NUMERIC,
-                $10::NUMERIC, 
-                $11::NUMERIC
-            ) ON CONFLICT ON CONSTRAINT token_prices_usd_values_pkey DO Update
-            SET token_address = excluded.token_address,
-            usd_total_pool = excluded.usd_total_pool ,
-            usd_total_ubo = excluded.usd_total_ubo ,
-            usd_diff_ubo = excluded.usd_diff_ubo ,
-            usd_diff_pool = excluded.usd_diff_pool ,
-            token_price_usd = excluded.token_price_usd ,
-            usd_total_pool_18 = excluded.usd_total_pool_18 ,
-            usd_total_ubo_18 = excluded.usd_total_ubo_18 ,
-            usd_diff_ubo_18 = excluded.usd_diff_ubo_18 ,
-            usd_diff_pool_18 = excluded.usd_diff_pool_18  
+                $3::TEXT,  
+                $4::TEXT,  
+                $5::TEXT,  
+                $6::TEXT,       
+                $7::TEXT, 
+                $8::TEXT,
+                $9::TEXT, 
+                $10::NUMERIC,
+                $11::NUMERIC, 
+                $12::NUMERIC,
+                $13::NUMERIC
+            ) ON CONFLICT ON CONSTRAINT token_prices_oracle_values_pkey DO Update
+            SET 
+            ubo = excluded.ubo,
+            signer = excluded.signer,
+            pool_address = excluded.pool_address,
+            usd_total_pool = excluded.usd_total_pool,
+            usd_total_ubo = excluded.usd_total_ubo,
+            usd_diff_ubo = excluded.usd_diff_ubo,
+            usd_diff_pool = excluded.usd_diff_pool,
+            amount_total_pool = excluded.amount_total_pool,
+            amount_diff_pool = excluded.amount_diff_pool,
+            amount_total_ubo = excluded.amount_total_ubo,
+            amount_diff_ubo = excluded.amount_diff_ubo
                 ",
             )
             .await
             .unwrap();
 
+        // token_address = excluded.token_address,
+        // usd_total_pool = excluded.usd_total_pool ,
+        // usd_total_ubo = excluded.usd_total_ubo ,
+        // usd_diff_ubo = excluded.usd_diff_ubo ,
+        // usd_diff_pool = excluded.usd_diff_pool ,
+        // token_price_usd = excluded.token_price_usd ,
+        // usd_total_pool_18 = excluded.usd_total_pool_18 ,
+        // usd_total_ubo_18 = excluded.usd_total_ubo_18 ,
+        // usd_diff_ubo_18 = excluded.usd_diff_ubo_18 ,
+        // usd_diff_pool_18 = excluded.usd_diff_pool_18
+
+        // println!("input: {:#?}", input);
+
+        // println!(
+        //     "testing lipsum {:#?}",
+        //     Decimal::from_i128(input.usd_total_pool)
+        // );
+
+        // let dolar = input.usd_total_pool >> 96;
+
+        // println!("testing dolar shifted {:#?}", dolar);
+
+        let testing = BigDecimal::from_f64(input.usd_total_pool);
+
         client
             .query(
                 &stmt,
                 &[
-                    &signature,
+                    &input.ubo,
+                    &input.signer,
+                    &input.pool_address,
                     &input.token_address,
-                    &Decimal::from_f64(input.usd_total_pool).unwrap(),
-                    &Decimal::from_f64(input.usd_total_ubo).unwrap(),
-                    &Decimal::from_f64(input.usd_diff_ubo).unwrap(),
-                    &Decimal::from_f64(input.usd_diff_pool).unwrap(),
-                    &Decimal::from_f64(input.token_price_usd).unwrap(),
-                    &Decimal::from_i128(input.usd_total_pool_18).unwrap(),
-                    &Decimal::from_i128(input.usd_total_ubo_18).unwrap(),
-                    &Decimal::from_i128(input.usd_diff_ubo_18).unwrap(),
-                    &Decimal::from_i128(input.usd_diff_pool_18).unwrap(),
+                    &input.signature,
+                    &input.usd_total_pool.to_string(),
+                    &input.usd_total_ubo.to_string(),
+                    &input.usd_diff_ubo.to_string(),
+                    &input.usd_diff_pool.to_string(),
+                    // &input.usd_total_pool.to_string(),
+                    // &input.usd_total_ubo.to_string(),
+                    // &input.usd_diff_ubo.to_string(),
+                    // &input.usd_diff_pool.to_string(),
+                    // &Decimal::from_str(&input.usd_total_pool.to_string()).unwrap(),
+                    // &Decimal::from_str(&input.usd_total_ubo.to_string()).unwrap(),
+                    // &Decimal::from_str(&input.usd_diff_ubo.to_string()).unwrap(),
+                    // &Decimal::from_str(&input.usd_diff_pool.to_string()).unwrap(),
+                    // &Decimal::from_i128(input.usd_total_ubo).unwrap(),
+                    // &Decimal::from_i128(input.usd_diff_ubo).unwrap(),
+                    // &Decimal::from_i128(input.usd_diff_pool).unwrap(),
+                    &Decimal::from_f64(input.amount_total_pool).unwrap(),
+                    &Decimal::from_f64(input.amount_diff_pool).unwrap(),
+                    &Decimal::from_f64(input.amount_total_ubo).unwrap(),
+                    &Decimal::from_f64(input.amount_diff_ubo).unwrap(),
+                    // &Decimal::from_i128(input.usd_total_pool_18).unwrap(),
+                    // &Decimal::from_i128(input.usd_total_ubo_18).unwrap(),
+                    // &Decimal::from_i128(input.usd_diff_ubo_18).unwrap(),
+                    // &Decimal::from_i128(input.usd_diff_pool_18).unwrap(),
                 ],
             )
             .await
@@ -345,22 +394,23 @@ impl TokenDbClient {
 
     pub async fn save_token_values_inn(&self, input: &PriceItem) -> Result<(), TPError> {
         let price_ref_1 = "USD";
-        let price_ref_2 = "SOL";
 
         let value1 = PriceItemDb {
             conversion_ref: price_ref_1.to_string(),
-            token_address: input.token_b_address.to_string(),
-            price: input.token_b_price_usd.to_string(),
+            token_address: input.token_address.to_string(),
+            price: input.token_price_usd.to_string(),
             datetime: input.datetime.to_string(),
             transaction_hash: input.signature.to_string(),
-            price_formatted: input.token_b_price_usd_formatted.to_string(),
+            price_formatted: input.token_price_usd_formatted.to_string(),
             oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
             blocknumber: input.block_number.to_string(),
         };
 
+        let price_ref_2 = "SOL";
+
         let value2 = PriceItemDb {
             conversion_ref: price_ref_2.to_string(),
-            token_address: input.token_b_address.to_string(),
+            token_address: input.token_address.to_string(),
             price: input.price_token_ref.to_string(),
             datetime: input.datetime.to_string(),
             transaction_hash: input.signature.to_string(),
@@ -373,8 +423,13 @@ impl TokenDbClient {
 
         // let result = self.invoke(self.insert_token_price_inn(value1));
 
-        let result_1 = self.insert_token_price_inn(value1).await;
-        let result_2 = self.insert_token_price_inn(value2).await;
+        let _result_1 = self.insert_token_price_inn(value1).await;
+
+        if input.token_address == "So11111111111111111111111111111111111111112" {
+            return Ok(());
+        }
+
+        let _result_2 = self.insert_token_price_inn(value2).await;
 
         return Ok(());
         // return result;
@@ -397,7 +452,7 @@ impl TokenDbClient {
 
         let stmt = client
             .prepare_cached(
-                "INSERT INTO token_prices_v2 (
+                "INSERT INTO token_prices (
             conversion_ref, 
             token_address, 
             price, 
@@ -418,7 +473,6 @@ impl TokenDbClient {
             conversion_ref=excluded.conversion_ref, 
             token_address=excluded.token_address, 
             price=excluded.price, 
-            datetime=excluded.datetime, 
             transaction_hash=excluded.transaction_hash, 
             price_formatted=excluded.price_formatted, 
             oracle_id=excluded.oracle_id, 
@@ -515,12 +569,12 @@ impl TokenDbClient {
                 &stmt,
                 &[
                     &input.signature,
-                    &input.token_a_address,
-                    &input.token_b_address,
-                    &Decimal::from_str(&input.token_a_price_usd).unwrap(),
-                    &Decimal::from_str(&input.token_b_price_usd).unwrap(),
-                    &Decimal::from_str(&input.token_a_price_usd_formatted).unwrap(),
-                    &Decimal::from_str(&input.token_b_price_usd_formatted).unwrap(),
+                    &input.token_ref_address,
+                    &input.token_address,
+                    &Decimal::from_str(&input.token_price_usd).unwrap(),
+                    &Decimal::from_str(&input.token_ref_price_usd).unwrap(),
+                    &Decimal::from_str(&input.token_price_usd_formatted).unwrap(),
+                    &Decimal::from_str(&input.token_ref_price_usd_formatted).unwrap(),
                     &datetime_param,
                     &"feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
                     &input.signer,

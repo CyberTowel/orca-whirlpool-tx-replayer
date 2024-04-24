@@ -11,6 +11,7 @@ pub mod raydium {
         rpc_client::RpcClient, rpc_response::RpcConfirmedTransactionStatusWithSignature,
     };
 
+    use crate::pool_state::LiquidityStateLayoutV4;
     use crate::token_db::DbClientPoolManager;
     use crate::token_parser::PoolVars;
     use crate::transaction_parser::parser_transaction;
@@ -22,6 +23,7 @@ pub mod raydium {
         rpc_connection: &deadpool::managed::Pool<RpcPoolManager>,
         limiter: &RateLimiter,
         db_pool: &deadpool::managed::Pool<DbClientPoolManager>,
+        pool_state: &LiquidityStateLayoutV4,
         poolvars: &PoolVars,
     ) {
         let mut signatures_to_process = JoinSet::new();
@@ -33,12 +35,19 @@ pub mod raydium {
 
             let db_client = db_pool.clone().get().await.unwrap();
 
-            let pool_vars_c = poolvars.clone();
+            let pool_state_c = pool_state.clone();
+            let poolvars_c = poolvars.clone();
 
             signatures_to_process.spawn(async move {
                 // wait for ratelimiting
                 tester.wait().await;
-                parser_transaction(&signature.signature, &connection, &db_client, &pool_vars_c);
+                parser_transaction(
+                    &signature.signature,
+                    &connection,
+                    &db_client,
+                    &pool_state_c,
+                    &poolvars_c,
+                );
                 return signature.signature;
             });
         }
