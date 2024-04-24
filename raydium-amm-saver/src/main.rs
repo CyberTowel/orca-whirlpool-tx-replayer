@@ -3,7 +3,9 @@ use anchor_client::anchor_lang::accounts::account;
 use arl::RateLimiter;
 use mpl_token_metadata::processor::print;
 use mpl_token_metadata::utils::get_mint_decimals;
-use raydium_saver::raydium::{batch_process_signatures, RpcPool, RpcPoolManager};
+use raydium_saver::raydium::{
+    batch_process_signatures, get_paginated_singatures, RpcPool, RpcPoolManager,
+};
 use solana_account_decoder::parse_account_data::{self, parse_account_data, AccountAdditionalData};
 use solana_account_decoder::parse_token::get_token_account_mint;
 use solana_account_decoder::{UiAccountEncoding, UiDataSliceConfig};
@@ -39,6 +41,8 @@ async fn main() {
 
     let limiter = RateLimiter::new(1000, Duration::from_secs(1));
 
+    let testing_mode = false;
+
     // values IDK
     // let pool_id = "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR";
     // let signature =
@@ -67,80 +71,72 @@ async fn main() {
 
     let pool_state = get_pool_state(poolvars.pool_id.clone());
 
-    let mut before_signature: Option<Signature> = None;
+    // println!(
+    //     "item_to_process length: {}, next_item: {}",
+    //     items_to_process.len(),
+    //     next_item
+    // );
 
-    //  Some(Signature::from_str(
-    //     "4KfkEVp2QMCM4vEsJgE3fWKuXZmpsv1ema7uBkcHjU4uoM9tVVwuSdPmynx5zJC4mPfirm9mJJCRGT1NRQE2euPA",
-    // )
-    // .unwrap());
-
-    let pool_pubkey = Pubkey::from_str(&poolvars.pool_id).unwrap();
+    // return;/
 
     let mut has_more = true;
-
     let mut batch = 0;
 
-    let testing_mode = false;
+    let mut before_signature: Option<String> = None;
 
     while has_more == true {
         batch += 1;
 
-        println!("=======================================================");
-        println!("=======================================================");
-        println!("started processing Batch: {}", batch);
-        println!("=======================================================");
-        println!("=======================================================");
-        let rpc_connection = pool.clone().get().await.unwrap();
+        has_more = false;
 
-        let signature_pagination_config: GetConfirmedSignaturesForAddress2Config =
-            GetConfirmedSignaturesForAddress2Config {
-                commitment: None,
-                before: before_signature,
-                limit: Some(1000),
-                until: None,
-            };
+        // println!("=======================================================");
+        // println!("=======================================================");
+        // println!("started processing Batch: {}", batch);
+        // println!("=======================================================");
+        // println!("=======================================================");
 
-        let signatures_to_process = rpc_connection
-            .get_signatures_for_address_with_config(&pool_pubkey, signature_pagination_config)
-            .unwrap();
+        // let rpc_connection = pool.clone(); //.get().await.unwrap();
 
-        if signatures_to_process.len() != 1000 || testing_mode == true {
-            has_more = false;
-        }
+        // let signature_pagination_config: GetConfirmedSignaturesForAddress2Config =
+        //     GetConfirmedSignaturesForAddress2Config {
+        //         commitment: None,
+        //         before: before_signature,
+        //         limit: Some(1000),
+        //         until: None,
+        //     };
 
-        let mut testing_singatures: Vec<RpcConfirmedTransactionStatusWithSignature> = vec![];
+        // let signatures_to_process = rpc_connection
+        //     .get_signatures_for_address_with_config(&pool_pubkey, signature_pagination_config)
+        //     .unwrap();
 
-        testing_singatures.push(RpcConfirmedTransactionStatusWithSignature {
-            // signature:"4q1vrYF4VNCdWrN8Bj6C6WtEewYG6o1VK7Cgjz3xVTRksNdp7ziUPpYgc7wwVSvAwva9X1PWNwYHVH3Da9tA4z3i".to_string(),
-            // signature:"55eFRTsuMk3iBeg9GRnsjsdtjzM7NAiJSSLhped8iFAeMkDEsHGQ6aVm7EmXmqS1Scgq3n2CBJHYebumzzTETK3d".to_string(),
-            signature: signature.to_string(),
-            // signature:"5zx9LQAEAMcyBgKfcKEfQTGGadEFJsvJk832V74K6yXnrGh9WuS5XwFn5LtWNd8xavDzNsPksTGejS4EQEmvpwsn".to_string(),
-            // signature:"3oMjtgUyY2JqUWGDutP3hPZYkCrYrLq5XPWbQWo4joVn7R3p9frZW3bgBfJgzhkPtrpSmAjGDNwZLCaAREtVPJ6m".to_string(),
-            // signature:"4jrn4BxxcmQyEd7g9ma4qt3wxV5RwjTZybZPPzbsNsePPAd3UVRFBfNLYvEVZVA5k4o7rDts63UKp1jBhsvJSjeg".to_string(),
-            // signature:"5SxbSH6prmvXo3tn8F7fjPGjz3bXivdsLDu9EVEsELzJp7PkmwprvRznEY9wGWwPiJknZAyK5suEP2Cp1dGCtHSR".to_string(),
-            // signature:"qEtkNJPdoVMcgEJ5Xf3omAWmYpvpUEK5yoG7qVokWBy2f3FskDCRg9VDvkzqzToSjHwqKd377hxj7tNBgVsuy8B".to_string(),
-            slot: 0,
-            err: None,
-            memo: None,
-            block_time: None,
-            confirmation_status: None,
-        });
+        // if signatures_to_process.len() != 1000 || testing_mode == true {
+        //     has_more = false;
+        // }
 
-        // testingSingatures.push(signatures_to_process.first().unwrap().clone());
-        // testingSingatures.push(signatures_to_process.last().unwrap().clone());
+        let mut testing_singatures: Vec<String> = vec![];
 
-        let last_signature =
-            Some(Signature::from_str(&signatures_to_process.last().unwrap().signature).unwrap());
+        let pool_c = pool.clone();
 
-        before_signature = last_signature;
+        let (items_to_process, next_item) =
+            get_paginated_singatures(pool_id, pool_c, before_signature).await;
 
-        // let token_db_client: TokenDbClient = TokenDbClient::new(db_connect);
+        before_signature = next_item.clone();
+        has_more = next_item.is_some();
+
+        testing_singatures.push(signature.to_string());
+
+        // let last_signature =
+        //     Some(Signature::from_str(&items_to_process.last().unwrap().signature).unwrap());
+
+        // before_signature = last_signature;
 
         let signatures_to_use = if testing_mode == true {
             testing_singatures
         } else {
-            signatures_to_process
+            items_to_process
         };
+
+        // println!("start processing: {:#?}", signatures_to_use.len());
 
         batch_process_signatures(
             signatures_to_use,
@@ -151,9 +147,11 @@ async fn main() {
             &poolvars,
         )
         .await;
+
+        // println!("start processing");
     }
 
-    println!("Done");
+    // println!("Done");
 
     // assert_eq!(answer, 42);
 }

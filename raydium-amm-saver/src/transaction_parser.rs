@@ -11,6 +11,7 @@ use num::traits::sign;
 use rust_decimal::prelude::*;
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::signature::Signature;
+use solana_sdk::vote::error;
 use solana_transaction_status::UiTransactionEncoding;
 
 pub fn parser_transaction(
@@ -19,26 +20,35 @@ pub fn parser_transaction(
     db_client: &TokenDbClient,
     pool_state: &LiquidityStateLayoutV4,
     poolvars: &PoolVars,
-) {
+) -> (String, String, String) {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
         commitment: None,
         max_supported_transaction_version: Some(1),
     };
 
-    let signature_to_get = solana_sdk::signature::Signature::from_str(&signature).unwrap();
+    // let signature_to_get = solana_sdk::signature::Signature::from_str(&signature).unwrap();
 
-    let transaction_status_err = rpc_connection
-        .get_signature_status(&signature_to_get)
-        .unwrap();
+    // let transaction_status_err = rpc_connection
+    //     .get_signature_status(&signature_to_get)
+    //     .unwrap();
 
-    if transaction_status_err.is_some() && transaction_status_err.unwrap().is_err() {
-        println!("Error in transaction: {:#?}", signature);
-        return;
-    }
+    // if transaction_status_err.is_some() && transaction_status_err.unwrap().is_err() {
+    //     println!("Error in transaction: {:#?}", signature);
+    //     return;
+    // }
 
     let transaction_req = rpc_connection
         .get_transaction_with_config(&Signature::from_str(&signature).unwrap(), rpc_config);
+
+    if transaction_req.is_err() {
+        println!("Error in transaction: {:#?}", signature);
+        return (
+            signature.to_string(),
+            "error".to_string(),
+            "error getting rpc data".to_string(),
+        );
+    }
 
     let transaction = transaction_req.unwrap();
 
@@ -236,12 +246,19 @@ pub fn parser_transaction(
 
     if reponse.is_err() {
         println!("Error saving to db: {:#?}", reponse);
-    } else {
-        println!(
-            "Saved to db: {:#?}, datetime: {:#?}",
-            signature, testing.datetime
-        );
     }
+    // else {
+    //     println!(
+    //         "Saved to db: {:#?}, datetime: {:#?}",
+    //         signature, testing.datetime
+    //     );
+    // }
+
+    return (
+        signature.to_string(),
+        testing.datetime,
+        "success".to_string(),
+    );
 
     // let item: PriceDbItem = PriceDbItem {
     //     price_token_ref: price_token_ref.to_string(),

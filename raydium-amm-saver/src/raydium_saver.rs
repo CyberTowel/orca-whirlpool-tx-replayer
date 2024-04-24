@@ -1,15 +1,28 @@
-pub mod raydium {
+use deadpool::managed::Pool;
+use solana_client::{
+    rpc_client::GetConfirmedSignaturesForAddress2Config,
+    rpc_response::RpcConfirmedTransactionStatusWithSignature,
+};
+use solana_sdk::{pubkey::Pubkey, signature::Signature};
+use std::str::FromStr;
 
+use self::raydium::RpcPoolManager;
+
+pub mod raydium {
     use arl::RateLimiter;
     use async_trait::async_trait;
+    use std::str::FromStr;
 
-    use deadpool::managed::{self, Metrics};
+    use deadpool::managed::{self, Metrics, Pool};
 
     use deadpool::managed::RecycleResult;
 
+    use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
     use solana_client::{
         rpc_client::RpcClient, rpc_response::RpcConfirmedTransactionStatusWithSignature,
     };
+    use solana_sdk::pubkey::Pubkey;
+    use solana_sdk::signature::Signature;
 
     use crate::pool_state::LiquidityStateLayoutV4;
     use crate::token_db::DbClientPoolManager;
@@ -19,7 +32,7 @@ pub mod raydium {
     use tokio::task::JoinSet;
 
     pub async fn batch_process_signatures(
-        signatures: Vec<RpcConfirmedTransactionStatusWithSignature>,
+        signatures: Vec<String>,
         rpc_connection: &deadpool::managed::Pool<RpcPoolManager>,
         limiter: &RateLimiter,
         db_pool: &deadpool::managed::Pool<DbClientPoolManager>,
@@ -31,10 +44,7 @@ pub mod raydium {
 
         // let result: Vec<_> = testing.iter().step_by(100).collect();
 
-        let testing: Vec<RpcConfirmedTransactionStatusWithSignature> =
-            signatures.into_iter().step_by(100).collect();
-
-        for signature in testing {
+        for signature in signatures {
             let connection = rpc_connection.clone().get().await.unwrap();
 
             let tester = limiter.clone();
@@ -47,27 +57,34 @@ pub mod raydium {
             signatures_to_process.spawn(async move {
                 // wait for ratelimiting
                 tester.wait().await;
-                parser_transaction(
-                    &signature.signature,
+                let results = parser_transaction(
+                    &signature,
                     &connection,
                     &db_client,
                     &pool_state_c,
                     &poolvars_c,
                 );
-                return signature.signature;
+                return results;
             });
         }
 
-        let mut crawled_signatures: Vec<String> = Vec::new();
+        let mut crawled_signatures: Vec<(String, String, String)> = Vec::new();
 
         while let Some(res) = signatures_to_process.join_next().await {
             // let idx = res.unwrap();
-            let idx = match res {
+            let result_i = match res {
                 Ok(_) => res.unwrap(),
-                Err(_) => "".to_string(),
+                Err(_) => ("".to_string(), "".to_string(), "".to_string()),
             };
-            crawled_signatures.push(idx);
+            crawled_signatures.push(result_i);
         }
+
+        let (signature_from, datatime_from, _err) = crawled_signatures.first().unwrap();
+        let (signature_until, datatime_until, _err_until) = crawled_signatures.last().unwrap();
+        println!(
+            "Processed {:?} until {:?} ({:#?})",
+            datatime_from, datatime_until, signature_until,
+        );
     }
 
     #[derive(Debug)]
@@ -101,6 +118,89 @@ pub mod raydium {
     }
 
     pub type RpcPool = managed::Pool<RpcPoolManager>;
+
+    pub async fn get_paginated_singatures(
+        pool_id: &str,
+        pool: Pool<RpcPoolManager>,
+        before_signature_param: Option<String>,
+    ) -> (Vec<String>, Option<String>) {
+        let process_interval = 300;
+        let poll_interval = 1;
+
+        let mut before_signature: Option<Signature> = None;
+
+        if (before_signature_param.is_some()) {
+            before_signature = Some(Signature::from_str(&before_signature_param.unwrap()).unwrap());
+        }
+
+        // Signature::from_str(before_signature).unwrap();
+
+        //  Some(Signature::from_str(
+        //     "4KfkEVp2QMCM4vEsJgE3fWKuXZmpsv1ema7uBkcHjU4uoM9tVVwuSdPmynx5zJC4mPfirm9mJJCRGT1NRQE2euPA",
+        // )
+        // .unwrap());
+
+        let pool_pubkey = Pubkey::from_str(pool_id).unwrap();
+
+        let has_more = true;
+
+        let mut all_signatures: Vec<String> = Vec::new();
+
+        while has_more == true {
+            let signature_pagination_config: GetConfirmedSignaturesForAddress2Config =
+                GetConfirmedSignaturesForAddress2Config {
+                    commitment: None,
+                    before: before_signature,
+                    limit: Some(1000),
+                    until: None,
+                };
+
+            let rpc_connection = pool.clone().get().await.unwrap();
+
+            let signatures_to_process = rpc_connection
+                .get_signatures_for_address_with_config(&pool_pubkey, signature_pagination_config)
+                .unwrap();
+
+            let last_signature = &signatures_to_process.last().unwrap().signature;
+            before_signature = Option::Some(Signature::from_str(&last_signature).unwrap());
+
+            let testing: Vec<RpcConfirmedTransactionStatusWithSignature> = signatures_to_process
+                .into_iter()
+                .filter(|cts: &RpcConfirmedTransactionStatusWithSignature| cts.err.is_none())
+                .collect();
+
+            // let interval = (testing.len() as f64 / poll_interval as f64) as f64;
+
+            let selit = 1; // interval.ceil() as usize;
+
+            let dolar: Vec<String> = testing
+                .into_iter()
+                .step_by(selit)
+                .map(|item| item.signature)
+                .collect();
+
+            all_signatures.extend(dolar.clone());
+
+            // println!("{:#?}", dolar);
+            // println!("${:#?} batch", all_signatures.len());
+
+            if all_signatures.len() > process_interval + 1 {
+                // has_more = false;
+                break;
+            }
+
+            // let last_signature =
+            //     Some(Signature::from_str(&signatures_to_process.last().unwrap().signature).unwrap());
+        }
+
+        // let items: Vec<String> = all_signatures.iter().take(101).collect();
+
+        let (item_to_process, b) = all_signatures.split_at(process_interval);
+
+        let next_item = Option::from(b[0].to_string());
+
+        return (item_to_process.to_vec(), next_item);
+    }
 }
 
 pub mod pg_saving {
