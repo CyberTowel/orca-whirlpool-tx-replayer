@@ -1,8 +1,7 @@
 use crate::pool_state::LiquidityStateLayoutV4;
 use crate::token_db::{PriceItem, TokenDbClient};
 use crate::token_parser::{
-    get_price, get_token_amounts, parse_combined, parse_token_amounts_new,
-    parse_token_price_oracle_values,
+    get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
 };
 use crate::token_parser::{PoolVars, TokenPriceOracleValues};
 use crate::transaction::Transaction;
@@ -111,13 +110,13 @@ pub fn parser_transaction(
 
     //price usd $0.0001842
 
-    let token_amounts_usd = parse_combined(
-        &token_amounts,
-        token_prices.token_price_usd_18,
-        token_prices.token_ref_price_usd_18,
-        pool_state.quote_decimal,
-        pool_state.base_decimal,
-    );
+    // let token_amounts_usd = parse_combined(
+    //     &token_amounts,
+    //     token_prices.token_price_usd_18,
+    //     token_prices.token_ref_price_usd_18,
+    //     pool_state.quote_decimal,
+    //     pool_state.base_decimal,
+    // );
 
     let swap_token_amounts_priced = parse_token_amounts_new(
         &token_amounts,
@@ -132,29 +131,50 @@ pub fn parser_transaction(
         .unwrap()
         .to_rfc3339();
 
-    let token_amounts_usd_c = token_amounts_usd.clone();
+    // let token_amounts_usd_c = token_amounts_usd.clone();
+
+    // println!(
+    //     "to_string, to_f64  {:#?}, {:#?}",
+    //     token_prices.token_price_usd_18.to_string(),
+    //     token_prices.token_price_usd_18.to_f64().to_string(),
+    // );
+
+    let total_amount_usd_rounded = token_prices
+        .token_price_usd_18
+        .round(0, num_bigfloat::RoundingMode::ToOdd)
+        .to_string();
+
+    // println!("total_amount_usd_rounded {:#?}", total_amount_usd_rounded);
 
     let item_to_save = PriceItem {
         signature: signature.to_string(),
         token_ref_address: pool_state.quote_mint.to_string(),
         token_address: pool_state.base_mint.to_string(),
-        token_price_usd: sol_price_db.to_string(),
+        token_price_usd: token_prices.token_price_usd_18,
+        // .token_price_usd_18
+        // .round(0, num_bigfloat::RoundingMode::Down)
+        // .to_string(), // sol_price_db.to_string(),
         token_ref_price_usd: token_prices.token_ref_price_usd_18.to_string(),
-        token_price_usd_formatted: token_amounts_usd_c.price_usd_token_a_formatted.to_string(),
-        token_ref_price_usd_formatted: token_amounts_usd_c.price_usd_token_b_formatted.to_string(),
+        token_price_usd_formatted: token_prices.token_price_usd_fixed,
+        // token_ref_price_usd_formatted: token_amounts_usd_c.price_usd_token_b_formatted.to_string(),
         datetime: datetime,
         signer: transaction_parsed.signer.to_string(),
         ubo: transaction_parsed.ubo.to_string(),
         pool_address: poolvars.pool_id.to_string(),
-        usd_total_pool: token_amounts_usd_c.usd_total_pool.to_string(),
-        price_token_ref: token_prices.token_price_rel_to_ref.to_string(),
-        price_token_ref_formatted: token_prices.token_price_rel_to_ref.to_string(),
+        usd_total_pool: swap_token_amounts_priced.usd_total_pool_18.to_string(),
+        // usd_total_pool: token_amounts_usd_c.usd_total_pool.to_string(),
+        price_token_ref: token_prices.token_price_rel_to_ref,
+        price_token_ref_formatted: token_prices.token_price_rel_to_ref,
         block_number: transaction_parsed.block_number.to_string(),
     };
+
+    // println!(item_to_save)
 
     // let j = serde_json::to_string(&address)?;
 
     let testing = item_to_save.clone();
+
+    // println!(" item_to_save {:#?}", item_to_save);
 
     let reponse = db_client.save_token_values(item_to_save);
 

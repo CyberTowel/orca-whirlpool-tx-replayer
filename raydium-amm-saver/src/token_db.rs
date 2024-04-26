@@ -4,15 +4,16 @@ use deadpool::managed::RecycleResult;
 use deadpool::managed::{self, Metrics, Pool};
 use deadpool_postgres::Manager;
 use num::FromPrimitive;
+use num_bigfloat::BigFloat;
 use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
-use tokio_postgres::types::Json;
+use tokio_postgres::types::{Json, ToSql};
 use tokio_postgres::Error as TPError;
 // use tokio_postgres::types::Json;
 
 use crate::raydium_saver::pg_saving::create_db_pool;
-use crate::token_parser::{TokenAmounts, TokenAmountsPricedToArchive, TokenPriceOracleValues};
+use crate::token_parser::{TokenAmounts, TokenPriceOracleValues};
 
 pub fn testing() {}
 
@@ -25,17 +26,17 @@ pub struct PriceItem {
     pub signature: String,
     pub token_ref_address: String,
     pub token_address: String,
-    pub token_price_usd: String,
+    pub token_price_usd: BigFloat,
     pub token_ref_price_usd: String,
-    pub token_price_usd_formatted: String,
-    pub token_ref_price_usd_formatted: String,
+    pub token_price_usd_formatted: BigFloat,
+    // pub token_ref_price_usd_formatted: String,
     pub datetime: String,
     pub signer: String,
     pub ubo: String,
     pub pool_address: String,
     pub usd_total_pool: String,
-    pub price_token_ref: String,
-    pub price_token_ref_formatted: String,
+    pub price_token_ref: BigFloat,
+    pub price_token_ref_formatted: BigFloat,
     pub block_number: String,
     // pub token_a_usd: TokenAmountsPriced,
     // pub token_b_usd: TokenAmountsPriced,
@@ -47,10 +48,10 @@ pub struct PriceItem {
 pub struct PriceItemDb {
     pub conversion_ref: String,
     pub token_address: String,
-    pub price: String,
+    pub price: BigFloat,
     pub datetime: String,
     pub transaction_hash: String,
-    pub price_formatted: String,
+    pub price_formatted: BigFloat,
     pub oracle_id: String,
     pub blocknumber: String,
 }
@@ -249,16 +250,20 @@ impl TokenDbClient {
             .await
             .unwrap();
 
+        println!("input: {:#?}", input.amount_total_pool.to_string());
+
         client
             .query(
                 &stmt,
                 &[
                     &signature,
                     &input.token_address,
-                    &Decimal::from_f64_retain(input.amount_total_pool).unwrap(),
-                    &Decimal::from_f64_retain(input.amount_diff_pool).unwrap(),
-                    &Decimal::from_f64_retain(input.amount_total_ubo).unwrap(),
-                    &Decimal::from_f64_retain(input.amount_diff_ubo).unwrap(),
+                    &parse_value_to_numeric(&input.amount_total_pool, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.amount_diff_pool, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &Decimal::from_str(&input.amount_total_ubo.to_string()).unwrap(),
+                    &Decimal::from_str(&input.amount_diff_ubo.to_string()).unwrap(),
                 ],
             )
             .await
@@ -302,10 +307,10 @@ impl TokenDbClient {
                 $3::TEXT,  
                 $4::TEXT,  
                 $5::TEXT,  
-                $6::TEXT,       
-                $7::TEXT, 
-                $8::TEXT,
-                $9::TEXT, 
+                $6::NUMERIC,       
+                $7::NUMERIC, 
+                $8::NUMERIC,
+                $9::NUMERIC, 
                 $10::NUMERIC,
                 $11::NUMERIC, 
                 $12::NUMERIC,
@@ -350,8 +355,6 @@ impl TokenDbClient {
 
         // println!("testing dolar shifted {:#?}", dolar);
 
-        let testing = BigDecimal::from_f64(input.usd_total_pool);
-
         client
             .query(
                 &stmt,
@@ -361,25 +364,22 @@ impl TokenDbClient {
                     &input.pool_address,
                     &input.token_address,
                     &input.signature,
-                    &input.usd_total_pool.to_string(),
-                    &input.usd_total_ubo.to_string(),
-                    &input.usd_diff_ubo.to_string(),
-                    &input.usd_diff_pool.to_string(),
-                    // &input.usd_total_pool.to_string(),
-                    // &input.usd_total_ubo.to_string(),
-                    // &input.usd_diff_ubo.to_string(),
-                    // &input.usd_diff_pool.to_string(),
-                    // &Decimal::from_str(&input.usd_total_pool.to_string()).unwrap(),
-                    // &Decimal::from_str(&input.usd_total_ubo.to_string()).unwrap(),
-                    // &Decimal::from_str(&input.usd_diff_ubo.to_string()).unwrap(),
-                    // &Decimal::from_str(&input.usd_diff_pool.to_string()).unwrap(),
-                    // &Decimal::from_i128(input.usd_total_ubo).unwrap(),
-                    // &Decimal::from_i128(input.usd_diff_ubo).unwrap(),
-                    // &Decimal::from_i128(input.usd_diff_pool).unwrap(),
-                    &Decimal::from_f64(input.amount_total_pool).unwrap(),
-                    &Decimal::from_f64(input.amount_diff_pool).unwrap(),
-                    &Decimal::from_f64(input.amount_total_ubo).unwrap(),
-                    &Decimal::from_f64(input.amount_diff_ubo).unwrap(),
+                    &parse_value_to_numeric(&input.usd_total_pool, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.usd_total_ubo, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.usd_diff_ubo, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.usd_diff_pool, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.amount_total_pool, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.amount_diff_pool, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.amount_total_ubo, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &parse_value_to_numeric(&input.amount_diff_ubo, Some(0))
+                        as &(dyn tokio_postgres::types::ToSql + Sync),
                     // &Decimal::from_i128(input.usd_total_pool_18).unwrap(),
                     // &Decimal::from_i128(input.usd_total_ubo_18).unwrap(),
                     // &Decimal::from_i128(input.usd_diff_ubo_18).unwrap(),
@@ -398,10 +398,10 @@ impl TokenDbClient {
         let value1 = PriceItemDb {
             conversion_ref: price_ref_1.to_string(),
             token_address: input.token_address.to_string(),
-            price: input.token_price_usd.to_string(),
+            price: input.token_price_usd,
             datetime: input.datetime.to_string(),
             transaction_hash: input.signature.to_string(),
-            price_formatted: input.token_price_usd_formatted.to_string(),
+            price_formatted: input.token_price_usd_formatted,
             oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
             blocknumber: input.block_number.to_string(),
         };
@@ -411,10 +411,10 @@ impl TokenDbClient {
         let value2 = PriceItemDb {
             conversion_ref: price_ref_2.to_string(),
             token_address: input.token_address.to_string(),
-            price: input.price_token_ref.to_string(),
+            price: input.price_token_ref,
             datetime: input.datetime.to_string(),
             transaction_hash: input.signature.to_string(),
-            price_formatted: input.price_token_ref_formatted.to_string(),
+            price_formatted: input.price_token_ref_formatted,
             oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
             blocknumber: input.block_number.to_string(),
         };
@@ -483,16 +483,35 @@ impl TokenDbClient {
             .await
             .unwrap();
 
+        let price_numeric = parse_value_to_numeric(&input.price, Some(0));
+        let price_usd_formatted = parse_value_to_numeric(&input.price_formatted, None);
+        // let testing = BigDecimal::from_str(&input.price).unwrap();
+        // let price_formatted_bd = BigDecimal::from_str(&input.price_formatted).unwrap();
+
+        // let price_numeric = PgNumeric::new(Some(testing.round(0)));
+        // let price_usd_formatted = PgNumeric::new(Some(price_formatted_bd));
+
+        // println!(
+        //     "&input.price: {:#?}
+        //     input input.price: {:#?}, testing:${:?}",
+        //     &Decimal::from_str(&input.price).unwrap(),
+        //     input.price,
+        //     "tets" // testing // testing.to_string();
+        // );
+
         let insert_result = client
             .query(
                 &stmt,
                 &[
                     &input.conversion_ref,
                     &input.token_address,
-                    &Decimal::from_str(&input.price).unwrap(),
+                    &price_numeric as &(dyn tokio_postgres::types::ToSql + Sync),
+                    // &Decimal::from_str(&input.price).unwrap(),
+                    // testing.to_string(),
                     &datetime_pg,
                     &input.transaction_hash,
-                    &Decimal::from_str(&input.price_formatted).unwrap(),
+                    &price_usd_formatted as &(dyn tokio_postgres::types::ToSql + Sync),
+                    // &Decimal::from_str(&input.price_formatted).unwrap(),
                     &input.oracle_id.to_string(),
                     &Decimal::from_str(&input.blocknumber).unwrap(),
                 ],
@@ -571,16 +590,20 @@ impl TokenDbClient {
                     &input.signature,
                     &input.token_ref_address,
                     &input.token_address,
-                    &Decimal::from_str(&input.token_price_usd).unwrap(),
+                    &Decimal::from_str(&input.token_price_usd.to_string()).unwrap(),
                     &Decimal::from_str(&input.token_ref_price_usd).unwrap(),
-                    &Decimal::from_str(&input.token_price_usd_formatted).unwrap(),
-                    &Decimal::from_str(&input.token_ref_price_usd_formatted).unwrap(),
+                    &Decimal::from_str("101010101010").unwrap(),
+                    &Decimal::from_str("101010101010").unwrap(),
+                    // "todo".to_string(),
+                    // &Decimal::from_str(&input.token_price_usd_formatted).unwrap(),
+                    // &Decimal::from_str(&input.token_ref_price_usd_formatted).unwrap(),
                     &datetime_param,
                     &"feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
                     &input.signer,
                     &input.ubo,
                     &input.pool_address,
-                    &Decimal::from_str(&input.usd_total_pool).unwrap(),
+                    &Decimal::from_str("101010101010").unwrap(),
+                    // &Decimal::from_str(&input.usd_total_pool).unwrap(),
                     // &Json::<TokenAmountsPriced>(input.token_a_usd),
                     // &Json::<TokenAmountsPriced>(input.token_b_usd),
                     // &Json::<TokenAmounts>(input.token_amounts_a),
@@ -702,4 +725,20 @@ impl DbTokenTesterInner {
             // pool: None,
         }
     }
+}
+
+fn parse_value_to_numeric(value: &BigFloat, round_digits: Option<i64>) -> PgNumeric {
+    let testing = BigDecimal::from_str(&value.to_string()).unwrap();
+
+    // if(round_digits.is_some())
+
+    let price_numeric = if (round_digits.is_some()) {
+        PgNumeric::new(Some(testing.round(0)))
+    } else {
+        PgNumeric::new(Some(testing))
+    };
+
+    let value_c = price_numeric.clone();
+
+    return value_c;
 }

@@ -169,8 +169,6 @@ pub mod raydium {
                 .filter(|cts: &RpcConfirmedTransactionStatusWithSignature| cts.err.is_none())
                 .collect();
 
-            // let interval = (testing.len() as f64 / poll_interval as f64) as f64;
-
             let selit = 1; // interval.ceil() as usize;
 
             let dolar: Vec<String> = testing

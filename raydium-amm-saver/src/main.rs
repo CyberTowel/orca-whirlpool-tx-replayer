@@ -69,6 +69,8 @@ async fn main() {
         // token_b_address: token_b_address.to_string(),
     };
 
+    // num_bigfloat::MAX
+
     let pool_state = get_pool_state(poolvars.pool_id.clone());
 
     // println!(
