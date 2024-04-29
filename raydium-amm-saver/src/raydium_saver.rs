@@ -176,7 +176,11 @@ Processed {:?} until {:?} ({:#?})
             let step_by_value = if sample_rate.is_some() {
                 let interval = (testing.len() as f64 / sample_rate.unwrap() as f64) as f64;
 
-                let selit = interval.floor() as usize;
+                let mut selit = interval.floor() as usize;
+
+                if selit < 1 {
+                    selit = 1;
+                }
                 selit
             } else {
                 1
