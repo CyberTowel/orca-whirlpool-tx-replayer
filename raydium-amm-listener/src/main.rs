@@ -35,9 +35,9 @@ async fn main() -> Result<()> {
 
     // let pubsub_client = get_pubsub_client();
 
-    // let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
+    let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
 
-    let mut rpc_url = "wss://66.248.205.6:8900";
+    // let mut rpc_url = "wss://66.248.205.6:8900";
 
     println!("Connecting to {}", rpc_url);
 
