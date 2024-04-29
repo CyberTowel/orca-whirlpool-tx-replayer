@@ -37,7 +37,7 @@ async fn main() -> Result<()> {
 
     // let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
 
-    let mut rpc_url = "wss://66.248.205.6:8900";
+    let mut rpc_url = "http://66.248.205.6:8899";
 
     let tree_addresses: Vec<String> = vec![
         // "GXTXbFwcbNdWbiCWzZc3J2XGofopnhN9T98jnG29D2Yw".to_string(),
