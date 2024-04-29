@@ -56,7 +56,7 @@ pub mod raydium {
 
             signatures_to_process.spawn(async move {
                 // wait for ratelimiting
-                tester.wait().await;
+                // tester.wait().await;
                 let results = parser_transaction(
                     &signature,
                     &connection,
