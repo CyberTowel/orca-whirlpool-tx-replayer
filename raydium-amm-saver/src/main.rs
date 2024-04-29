@@ -171,6 +171,11 @@ async fn main() {
             items_to_process
         };
 
+        if (signatures_to_use.len() == 0) {
+            println!("No more signatures to process");
+            break;
+        }
+
         batch_process_signatures(
             signatures_to_use,
             &pool,
@@ -181,4 +186,6 @@ async fn main() {
         )
         .await;
     }
+
+    println!("No more transactions to process");
 }

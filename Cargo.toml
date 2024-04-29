@@ -1,6 +1,7 @@
 [workspace]
 members = [
-  "raydium-amm-saver"
+  "raydium-amm-saver",
+  "raydium-amm-listener"
 ]
 
 resolver = "2"

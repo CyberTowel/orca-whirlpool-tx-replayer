@@ -178,8 +178,15 @@ Processed {:?} until {:?} ({:#?})
                 .get_signatures_for_address_with_config(&pool_pubkey, signature_pagination_config)
                 .unwrap();
 
-            let last_signature = &signatures_to_process.last().unwrap().signature;
-            before_signature = Option::Some(Signature::from_str(&last_signature).unwrap());
+            if (signatures_to_process.last().is_some()) {
+                let last_signature = &signatures_to_process.last().unwrap().signature;
+                before_signature = Option::Some(Signature::from_str(&last_signature).unwrap());
+            }
+
+            if (signatures_to_process.len() == 0) {
+                println!("No more signatures to process");
+                break;
+            }
 
             let testing: Vec<RpcConfirmedTransactionStatusWithSignature> = signatures_to_process
                 .into_iter()

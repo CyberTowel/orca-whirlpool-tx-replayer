@@ -1,0 +1,12 @@
+[package]
+name = "raydium-amm-listener"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+solana-client = "1.16.18"
+solana-program = "1.16.18"
+solana-sdk = "1.16.18"
+futures = "0.3.28"
+anyhow = "1.0.79"

@@ -1,0 +1,159 @@
+use std::borrow::Borrow;
+use std::pin::Pin;
+use std::thread::sleep;
+use std::time::Duration;
+
+use anyhow::Result;
+// use backfill::backfill::backfill_tree;
+// use config::rpc_config::{get_pubsub_client, setup_rpc_clients};
+// use dotenv::dotenv;
+// use futures::future::join;
+use futures::prelude::*;
+use futures::stream::SelectAll;
+use futures::{future::join_all, stream::select_all};
+use solana_client::nonblocking::pubsub_client::PubsubClient;
+// use mpl_bubblegum::accounts::MerkleTree;
+// use processor::logs::process_logs;
+// use processor::metadata::fetch_store_metadata;
+// use processor::queue_processor::process_transactions_queue;
+// use sea_orm::SqlxPostgresConnector;
+use solana_client::rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter};
+use solana_client::rpc_response::{Response, RpcLogsResponse};
+use solana_sdk::commitment_config::CommitmentConfig;
+// use sqlx::{Acquire, PgPool};
+use tokio::task;
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    // dotenv().ok();
+
+    // let env_config = setup_env_config();
+
+    // setup_rpc_clients(&env_config).await;
+
+    // let database_pool = setup_database_config(&env_config).await;
+
+    // let pubsub_client = get_pubsub_client();
+
+    // let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
+
+    let mut rpc_url = "wss://66.248.205.6:8899";
+
+    let tree_addresses: Vec<String> = vec![
+        // "GXTXbFwcbNdWbiCWzZc3J2XGofopnhN9T98jnG29D2Yw".to_string(),
+        // "Aju7YfPdhjaqJbRdow48PqxcWutDDHWww6eoDC9PVY7m".to_string(),
+        // "43XAHmPkq8Yth3swdqrh5aZvWrmuci5ZhPVLptreaUZ1".to_string(),
+        // "EQQiiEceUo2uxHQgtRt8W92frLXwMUwdvt7P9Yo26cUM".to_string(),
+        // "CkSa2n2eyJvsPLA7ufVos94NAUTYuVhaxrvH2GS69f9j".to_string()
+        // "Dbx2uKULg44XeBR28tNWu2dU4bPpGfuYrd7RntgGXvuT".to_string(),
+        // "CkSa2n2eyJvsPLA7ufVos94NAUTYuVhaxrvH2GS69f9j".to_string(),
+        // "EBFsHQKYCn1obUr2FVNvGTkaUYf2p5jao2MVdbK5UNRH".to_string(),
+        // "14b9wzhVSaiUHB4t8tDY9QYNsGStT8ycaoLkBHZLZwax".to_string(),
+        // "6kAoPaZV4aB1rMPTPkbgycb9iNbHHibSzjhAvWEroMm".to_string(),
+        // "FmUjM4YBLK93WSb7AnbuYZy1h2kCcjZM8kHsi9ZU93TP".to_string(),
+        // "6JTnMcq9a6atrqmsz4rgTWp9EG5YPzxoobD7vg1csNt5".to_string(),
+        // "HVGMVJ7DyfXLU2H5AJSHvX2HkFrRrHQAoXAHfYUmicYr".to_string(),
+        "D8yRakvsjWSR3ihANhwjP8RmNLg3A46EA1V1EbMLDT8B".to_string(),
+    ];
+
+    let pubsub_client = PubsubClient::new(rpc_url).await.unwrap();
+
+    // let mut stream = select_all(
+    //     join_all(tree_addresses.iter().map(|address| {
+    //         pubsub_client.logs_subscribe(
+    //             RpcTransactionLogsFilter::Mentions(vec![address.to_string()]),
+    //             RpcTransactionLogsConfig {
+    //                 commitment: Some(CommitmentConfig::processed()),
+    //             },
+    //         )
+    //     }))
+    //     .await
+    //     .into_iter()
+    //     .flat_map(|result| match result {
+    //         Ok(subscription) => Some(subscription.0),
+    //         Err(e) => {
+    //             eprintln!("error creating subscription: {e}");
+    //             None
+    //         }
+    //     }),
+    // );
+
+    // let handle = task::spawn(handle_stream(stream));
+
+    let testing = pubsub_client
+        .logs_subscribe(
+            RpcTransactionLogsFilter::Mentions(vec![
+                // "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
+                "GujHmffbs9fWAXTXNgxYQFwmkTt3591Vh5Mg1CJg1hah".to_string(),
+            ]),
+            RpcTransactionLogsConfig {
+                commitment: Some(CommitmentConfig::processed()),
+            },
+        )
+        .await;
+
+    println!("Listener added");
+
+    let dolar = testing.unwrap();
+
+    let mut stream = select_all(vec![dolar.0]);
+
+    loop {
+        let logs = stream.next().await.unwrap();
+
+        if logs.value.err.is_some() {
+            continue;
+        }
+
+        println!("signature {:?} ", logs.value.signature);
+        // process_logs(logs.value).await;
+    }
+
+    // handle_stream(testing.unwrap());
+    Ok(())
+    // .into_iter();
+
+    // let stream = testing.map(|mut result| {
+    //     let mut testing = result.0.next();
+
+    // match testing {
+    //     Ok(subscription) => {
+    //         let stream = subscription.0;
+    //         task::spawn(handle_stream(stream));
+    //     }
+    //     Err(e) => {
+    //         eprintln!("error creating subscription: {e}");
+    //     }
+    // }
+    // });
+
+    // let handle = task::spawn(handle_stream(stream));
+
+    // // task::spawn(handle_metadata_downloads(database_pool.clone()));
+
+    // // join_all(tree_addresses.into_iter().map(backfill_tree)).await;
+
+    // // task::spawn(process_transactions_queue(database_pool.clone())).await?;
+
+    // Ok(())
+}
+
+async fn handle_stream(
+    mut stream: SelectAll<Pin<Box<dyn Stream<Item = Response<RpcLogsResponse>> + Send>>>,
+) {
+    loop {
+        let logs = stream.next().await.unwrap();
+
+        println!("{:?}", logs.value);
+        // process_logs(logs.value).await;
+    }
+}
+
+// async fn handle_metadata_downloads(pool: PgPool) {
+//     let connection = SqlxPostgresConnector::from_sqlx_postgres_pool(pool);
+//     loop {
+//         let _ = fetch_store_metadata(&connection).await;
+//         println!("No metadata to update, sleeping for 5 secs");
+//         sleep(Duration::from_secs(5))
+//     }
+// }
