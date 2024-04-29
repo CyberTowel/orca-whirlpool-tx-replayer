@@ -26,6 +26,9 @@ struct Args {
     #[clap(short, long)]
     /// maximum depth to which sub-directories should be explored
     sample_rate: Option<usize>,
+
+    #[clap(short, long)]
+    start_at: Option<String>,
     // sample_rate: Option<i64>,
 }
 
@@ -133,7 +136,7 @@ async fn main() {
     let mut _has_more = true;
     let mut _batch = 0;
 
-    let mut before_signature: Option<String> = None;
+    let mut before_signature: Option<String> = args.start_at.clone();
 
     while _has_more == true {
         _batch += 1;
