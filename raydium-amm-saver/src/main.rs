@@ -23,30 +23,42 @@ pub struct TestTransaction {
 
 #[derive(Parser, Debug)]
 struct Args {
-    #[clap(short, long)]
+    #[clap(long)]
     /// maximum depth to which sub-directories should be explored
     sample_rate: Option<usize>,
 
-    #[clap(short, long)]
+    #[clap(long)]
     start_at: Option<String>,
-    // sample_rate: Option<i64>,
+
+    #[clap(long)]
+    pool_id: Option<String>,
+
+    #[clap(long)]
+    rpc_type: Option<String>,
+
+    #[clap(long)]
+    rate_limit: Option<usize>,
 }
 
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
-    println!("Sample rate set: {:?}", args);
+    let limit_to_set = args.rate_limit.unwrap_or(1000);
 
-    let mgr = RpcPoolManager {};
+    println!("Args set: {:?}", args);
+
+    let mgr = RpcPoolManager {
+        rpc_type: args.rpc_type,
+    };
 
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
 
-    let pool = RpcPool::builder(mgr).max_size(20).build().unwrap();
+    let pool = RpcPool::builder(mgr).max_size(200).build().unwrap();
 
-    let db_pool = DbPool::builder(db_mgr).max_size(20).build().unwrap();
+    let db_pool = DbPool::builder(db_mgr).max_size(50).build().unwrap();
 
-    let limiter = RateLimiter::new(1000, Duration::from_secs(1));
+    let limiter = RateLimiter::new(limit_to_set, Duration::from_secs(1));
 
     let testing_mode = false;
 
@@ -105,7 +117,9 @@ async fn main() {
         return;
     }
 
-    let pool_id = "58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2";
+    let pool_id = args
+        .pool_id
+        .unwrap_or("58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2".to_string()); //"";
 
     // values IDK
     // let pool_id = "8gptfZ8bkT2Z1gMv38VpxarFfCXZPCykFKjGUkYJnfCR";
@@ -149,7 +163,8 @@ async fn main() {
 
         let signatures_to_use = {
             let (items_to_process, next_item) =
-                get_paginated_singatures(pool_id, pool_c, before_signature, args.sample_rate).await;
+                get_paginated_singatures(&pool_id, pool_c, before_signature, args.sample_rate)
+                    .await;
 
             before_signature = next_item.clone();
             _has_more = next_item.is_some();
