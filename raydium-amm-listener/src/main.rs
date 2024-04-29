@@ -58,6 +58,8 @@ async fn main() -> Result<()> {
 
     let pubsub_client = PubsubClient::new(rpc_url).await.unwrap();
 
+    println!("Pubsub client created");
+
     // let mut stream = select_all(
     //     join_all(tree_addresses.iter().map(|address| {
     //         pubsub_client.logs_subscribe(
