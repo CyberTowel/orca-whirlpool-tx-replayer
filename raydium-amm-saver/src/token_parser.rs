@@ -36,57 +36,75 @@ pub fn get_token_amounts(
     rpc_transaction: &EncodedConfirmedTransactionWithStatusMeta,
     account_keys: &Vec<Value>,
     ubo: &str,
-    token_a_address: &str,
-    token_b_address: &str,
-    token_a_taa: &str,
-    token_b_taa: &str,
-    token_a_decimals: u64,
-    token_b_decimals: u64,
-    // pool_state: &LiquidityStateLayoutV4,
+    quote_mint_address: &str,
+    base_mint_address: &str,
+    quote_vault_address: &str,
+    base_vault_address: &str,
+    quote_decimal: u64,
+    base_decimal: u64,
 ) -> TokenAmountsSwap {
     let (token_changes_by_wallet, changes_by_token_account_address) =
         parse_balance_changes(rpc_transaction, account_keys);
 
     let token_changes_ubo = token_changes_by_wallet.get(ubo).unwrap();
-    // let token_changes_pool_old = token_changes_by_wallet.get(RAYDIUM_AUTHORITY).unwrap();
 
-    let token_changes_pool_new_a = changes_by_token_account_address.get(token_a_taa).unwrap();
-    let token_changes_pool_new_b = changes_by_token_account_address.get(token_b_taa).unwrap();
+    let token_changes_pool_new_a = changes_by_token_account_address
+        .get(quote_vault_address)
+        .unwrap();
+
+    let token_changes_pool_new_b = changes_by_token_account_address
+        .get(base_vault_address)
+        .unwrap();
 
     let token_changes_pool = merge_hashmap(
         token_changes_pool_new_a.clone(),
         token_changes_pool_new_b.clone(),
     );
 
-    let token_amounts_a = parse_token_amounts(
+    let token_amounts_quote = parse_token_amounts(
         token_changes_ubo,
         &token_changes_pool,
-        token_a_address,
-        token_a_decimals,
+        quote_mint_address,
+        quote_decimal,
     );
 
-    let token_amounts_b = parse_token_amounts(
+    let token_amounts_base = parse_token_amounts(
         token_changes_ubo,
         &token_changes_pool,
-        token_b_address,
-        token_b_decimals,
+        base_mint_address,
+        base_decimal,
     );
 
-    let token_b_price_rel = token_amounts_b.amount_total_pool / token_amounts_a.amount_total_pool;
+    // let token_b_price_rel =
+    //     token_amounts_base.amount_total_pool_18 / token_amounts_quote.amount_total_pool_18;
 
-    // let decimals_correct = token_b_decimals as i64 - token_a_decimals as i64;
+    let token_base_price_in_token_quote =
+        token_amounts_quote.amount_total_pool_18 / token_amounts_base.amount_total_pool_18;
 
-    // let price_token_ref = token_b_price_rel
+    let token_buy_price_in_token_qoute =
+        token_amounts_quote.amount_total_pool_pre_18 / token_amounts_base.amount_total_pool_pre_18;
+
+    // let token_b_price_fixed = token_b_price_rel_ref
     //     * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(decimals_correct)));
 
+    let token_new_price_in_token_quote_18 = token_base_price_in_token_quote
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18)));
+
+    let token_trade_price_in_token_qoute_18 = token_buy_price_in_token_qoute
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18)));
+
+    // let token_b_price_rel_new =
+    //     token_amounts_base.amount_total_pool_18_pre / token_amounts_quote.amount_total_pool_18_pre;
+
     let token_amounts_swap = TokenAmountsSwap {
-        token_a_address: token_a_address.to_string(),
-        token_b_address: token_b_address.to_string(),
-        token_amounts_a: token_amounts_a,
-        token_amounts_b: token_amounts_b,
-        price_usd_token_b: token_b_price_rel,
-        price_token_b_rel: token_b_price_rel,
-        price_usd_token_b_formatted: token_b_price_rel.to_string(),
+        // token_quote_address: quote_mint_address.to_string(),
+        // token_base_address: base_mint_address.to_string(),
+        token_amounts_quote,
+        token_amounts_base,
+        // price_usd_token_base: token_b_price_rel,
+        // token_b_price_fixed: token_b_price_fixed,
+        token_new_price_in_token_quote_18,
+        token_trade_price_in_token_quote_18: token_trade_price_in_token_qoute_18,
     };
 
     return token_amounts_swap;
@@ -161,11 +179,9 @@ pub fn parse_balance_changes(
         let amount = balance.ui_token_amount.amount;
         let owner_address = owner.unwrap();
 
+        // print!("\n amount post: {:#?}", amount);
+
         let index_usize = balance.account_index.to_usize().unwrap();
-        // println!(
-        //     "post_balances account index: {:#?}, address at index {:#?}",
-        //     balance``.account_index, account_keys[index_usize]
-        // );
 
         let pub_key_token_address = account_keys[index_usize]["pubkey"].as_str().unwrap();
 
@@ -201,6 +217,9 @@ pub fn parse_balance_changes(
         let owner: Option<String> = balance.owner.clone().into();
         let mint = balance.mint.clone();
         let amount = balance.ui_token_amount.amount;
+
+        // print!("\n amount pre: {:#?}", amount);
+
         let owner_address = owner.unwrap();
 
         let owner_address_c = owner_address.clone();
@@ -265,65 +284,132 @@ pub fn parse_balance_changes(
 
 #[derive(Default, Debug, Clone)]
 pub struct TokenPriceResult {
-    pub token_price_rel_to_ref: BigFloat,
-    pub token_price_usd_18: BigFloat,
-    pub token_price_usd_fixed: BigFloat,
-    pub token_ref_price_usd_18: BigFloat,
-    pub token_ref_price_usd_fixed: BigFloat,
+    pub token_quote_price_18: BigFloat,
+    pub token_new_price_18: BigFloat,
+    pub token_new_price_fixed: BigFloat,
+    pub token_new_price_in_token_quote_18: BigFloat,
+    pub token_new_price_in_token_quote_fixed: BigFloat,
+
+    pub token_trade_price_18: BigFloat,
+    pub token_trade_price_fixed: BigFloat,
+    pub token_trade_price_in_token_quote_18: BigFloat,
+    pub token_trade_price_in_token_quote_fixed: BigFloat,
 }
 
 pub fn get_price(
-    token_price_rel_a_to_b: &String,
-    token_ref: &String,
+    token_new_price_in_token_quote_18: BigFloat,
+    token_trade_price_in_token_quote_18: BigFloat,
+    token_quote_address: &String,
     sol_price_db: &String,
-    decimals_correct: i64,
+    // decimals_correct: i64,
+    quote_decimal: u64,
+    base_decimal: u64,
 ) -> Result<TokenPriceResult, Error> {
-    let stable_coin_ref = token_ref == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-    let token_price_rel_to_ref = BigFloat::from_str(token_price_rel_a_to_b).unwrap();
 
-    let token_ref_price_usd_18 = if stable_coin_ref {
+    let stable_coin_ref = token_quote_address == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+    // let price_usd_token_base_bf = BigFloat::from_str(price_usd_token_base).unwrap();
+
+
+
+    let token_quote_price_18 = if stable_coin_ref {
         (BigFloat::from_i16(1) * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18))))
     } else {
         BigFloat::from_str(sol_price_db).unwrap()
     };
 
-    let token_price_usd_18 = if stable_coin_ref {
-        let token_rel_to_ref = BigFloat::from_str(token_price_rel_a_to_b).unwrap();
+    let decimals_corrected = 18 - base_decimal as i64 - quote_decimal as i64;
 
-        let token_price_base = token_ref_price_usd_18 / token_rel_to_ref;
+    let token_new_price_18 = 
+    // if stable_coin_ref 
+    {
+        // let token_price_base = token_quote_price_18 / token_new_price_in_token_quote_18;
+        let token_price_base = token_quote_price_18 * token_new_price_in_token_quote_18;
+        // let token_price_base3 = token_new_price_in_token_quote_18 / token_quote_price_18;
 
-        let token_price_18 = token_price_base
-            * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-decimals_correct)));
+        let token_price_18 =
+            token_price_base * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
 
-        println!(
-            "decimals_correct: {:#?}, token_price_base {:#?} token_price_18: {:#?}",
-            decimals_correct,
-            token_price_base.to_f64().to_string(),
-            token_price_18.to_f64().to_string()
-        );
-        let _token_price_fixed =
-            token_price_18 * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+    
+        //     * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-decimals_corrected)));
 
         token_price_18
-    } else {
-        let usd_price_token_b = token_price_rel_to_ref * BigFloat::from_str(sol_price_db).unwrap();
+    };
+    
+    // else {
+    //     let token_price_base = token_new_price_in_token_quote_18 * token_quote_price_18;
 
-        usd_price_token_b
+    //     let token_price_18 =
+    //         token_price_base * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    //     token_price_18
+    // };
+
+    let token_trade_price_18 = 
+    // if stable_coin_ref 
+    {
+        // let token_price_base = token_quote_price_18 / token_new_price_in_token_quote_18;
+        let token_price_base = token_quote_price_18 * token_trade_price_in_token_quote_18;
+        // let token_price_base3 = token_new_price_in_token_quote_18 / token_quote_price_18;
+
+        let token_price_18 =
+            token_price_base * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    
+        //     * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-decimals_corrected)));
+
+        token_price_18
     };
 
-    let token_price_usd_fixed =
-        token_price_usd_18 * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+    // let token_trade_price_18 = if stable_coin_ref {
+    //     let token_price_base = token_quote_price_18 / token_trade_price_in_token_quote_18;
 
-    let token_ref_price_usd_fixed =
-        token_ref_price_usd_18 * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+    //     let token_price_18 = token_price_base
+    //         * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-decimals_corrected)));
+
+    //     token_price_18
+    // } else {
+    //     let token_price_base = token_trade_price_in_token_quote_18 * token_quote_price_18;
+
+    //     let token_price_18 =
+    //         token_price_base * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    //     token_price_18
+    // };
+
+
+
+    let token_new_price_in_token_quote_fixed = token_new_price_in_token_quote_18
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    let token_trade_price_in_token_quote_fixed = token_trade_price_in_token_quote_18
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+    // 111288733531385
+    // 22511500200737540
+
+    let token_new_price_fixed =
+        token_new_price_18 * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
+
+    let token_trade_price_fixed =
+        token_trade_price_18 * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
 
     let result = TokenPriceResult {
-        token_price_rel_to_ref: token_price_rel_to_ref,
-        token_price_usd_18: token_price_usd_18,
-        token_price_usd_fixed: token_price_usd_fixed,
-        token_ref_price_usd_18: token_ref_price_usd_18,
-        token_ref_price_usd_fixed: token_ref_price_usd_fixed,
+        token_quote_price_18,
+        token_new_price_18,
+        token_new_price_fixed,
+        token_new_price_in_token_quote_18,
+        token_new_price_in_token_quote_fixed,
+
+        token_trade_price_18,
+        token_trade_price_fixed,
+        token_trade_price_in_token_quote_18,
+        token_trade_price_in_token_quote_fixed,
     };
+
+    // base_mint: So11111111111111111111111111111111111111112,
+    // quote_mint: 6pxT5UmTumQXBknjwSzLePRwBA5k8VGs68LiZwncC2mB,
+
+    // base_mint: CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J,
+    // quote_mint: So11111111111111111111111111111111111111112,
 
     Ok(result)
 }
@@ -341,6 +427,11 @@ fn parse_token_amounts(
 
     let mut token_amount_pool = match token_changes_pool.get(token_address) {
         Some(x) => x.balance_post,
+        None => BigFloat::from_i64(0),
+    };
+
+    let mut token_amount_pool_pre = match token_changes_pool.get(token_address) {
+        Some(x) => x.balance_pre,
         None => BigFloat::from_i64(0),
     };
 
@@ -394,6 +485,9 @@ fn parse_token_amounts(
     let amount_total_pool_bf = token_amount_pool
         * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
 
+    let amount_total_pool_bf_pre = token_amount_pool_pre
+        * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
+
     let token_amount_ubo_bf = token_amount_ubo
         * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
 
@@ -412,15 +506,17 @@ fn parse_token_amounts(
     let amount_diff_ubo_18 = amount_diff_ubo_bf;
 
     return TokenAmounts {
-        amount_total_pool: token_amount_pool,
-        amount_total_ubo: token_amount_ubo,
-        amount_diff_pool: amount_diff_pool,
-        amount_diff_ubo: amount_diff_ubo,
+        // amount_total_pool: token_amount_pool,
+        // amount_total_pool_pre: token_amount_pool_pre,
+        // amount_total_ubo: token_amount_ubo,
+        // amount_diff_pool: amount_diff_pool,
+        // amount_diff_ubo: amount_diff_ubo,
         token_address: token_address.to_string(),
         amount_total_pool_18: token_amount_pool_18,
         amount_total_ubo_18: token_amount_ubo_18,
         amount_diff_pool_18: amount_diff_pool_18,
         amount_diff_ubo_18: amount_diff_ubo_18,
+        amount_total_pool_pre_18: amount_total_pool_bf_pre,
     };
 }
 
@@ -511,26 +607,29 @@ fn parse_token_amount_rounded(token_amount: BigFloat, token_amount_pool: BigFloa
 
 #[derive(Debug)]
 pub struct TokenAmountsSwap {
-    pub token_amounts_a: TokenAmounts,
-    pub token_amounts_b: TokenAmounts,
-    pub price_token_b_rel: BigFloat,
-    pub price_usd_token_b: BigFloat,
-    pub price_usd_token_b_formatted: String,
-    pub token_a_address: String,
-    pub token_b_address: String,
+    pub token_amounts_quote: TokenAmounts,
+    pub token_amounts_base: TokenAmounts,
+    // pub token_b_price_fixed: BigFloat,
+    // pub price_usd_token_base: BigFloat,
+    pub token_new_price_in_token_quote_18: BigFloat,
+    pub token_trade_price_in_token_quote_18: BigFloat,
+    // pub token_quote_address: String,
+    // pub token_base_address: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TokenAmounts {
     pub token_address: String,
-    pub amount_total_pool: BigFloat,
-    pub amount_diff_pool: BigFloat,
-    pub amount_total_ubo: BigFloat,
-    pub amount_diff_ubo: BigFloat,
+    // pub amount_total_pool: BigFloat,
+    // pub amount_total_pool_pre: BigFloat,
+    // pub amount_diff_pool: BigFloat,
+    // pub amount_total_ubo: BigFloat,
+    // pub amount_diff_ubo: BigFloat,
     pub amount_total_pool_18: BigFloat,
     pub amount_diff_pool_18: BigFloat,
     pub amount_total_ubo_18: BigFloat,
     pub amount_diff_ubo_18: BigFloat,
+    pub amount_total_pool_pre_18: BigFloat,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -595,10 +694,10 @@ pub fn parse_token_price_oracle_values(
         usd_diff_ubo: token_amounts_usd.usd_diff_ubo_18_rounded,
         usd_diff_pool: token_amounts_usd.usd_diff_pool_18_rounded,
 
-        amount_total_pool: token_amounts.amount_total_pool,
-        amount_diff_pool: token_amounts.amount_diff_pool,
-        amount_total_ubo: token_amounts.amount_total_ubo,
-        amount_diff_ubo: token_amounts.amount_diff_ubo,
+        amount_total_pool: token_amounts.amount_total_pool_18,
+        amount_diff_pool: token_amounts.amount_diff_pool_18,
+        amount_total_ubo: token_amounts.amount_total_ubo_18,
+        amount_diff_ubo: token_amounts.amount_diff_ubo_18,
     };
 
     return tpo_values_a;
@@ -611,13 +710,13 @@ pub fn parse_token_amounts_new(
     // token_b_decimals: u64,
 ) -> SwapTokenAmountsPriced {
     let token_usd_a = multiply_token_amounts_to_usd(
-        &token_amounts.token_amounts_a,
-        token_prices.token_ref_price_usd_18,
+        &token_amounts.token_amounts_quote,
+        token_prices.token_new_price_in_token_quote_18,
     );
 
     let token_usd_b = multiply_token_amounts_to_usd(
-        &token_amounts.token_amounts_b,
-        token_prices.token_price_usd_18,
+        &token_amounts.token_amounts_base,
+        token_prices.token_new_price_18,
     );
 
     let usd_total_pool_18 = token_usd_a.usd_total_pool_18 + token_usd_b.usd_total_pool_18;

@@ -23,7 +23,6 @@ mpl-token-metadata = { version = "1.9.0", features = ["no-entrypoint"] }
 chrono = "0.4.35"
 deadpool = {version = "0.10.0"}
 # internal
-whirlpool-replayer = { path = "../replayer" }
 async-trait = "0.1.79"
 arl = "0.2.0"
 deadpool-postgres = "0.12.1"

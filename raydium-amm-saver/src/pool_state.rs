@@ -1,5 +1,6 @@
 // use crate::state::LiquidityStateLayoutV4;
 use borsh::{BorshDeserialize, BorshSerialize};
+use deadpool::managed::Pool;
 use solana_client::rpc_client::RpcClient;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::client::SyncClient;
@@ -72,13 +73,94 @@ pub struct LiquidityStateLayoutV4 {
     pub pnl_owner: Pubkey,
 }
 
+#[derive(Debug, Clone)]
+pub struct PoolMeta {
+    pub base_decimal: u64,
+    pub base_lot_size: u64,
+    pub base_need_take_pnl: u64,
+    pub base_total_pnl: u64,
+    pub base_total_deposited: u128,
+    pub base_vault: Pubkey,
+    pub base_mint: Pubkey,
+
+    pub quote_decimal: u64,
+    pub quote_lot_size: u64,
+    pub quote_need_take_pnl: u64,
+    pub quote_total_pnl: u64,
+    pub quote_total_deposited: u128,
+    pub quote_vault: Pubkey,
+    pub quote_mint: Pubkey,
+}
+
+pub fn get_pool_meta(pool_id: &String) -> PoolMeta {
+    let state = state(pool_id);
+
+    let base_decimal = state.base_decimal;
+    let base_lot_size = state.base_lot_size;
+    let base_need_take_pnl = state.base_need_take_pnl;
+    let base_total_pnl = state.base_total_pnl;
+    let base_total_deposited = state.base_total_deposited;
+    let base_vault = state.base_vault;
+    let base_mint = state.base_mint;
+
+    let quote_decimal = state.quote_decimal;
+    let quote_lot_size = state.quote_lot_size;
+    let quote_need_take_pnl = state.quote_need_take_pnl;
+    let quote_total_pnl = state.quote_total_pnl;
+    let quote_total_deposited = state.quote_total_deposited;
+    let quote_vault = state.quote_vault;
+    let quote_mint = state.quote_mint;
+
+    if base_mint.to_string() == "So11111111111111111111111111111111111111112"
+        && quote_mint.to_string() != "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+    {
+        return PoolMeta {
+            base_decimal: quote_decimal,
+            base_lot_size: quote_lot_size,
+            base_need_take_pnl: quote_need_take_pnl,
+            base_total_pnl: quote_total_pnl,
+            base_total_deposited: quote_total_deposited,
+            base_vault: quote_vault,
+            base_mint: quote_mint,
+            quote_decimal: base_decimal,
+            quote_lot_size: base_lot_size,
+            quote_need_take_pnl: base_need_take_pnl,
+            quote_total_pnl: base_total_pnl,
+            quote_total_deposited: base_total_deposited,
+            quote_vault: base_vault,
+            quote_mint: base_mint,
+        };
+    }
+
+    let meta = PoolMeta {
+        base_decimal,
+        base_lot_size,
+        base_need_take_pnl,
+        base_total_pnl,
+        base_total_deposited,
+        base_vault,
+        base_mint,
+        quote_decimal,
+        quote_lot_size,
+        quote_need_take_pnl,
+        quote_total_pnl,
+        quote_total_deposited,
+        quote_vault,
+        quote_mint,
+    };
+
+    return meta;
+
+    // return state;
+}
+
 pub fn get_pool_state(pool_id: String) -> LiquidityStateLayoutV4 {
     // LiquidityStateLayoutV4::try_from_slice(data).unwrap()
-    let state = state(pool_id);
+    let state = state(&pool_id);
     return state;
 }
 
-fn state(pool_id: String) -> LiquidityStateLayoutV4 {
+fn state(pool_id: &String) -> LiquidityStateLayoutV4 {
     let ref pool = pool_id.parse().unwrap();
     let solana = RpcClient::new_with_timeout(
         "https://api.mainnet-beta.solana.com".to_string(),

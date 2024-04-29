@@ -1,9 +1,5 @@
 [workspace]
 members = [
-  "replay-engine",
-  "replayer",
- ## "whirlpool-replay-command",
-  "whirlpool-replay-saver", 
   "raydium-amm-saver"
 ]
 

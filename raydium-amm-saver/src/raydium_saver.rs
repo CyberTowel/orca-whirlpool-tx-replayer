@@ -24,7 +24,7 @@ pub mod raydium {
     use solana_sdk::pubkey::Pubkey;
     use solana_sdk::signature::Signature;
 
-    use crate::pool_state::LiquidityStateLayoutV4;
+    use crate::pool_state::{LiquidityStateLayoutV4, PoolMeta};
     use crate::token_db::DbClientPoolManager;
     use crate::token_parser::PoolVars;
     use crate::transaction_parser::parser_transaction;
@@ -36,7 +36,7 @@ pub mod raydium {
         rpc_connection: &deadpool::managed::Pool<RpcPoolManager>,
         limiter: &RateLimiter,
         db_pool: &deadpool::managed::Pool<DbClientPoolManager>,
-        pool_state: &LiquidityStateLayoutV4,
+        pool_state: &PoolMeta,
         poolvars: &PoolVars,
     ) {
         let mut signatures_to_process = JoinSet::new();
@@ -82,7 +82,10 @@ pub mod raydium {
         let (signature_from, datatime_from, _err) = crawled_signatures.first().unwrap();
         let (signature_until, datatime_until, _err_until) = crawled_signatures.last().unwrap();
         println!(
-            "Processed {:?} until {:?} ({:#?})",
+            "
+========================================
+Processed {:?} until {:?} ({:#?})
+========================================",
             datatime_from, datatime_until, signature_until,
         );
     }
@@ -123,9 +126,10 @@ pub mod raydium {
         pool_id: &str,
         pool: Pool<RpcPoolManager>,
         before_signature_param: Option<String>,
+        sample_rate: Option<usize>,
     ) -> (Vec<String>, Option<String>) {
         let process_interval = 300;
-        let poll_interval = 1;
+        // let sample_rate = 30;
 
         let mut before_signature: Option<Signature> = None;
 
@@ -169,18 +173,22 @@ pub mod raydium {
                 .filter(|cts: &RpcConfirmedTransactionStatusWithSignature| cts.err.is_none())
                 .collect();
 
-            let selit = 1; // interval.ceil() as usize;
+            let step_by_value = if sample_rate.is_some() {
+                let interval = (testing.len() as f64 / sample_rate.unwrap() as f64) as f64;
+
+                let selit = interval.floor() as usize;
+                selit
+            } else {
+                1
+            };
 
             let dolar: Vec<String> = testing
                 .into_iter()
-                .step_by(selit)
+                .step_by(step_by_value)
                 .map(|item| item.signature)
                 .collect();
 
             all_signatures.extend(dolar.clone());
-
-            // println!("{:#?}", dolar);
-            // println!("${:#?} batch", all_signatures.len());
 
             if all_signatures.len() > process_interval + 1 {
                 // has_more = false;
@@ -278,9 +286,5 @@ pub mod pg_saving {
         //         ],
         //     )
         //     .await;
-
-        // if testing.is_err() {
-        //     println!("error saving item, {:?}", testing.unwrap());
-        // }
     }
 }

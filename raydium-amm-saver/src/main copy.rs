@@ -35,10 +35,6 @@ enum Error {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    println!("Hello, world!");
-
-    println!("Hello, world! test");
-
     let rpc_connection = Arc::new(RpcClient::new_with_commitment(
         // cluster,
         "https://solana-mainnet.g.alchemy.com/v2/0uuM5dFqqhu79XiFtEa4dZkfLZDlNOGZ",
@@ -56,7 +52,6 @@ async fn main() -> Result<(), Error> {
     parse_signature(&signature, &rpc_connection.clone());
 
     let price_ref = "00009260";
-    println!("price: {}", price_ref);
 
     // return Ok(());
 
