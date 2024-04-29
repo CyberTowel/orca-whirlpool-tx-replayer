@@ -39,6 +39,8 @@ async fn main() -> Result<()> {
 
     let mut rpc_url = "wss://66.248.205.6:8900";
 
+    println!("Connecting to {}", rpc_url);
+
     let tree_addresses: Vec<String> = vec![
         // "GXTXbFwcbNdWbiCWzZc3J2XGofopnhN9T98jnG29D2Yw".to_string(),
         // "Aju7YfPdhjaqJbRdow48PqxcWutDDHWww6eoDC9PVY7m".to_string(),
