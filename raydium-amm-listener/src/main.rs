@@ -88,7 +88,7 @@ async fn main() -> Result<()> {
         .logs_subscribe(
             RpcTransactionLogsFilter::Mentions(vec![
                 // "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
-                "GujHmffbs9fWAXTXNgxYQFwmkTt3591Vh5Mg1CJg1hah".to_string(),
+                "HqtQ5GaYBwXQNxdb1K8894UJg2zzyKHe7SCPq53MdV6b".to_string(),
             ]),
             RpcTransactionLogsConfig {
                 commitment: Some(CommitmentConfig::processed()),
@@ -105,11 +105,18 @@ async fn main() -> Result<()> {
     loop {
         let logs = stream.next().await.unwrap();
 
-        if logs.value.err.is_some() {
-            continue;
-        }
+        // println!("{:?}", logs.value);
 
-        println!("signature {:?} ", logs.value.signature);
+        // if logs.value.err.is_some() {
+        //     continue;
+        // }
+
+        let testing: bool = logs.value.err.is_some();
+
+        println!(
+            "signature {:?} has error {:?}",
+            logs.value.signature, testing
+        );
         // process_logs(logs.value).await;
     }
 

@@ -92,6 +92,26 @@
     {
       "type": "lldb",
       "request": "launch",
+      "name": "Debug executable 'raydium-amm-listener'",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=raydium-amm-listener",
+          "--package=raydium-amm-listener"
+        ],
+        "filter": {
+          "name": "raydium-amm-listener",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
       "name": "Debug unit tests in executable 'raydium-amm-saver'",
       "cargo": {
         "args": [
