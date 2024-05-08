@@ -11,12 +11,17 @@ use self::raydium::RpcPoolManager;
 pub mod raydium {
     use arl::RateLimiter;
     use async_trait::async_trait;
+    use helpers::dbgtest;
     use std::str::FromStr;
 
     use deadpool::managed::{self, Metrics, Pool};
 
     use deadpool::managed::RecycleResult;
 
+    use crate::pool_state::{LiquidityStateLayoutV4, PoolMeta};
+    use crate::token_db::DbClientPoolManager;
+    use crate::token_parser::PoolVars;
+    use crate::transaction_parser::parser_transaction;
     use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
     use solana_client::{
         rpc_client::RpcClient, rpc_response::RpcConfirmedTransactionStatusWithSignature,
@@ -24,17 +29,12 @@ pub mod raydium {
     use solana_sdk::pubkey::Pubkey;
     use solana_sdk::signature::Signature;
 
-    use crate::pool_state::{LiquidityStateLayoutV4, PoolMeta};
-    use crate::token_db::DbClientPoolManager;
-    use crate::token_parser::PoolVars;
-    use crate::transaction_parser::parser_transaction;
-
     use tokio::task::JoinSet;
 
     pub async fn batch_process_signatures(
         signatures: Vec<String>,
         rpc_connection: &deadpool::managed::Pool<RpcPoolManager>,
-        limiter: &RateLimiter,
+        // limiter: &RateLimiter,
         db_pool: &deadpool::managed::Pool<DbClientPoolManager>,
         pool_state: &PoolMeta,
         poolvars: &PoolVars,
@@ -45,27 +45,36 @@ pub mod raydium {
         // let result: Vec<_> = testing.iter().step_by(100).collect();
 
         for signature in signatures {
-            let connection = rpc_connection.clone().get().await.unwrap();
+            println!("Processing signature: {:#?}", signature);
 
-            let tester = limiter.clone();
+            let connection: managed::Object<RpcPoolManager> =
+                rpc_connection.clone().get().await.unwrap();
+
+            // let tester = limiter.clone();
 
             let db_client = db_pool.clone().get().await.unwrap();
 
             let pool_state_c = pool_state.clone();
             let poolvars_c = poolvars.clone();
 
-            signatures_to_process.spawn(async move {
-                // wait for ratelimiting
-                // tester.wait().await;
-                let results = parser_transaction(
-                    &signature,
-                    &connection,
-                    &db_client,
-                    &pool_state_c,
-                    &poolvars_c,
-                );
-                return results;
-            });
+            let testing2 = rpc_connection.clone().get().await.unwrap();
+
+            let tesitng = testing2
+                .get_parsed_confirmed_transaction(signature.clone())
+                .await;
+
+            // signatures_to_process.spawn(async move {
+            //     // wait for ratelimiting
+            //     // tester.wait().await;
+            //     let results = parser_transaction(
+            //         &signature,
+            //         &connection,
+            //         &db_client,
+            //         &pool_state_c,
+            //         &poolvars_c,
+            //     );
+            //     return results;
+            // });
         }
 
         let mut crawled_signatures: Vec<(String, String, String)> = Vec::new();
@@ -105,12 +114,16 @@ Processed {:?} until {:?} ({:#?})
         async fn create(&self) -> Result<Self::Type, Self::Error> {
             // println!("Creating new connection {:#?}", self.rpc_type);
 
-            let mut rpc_url = "https://rpc.ankr.com/solana/71915acca8127aacb9f83c90556138f82decde6b7a66f5fad32d2e005c26ca8e";
+            // let mut rpc_url = "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U";
+            // let mut rpc_url = "http://65.108.76.168:8899";
+            let mut rpc_url =
+                "https://din-lb.solanarpc.dev/KsnzZimk2FZ7c4AHPd3EjGLuXjVnRZ5v3X3mgkq";
+            // let mut rpc_url = "https://rpc.ankr.com/solana/71915acca8127aacb9f83c90556138f82decde6b7a66f5fad32d2e005c26ca8e";
 
             if self.rpc_type.is_some() {
                 let prop = self.rpc_type.as_ref().unwrap();
                 if prop == "dedicated" {
-                    rpc_url = "http://66.248.205.6:8899"
+                    // rpc_url = "http://66.248.205.6:8899"
                 }
             }
 
@@ -164,6 +177,7 @@ Processed {:?} until {:?} ({:#?})
         let mut all_signatures: Vec<String> = Vec::new();
 
         while has_more == true {
+            let start = std::time::Instant::now();
             let signature_pagination_config: GetConfirmedSignaturesForAddress2Config =
                 GetConfirmedSignaturesForAddress2Config {
                     commitment: None,
@@ -214,6 +228,16 @@ Processed {:?} until {:?} ({:#?})
 
             all_signatures.extend(dolar.clone());
 
+            let duration = start.elapsed();
+            println!(
+                "Processed 1000, found: {} items, total items: {}, took: {:?}",
+                dolar.len(),
+                all_signatures.len(),
+                duration
+            );
+
+            // dbgtest!([dolar.len(), all_signatures.len()]);
+
             if all_signatures.len() > process_interval + 1 {
                 // has_more = false;
                 break;
@@ -224,6 +248,10 @@ Processed {:?} until {:?} ({:#?})
         }
 
         // let items: Vec<String> = all_signatures.iter().take(101).collect();
+
+        if (process_interval > all_signatures.len()) {
+            return (all_signatures, None);
+        }
 
         let (item_to_process, b) = all_signatures.split_at(process_interval);
 

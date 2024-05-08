@@ -72,15 +72,15 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug executable 'raydium-amm-saver'",
+      "name": "Debug executable 'raydium_amm_saver'",
       "cargo": {
         "args": [
           "build",
-          "--bin=raydium-amm-saver",
-          "--package=raydium-amm-saver"
+          "--bin=raydium_amm_saver",
+          "--package=raydium_amm_saver"
         ],
         "filter": {
-          "name": "raydium-amm-saver",
+          "name": "raydium_amm_saver",
           "kind": "bin"
         }
       },
@@ -112,16 +112,16 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug unit tests in executable 'raydium-amm-saver'",
+      "name": "Debug unit tests in executable 'raydium_amm_saver'",
       "cargo": {
         "args": [
           "test",
           "--no-run",
-          "--bin=raydium-amm-saver",
-          "--package=raydium-amm-saver"
+          "--bin=raydium_amm_saver",
+          "--package=raydium_amm_saver"
         ],
         "filter": {
-          "name": "raydium-amm-saver",
+          "name": "raydium_amm_saver",
           "kind": "bin"
         }
       },

@@ -1,8 +1,9 @@
 [workspace]
 members = [
-  "raydium-amm-saver",
+  "raydium_amm_saver",
   "raydium-amm-listener"
-]
+, "transaction_parser",
+"helpers"]
 
 resolver = "2"
 

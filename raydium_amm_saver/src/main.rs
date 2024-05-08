@@ -44,7 +44,7 @@ struct Args {
 async fn main() {
     let args = Args::parse();
 
-    let limit_to_set = args.rate_limit.unwrap_or(1000);
+    // let limit_to_set = args.rate_limit.unwrap_or(1000);
 
     println!("Args set: {:?}", args);
 
@@ -54,11 +54,12 @@ async fn main() {
 
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
 
-    let pool = RpcPool::builder(mgr).max_size(200).build().unwrap();
+    let pool: deadpool::managed::Pool<RpcPoolManager> =
+        RpcPool::builder(mgr).max_size(1000).build().unwrap();
 
-    let db_pool = DbPool::builder(db_mgr).max_size(50).build().unwrap();
+    let db_pool = DbPool::builder(db_mgr).max_size(1000).build().unwrap();
 
-    let limiter = RateLimiter::new(limit_to_set, Duration::from_secs(1));
+    // let limiter = RateLimiter::new(limit_to_set, Duration::from_secs(1));
 
     let testing_mode = false;
 
@@ -106,7 +107,7 @@ async fn main() {
             batch_process_signatures(
                 signatures_to_use,
                 &pool,
-                &limiter,
+                // &limiter,
                 &db_pool,
                 &pool_meta,
                 &poolvars,
@@ -161,6 +162,8 @@ async fn main() {
 
         let pool_c = pool.clone();
 
+        let start = std::time::Instant::now();
+
         let signatures_to_use = {
             let (items_to_process, next_item) =
                 get_paginated_singatures(&pool_id, pool_c, before_signature, args.sample_rate)
@@ -179,12 +182,15 @@ async fn main() {
         batch_process_signatures(
             signatures_to_use,
             &pool,
-            &limiter,
+            // &limiter,
             &db_pool,
             &pool_meta,
             &poolvars,
         )
         .await;
+
+        let elapsed = start.elapsed();
+        println!("Batch {} took {:?}", _batch, elapsed);
     }
 
     println!("No more transactions to process");

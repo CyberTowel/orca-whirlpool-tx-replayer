@@ -1,0 +1,21 @@
+[package]
+name = "transaction_parser"
+version.workspace = true
+edition.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+solana-client = "=1.16.18"
+solana-sdk = "=1.16.18"
+solana-transaction-status = "=1.16.18"
+solana-account-decoder = "=1.16.18"
+deadpool = {version = "0.10.0"}
+async-trait = "0.1.79"
+chrono = "0.4.35"
+num-bigfloat = "1.7.1"
+serde_json = "1.0.115"
+serde = "1.0.197"
+num = "0.4.1"
+borsh = "0.9.1"
+solana-program = "=1.16.18"

@@ -21,74 +21,64 @@ use solana_client::rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilt
 use solana_client::rpc_response::{Response, RpcLogsResponse};
 use solana_sdk::commitment_config::CommitmentConfig;
 // use sqlx::{Acquire, PgPool};
-use tokio::task;
+use clap::Parser;
+use deadpool::managed::{self, Metrics, Pool};
+use solana_sdk::signature;
+use tokio::task::{self, JoinSet};
+use transaction_parser;
+use transaction_parser::rpc_pool_manager::{get_pub_sub_client, RpcPool, RpcPoolManager};
+
+use deadpool::managed::RecycleResult;
+
+#[derive(Parser, Debug)]
+struct Args {
+    #[clap(long)]
+    /// maximum depth to which sub-directories should be explored
+    sample_rate: Option<usize>,
+
+    #[clap(long)]
+    start_at: Option<String>,
+
+    #[clap(long)]
+    pool_id: Option<String>,
+
+    #[clap(long)]
+    rpc_type: Option<String>,
+
+    #[clap(long)]
+    rate_limit: Option<usize>,
+
+    #[clap(long)]
+    sleep: Option<usize>,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // dotenv().ok();
+    let args = Args::parse();
 
-    // let env_config = setup_env_config();
+    let mgr = RpcPoolManager {
+        rpc_type: args.rpc_type,
+    };
 
-    // setup_rpc_clients(&env_config).await;
+    let rpc_connection = RpcPool::builder(mgr).max_size(200).build().unwrap();
 
-    // let database_pool = setup_database_config(&env_config).await;
+    // let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
 
-    // let pubsub_client = get_pubsub_client();
+    // println!("Connecting to {}", rpc_url);
 
-    let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
-
-    // let mut rpc_url = "wss://66.248.205.6:8900";
-
-    println!("Connecting to {}", rpc_url);
-
-    let tree_addresses: Vec<String> = vec![
-        // "GXTXbFwcbNdWbiCWzZc3J2XGofopnhN9T98jnG29D2Yw".to_string(),
-        // "Aju7YfPdhjaqJbRdow48PqxcWutDDHWww6eoDC9PVY7m".to_string(),
-        // "43XAHmPkq8Yth3swdqrh5aZvWrmuci5ZhPVLptreaUZ1".to_string(),
-        // "EQQiiEceUo2uxHQgtRt8W92frLXwMUwdvt7P9Yo26cUM".to_string(),
-        // "CkSa2n2eyJvsPLA7ufVos94NAUTYuVhaxrvH2GS69f9j".to_string()
-        // "Dbx2uKULg44XeBR28tNWu2dU4bPpGfuYrd7RntgGXvuT".to_string(),
-        // "CkSa2n2eyJvsPLA7ufVos94NAUTYuVhaxrvH2GS69f9j".to_string(),
-        // "EBFsHQKYCn1obUr2FVNvGTkaUYf2p5jao2MVdbK5UNRH".to_string(),
-        // "14b9wzhVSaiUHB4t8tDY9QYNsGStT8ycaoLkBHZLZwax".to_string(),
-        // "6kAoPaZV4aB1rMPTPkbgycb9iNbHHibSzjhAvWEroMm".to_string(),
-        // "FmUjM4YBLK93WSb7AnbuYZy1h2kCcjZM8kHsi9ZU93TP".to_string(),
-        // "6JTnMcq9a6atrqmsz4rgTWp9EG5YPzxoobD7vg1csNt5".to_string(),
-        // "HVGMVJ7DyfXLU2H5AJSHvX2HkFrRrHQAoXAHfYUmicYr".to_string(),
-        "D8yRakvsjWSR3ihANhwjP8RmNLg3A46EA1V1EbMLDT8B".to_string(),
-    ];
-
-    let pubsub_client = PubsubClient::new(rpc_url).await.unwrap();
+    // let pubsub_client = PubsubClient::new(rpc_url).await.unwrap();
 
     println!("Pubsub client created");
 
-    // let mut stream = select_all(
-    //     join_all(tree_addresses.iter().map(|address| {
-    //         pubsub_client.logs_subscribe(
-    //             RpcTransactionLogsFilter::Mentions(vec![address.to_string()]),
-    //             RpcTransactionLogsConfig {
-    //                 commitment: Some(CommitmentConfig::processed()),
-    //             },
-    //         )
-    //     }))
-    //     .await
-    //     .into_iter()
-    //     .flat_map(|result| match result {
-    //         Ok(subscription) => Some(subscription.0),
-    //         Err(e) => {
-    //             eprintln!("error creating subscription: {e}");
-    //             None
-    //         }
-    //     }),
-    // );
+    let pubsub_client = get_pub_sub_client().await;
 
-    // let handle = task::spawn(handle_stream(stream));
+    let pool_id = "5L9cpyXSyGJWpXqm8B1hjghZCggRVr8gCd6iKoRhmd3T".to_string();
 
     let testing = pubsub_client
         .logs_subscribe(
             RpcTransactionLogsFilter::Mentions(vec![
                 // "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
-                "HqtQ5GaYBwXQNxdb1K8894UJg2zzyKHe7SCPq53MdV6b".to_string(),
+                pool_id.clone(),
             ]),
             RpcTransactionLogsConfig {
                 commitment: Some(CommitmentConfig::processed()),
@@ -101,22 +91,66 @@ async fn main() -> Result<()> {
     let dolar = testing.unwrap();
 
     let mut stream = select_all(vec![dolar.0]);
+    let mut signatures_to_process = JoinSet::new();
 
     loop {
+        // let connection: managed::Object<RpcPoolManager> =
+        //     rpc_connection.clone().get().await.unwrap();
+
+        // println!("Waiting for logs");
+
+        let connection = rpc_connection.clone().get().await.unwrap();
+
         let logs = stream.next().await.unwrap();
-
-        // println!("{:?}", logs.value);
-
-        // if logs.value.err.is_some() {
-        //     continue;
-        // }
 
         let testing: bool = logs.value.err.is_some();
 
-        println!(
-            "signature {:?} has error {:?}",
-            logs.value.signature, testing
-        );
+        if (testing) {
+            // println!("Transaction error");
+            continue;
+        }
+
+        let pool_id_c = pool_id.clone();
+
+        signatures_to_process.spawn(async move {
+            // println!("{:?}", logs.value.signature);
+
+            let mut sleep_duraction = 10;
+            if (args.sleep.is_some()) {
+                sleep_duraction = args.sleep.unwrap();
+            }
+            // println!("sleep start for {} secs", { sleep_duraction });
+            sleep(Duration::from_secs(sleep_duraction as u64));
+
+            // let signature = "5wLsoFtf4k1Su9s8xxFeiep3Cx3P7oZWyV8bzEgQ29KqLjGWC2vpeSkvkNG39vPB6QTW5mR5fPJ3AdEdeEKszfMR";
+
+            let result = transaction_parser::transactions_loader::init(
+                logs.value.signature,
+                pool_id_c.clone(),
+                &connection,
+            );
+            // return result;
+        });
+
+        // return Ok(());
+
+        //         else {
+        //             transaction_parser::transactions::testing_nested();
+
+        //             transaction_parser::transactions::init(logs.value.signature, &connection);
+
+        //             transaction_parser::add(logs.value.signature.clone());
+        //             println!(
+        //                 "
+        // ===========================================================
+        // signature {:?} success
+        // ===========================================================
+        // ",
+        //                 // raydium_amm_saver
+        //                 logs.value.signature
+        //             );
+        //         }
+
         // process_logs(logs.value).await;
     }
 
@@ -149,16 +183,16 @@ async fn main() -> Result<()> {
     // Ok(())
 }
 
-async fn handle_stream(
-    mut stream: SelectAll<Pin<Box<dyn Stream<Item = Response<RpcLogsResponse>> + Send>>>,
-) {
-    loop {
-        let logs = stream.next().await.unwrap();
+// async fn handle_stream(
+//     mut stream: SelectAll<Pin<Box<dyn Stream<Item = Response<RpcLogsResponse>> + Send>>>,
+// ) {
+//     loop {
+//         let logs = stream.next().await.unwrap();
 
-        println!("{:?}", logs.value);
-        // process_logs(logs.value).await;
-    }
-}
+//         println!("{:?}", logs.value);
+//         // process_logs(logs.value).await;
+//     }
+// }
 
 // async fn handle_metadata_downloads(pool: PgPool) {
 //     let connection = SqlxPostgresConnector::from_sqlx_postgres_pool(pool);

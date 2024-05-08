@@ -11,6 +11,10 @@ use solana_client::{rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::signature::Signature;
 use solana_transaction_status::UiTransactionEncoding;
 
+pub fn testing() {
+    println!("Testing");
+}
+
 pub fn parser_transaction(
     signature: &String,
     rpc_connection: &RpcClient,
@@ -18,23 +22,32 @@ pub fn parser_transaction(
     pool_state: &PoolMeta,
     poolvars: &PoolVars,
 ) -> (String, String, String) {
+    println!("Parsing transaction: {:#?}", signature);
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
         commitment: None,
         max_supported_transaction_version: Some(1),
     };
 
+    let start = std::time::Instant::now();
     let transaction_req = rpc_connection
         .get_transaction_with_config(&Signature::from_str(&signature).unwrap(), rpc_config);
 
     if transaction_req.is_err() {
         println!("Error in transaction: {:#?}", signature);
+        println!("Error in transaction: {:#?}", transaction_req);
         return (
             signature.to_string(),
             "error".to_string(),
             "error getting rpc data".to_string(),
         );
     }
+
+    let duration = start.elapsed();
+    println!(
+        "Time elapsed in get_transaction_with_config() is: {:?}",
+        duration
+    );
 
     let transaction = transaction_req.unwrap();
 
