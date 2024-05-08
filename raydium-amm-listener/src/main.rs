@@ -110,6 +110,8 @@ async fn main() -> Result<()> {
             continue;
         }
 
+        // println!("{:#?}", logs.value);
+
         let pool_id_c = pool_id.clone();
 
         signatures_to_process.spawn(async move {

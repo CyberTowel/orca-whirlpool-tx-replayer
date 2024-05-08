@@ -92,8 +92,8 @@ pub struct PoolMeta {
     pub quote_mint: Pubkey,
 }
 
-pub fn get_pool_meta(pool_id: &String) -> PoolMeta {
-    let state = state(pool_id);
+pub fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> PoolMeta {
+    let state = state(pool_id, rpc_connection);
 
     let base_decimal = state.base_decimal;
     let base_lot_size = state.base_lot_size;
@@ -154,19 +154,19 @@ pub fn get_pool_meta(pool_id: &String) -> PoolMeta {
     // return state;
 }
 
-pub fn get_pool_state(pool_id: String) -> LiquidityStateLayoutV4 {
-    // LiquidityStateLayoutV4::try_from_slice(data).unwrap()
-    let state = state(&pool_id);
-    return state;
-}
+// pub fn get_pool_state(pool_id: String) -> LiquidityStateLayoutV4 {
+//     // LiquidityStateLayoutV4::try_from_slice(data).unwrap()
+//     let state = state(&pool_id);
+//     return state;
+// }
 
-fn state(pool_id: &String) -> LiquidityStateLayoutV4 {
+fn state(pool_id: &String, rpc_connection: &RpcClient) -> LiquidityStateLayoutV4 {
     let ref pool = pool_id.parse().unwrap();
-    let solana = RpcClient::new_with_timeout(
-        "https://api.mainnet-beta.solana.com".to_string(),
-        Duration::from_secs(120),
-    );
-    let pool = solana.get_account_data(pool).unwrap();
+    // let solana = RpcClient::new_with_timeout(
+    //     "https://api.mainnet-beta.solana.com".to_string(),
+    //     Duration::from_secs(120),
+    // );
+    let pool = rpc_connection.get_account_data(pool).unwrap();
     let data = LiquidityStateLayoutV4::deserialize(&mut &pool[..]).unwrap();
 
     // dbg!("{:?}", data);

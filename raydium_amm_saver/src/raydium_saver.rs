@@ -12,6 +12,7 @@ pub mod raydium {
     use arl::RateLimiter;
     use async_trait::async_trait;
     use helpers::dbgtest;
+    use solana_transaction_status::UiTransactionEncoding;
     use std::str::FromStr;
 
     use deadpool::managed::{self, Metrics, Pool};
@@ -57,24 +58,28 @@ pub mod raydium {
             let pool_state_c = pool_state.clone();
             let poolvars_c = poolvars.clone();
 
-            let testing2 = rpc_connection.clone().get().await.unwrap();
+            // let testing2 = rpc_connection.clone().get().await.unwrap();
 
-            let tesitng = testing2
-                .get_parsed_confirmed_transaction(signature.clone())
-                .await;
+            // let encoding = UiTransactionEncoding::JsonParsed;
 
-            // signatures_to_process.spawn(async move {
-            //     // wait for ratelimiting
-            //     // tester.wait().await;
-            //     let results = parser_transaction(
-            //         &signature,
-            //         &connection,
-            //         &db_client,
-            //         &pool_state_c,
-            //         &poolvars_c,
-            //     );
-            //     return results;
-            // });
+            // let transaction_signature = Signature::from_str(&signature).unwrap();
+
+            // let tesitng = testing2
+            //     .get_transaction(transaction_signature, encoding)
+            //     .await;
+
+            signatures_to_process.spawn(async move {
+                // wait for ratelimiting
+                // tester.wait().await;
+                let results = parser_transaction(
+                    &signature,
+                    &connection,
+                    &db_client,
+                    &pool_state_c,
+                    &poolvars_c,
+                );
+                return results;
+            });
         }
 
         let mut crawled_signatures: Vec<(String, String, String)> = Vec::new();

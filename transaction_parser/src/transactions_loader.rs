@@ -34,7 +34,7 @@ pub fn init(signature: String, pool_id: String, rpc_connection: &RpcClient) {
         return;
     }
 
-    let pool_meta = get_pool_meta(&pool_id);
+    let pool_meta = get_pool_meta(&pool_id, rpc_connection);
 
     let transaction = transaction_req.unwrap();
 
