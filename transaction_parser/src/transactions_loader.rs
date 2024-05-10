@@ -57,13 +57,16 @@ pub fn init(
 
     let transaction = transaction_req.unwrap();
 
-    // println!(
-    //     "Init transaction: {:#?}, timestamp: {}",
-    //     signature,
-    //     transaction.block_time.unwrap()
-    // );
+    let transaction_datetime = DateTime::from_timestamp(transaction.block_time.unwrap(), 0)
+        .unwrap()
+        .to_rfc3339();
 
-    // return;
+    println!(
+        "Init transaction: {:#?}, timestamp: {}",
+        signature, transaction_datetime
+    );
+
+    return;
     // println!("Transaction: {:#?}", transaction);
 
     let v = json!(transaction.transaction.transaction);
