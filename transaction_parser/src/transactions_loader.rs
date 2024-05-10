@@ -106,6 +106,8 @@ pub fn init(
 
     let pool_meta = get_pool_meta(&pool_id_to_get, rpc_connection);
 
+    println!("after pool meta");
+
     let transaction_parsed = transaction::Transaction::new(&transaction);
 
     let token_amounts = get_token_amounts(
@@ -120,6 +122,8 @@ pub fn init(
         pool_meta.base_decimal,
         // decimals_correct, // pool_state,
     );
+
+    println!("after token_amounts");
 
     let sol_price_db = db_client
         .get_usd_price_sol(transaction_parsed.datetime)
@@ -150,6 +154,8 @@ pub fn init(
     let datetime = DateTime::from_timestamp(transaction_parsed.block_timestamp, 0)
         .unwrap()
         .to_rfc3339();
+
+    println!("after datetime");
 
     let item_to_save = PriceItem {
         signature: signature.to_string(),
