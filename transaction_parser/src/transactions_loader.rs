@@ -25,7 +25,6 @@ pub fn init(
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
 ) {
-    println!("start processcing, {}", signature);
     // let sol_price_db = "1400000000000000000000".to_string();
 
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
@@ -58,8 +57,6 @@ pub fn init(
 
     let transactions_meta = transaction.transaction.clone().meta.unwrap(); // v["message"].as_array().unwrap();
 
-    println!("tesitng lipsum, {}", signature);
-
     let pool_id_to_get_opt: Option<String> = if pool_id.is_some() {
         pool_id.clone() //.unwrap()
     } else {
@@ -69,10 +66,7 @@ pub fn init(
             program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
         });
 
-        println!("tesing2");
-
         if init_instruction.is_some() {
-            println!("tesing3");
             // println!(
             //     "{:#?} {:#?} {:#?}",
             //     init_instruction.unwrap().as_object().unwrap()["data"],
@@ -88,8 +82,8 @@ pub fn init(
             Some(pool_id_instruction.to_string())
             // pool_id_instruction.as_str().unwrap().to_string()
         } else {
-            println!("tesing4");
             let dolar_selit = find_raydium_inner_instruction(&transactions_meta.inner_instructions);
+
             // println!("Inner instruction accounts: {:#?}", dolar_selit);
 
             if (dolar_selit.len() > 0) {
@@ -101,18 +95,14 @@ pub fn init(
         }
     };
 
-    println!("Pool id to get: {:#?}", pool_id_to_get_opt);
-
     if (pool_id_to_get_opt.is_none()) {
-        println!("Pool id to get is none");
+        println!("Pool id to get is none for signature: {}", signature);
         return;
     }
 
     let pool_id_to_get = pool_id_to_get_opt.unwrap();
 
     let pool_meta = get_pool_meta(&pool_id_to_get, rpc_connection);
-
-    println!("after pool meta");
 
     let transaction_parsed = transaction::Transaction::new(&transaction);
 
@@ -128,8 +118,6 @@ pub fn init(
         pool_meta.base_decimal,
         // decimals_correct, // pool_state,
     );
-
-    println!("after token_amounts");
 
     let sol_price_db = db_client
         .get_usd_price_sol(transaction_parsed.datetime)
@@ -160,8 +148,6 @@ pub fn init(
     let datetime = DateTime::from_timestamp(transaction_parsed.block_timestamp, 0)
         .unwrap()
         .to_rfc3339();
-
-    println!("after datetime");
 
     let item_to_save = PriceItem {
         signature: signature.to_string(),
@@ -216,8 +202,6 @@ fn find_raydium_inner_instruction(
 ) -> Vec<std::string::String> {
     let mut inner_instruction_accounts: Vec<String> = Vec::new();
 
-    println!("testing 8, {:#?}", inner_instructions);
-
     match &inner_instructions {
         OptionSerializer::Some(ixs) => {
             ixs.iter().for_each(|x| {
@@ -251,7 +235,6 @@ fn find_raydium_inner_instruction(
                             None => {}
                         },
                         UiParsedInstruction::PartiallyDecoded(d) => {
-                            println!("testing 6");
                             if (d.program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8") {
                                 inner_instruction_accounts.extend(d.to_owned().accounts);
                             }
@@ -271,13 +254,10 @@ fn find_raydium_inner_instruction(
         OptionSerializer::Skip => {}
     };
 
-    println!("testing 7, {:#?}", inner_instruction_accounts);
-
     inner_instruction_accounts
 }
 
 fn parse_market_from_data(data: String, block_time: i64) -> Option<String> {
-    println!("Data: {:#?}", data);
     return None;
     // let bytes = match bs58::decode(data).into_vec() {
     //     Ok(b) => b,

@@ -9,7 +9,6 @@ use solana_transaction_status::{
 };
 use std::{collections::HashMap, fmt::Binary, str::FromStr};
 
-
 #[derive(Debug)]
 pub enum Error {}
 
@@ -119,8 +118,6 @@ pub struct TokenPriceOracleValues {
     pub amount_total_ubo: BigFloat,
     pub amount_diff_ubo: BigFloat,
 }
-
-
 
 pub fn get_token_amounts(
     rpc_transaction: &EncodedConfirmedTransactionWithStatusMeta,
@@ -495,11 +492,8 @@ pub fn get_price(
     quote_decimal: u64,
     base_decimal: u64,
 ) -> Result<TokenPriceResult, Error> {
-
     let stable_coin_ref = token_quote_address == "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
     // let price_usd_token_base_bf = BigFloat::from_str(price_usd_token_base).unwrap();
-
-
 
     let token_quote_price_18 = if stable_coin_ref {
         (BigFloat::from_i16(1) * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18))))
@@ -509,7 +503,7 @@ pub fn get_price(
 
     let decimals_corrected = 18 - base_decimal as i64 - quote_decimal as i64;
 
-    let token_new_price_18 = 
+    let token_new_price_18 =
     // if stable_coin_ref 
     {
         // let token_price_base = token_quote_price_18 / token_new_price_in_token_quote_18;
@@ -519,12 +513,11 @@ pub fn get_price(
         let token_price_18 =
             token_price_base * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
 
-    
         //     * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-decimals_corrected)));
 
         token_price_18
     };
-    
+
     // else {
     //     let token_price_base = token_new_price_in_token_quote_18 * token_quote_price_18;
 
@@ -534,9 +527,7 @@ pub fn get_price(
     //     token_price_18
     // };
 
-    let token_trade_price_18 = 
-    // if stable_coin_ref 
-    {
+    let token_trade_price_18 = {
         // let token_price_base = token_quote_price_18 / token_new_price_in_token_quote_18;
         let token_price_base = token_quote_price_18 * token_trade_price_in_token_quote_18;
         // let token_price_base3 = token_new_price_in_token_quote_18 / token_quote_price_18;
@@ -544,7 +535,6 @@ pub fn get_price(
         let token_price_18 =
             token_price_base * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
 
-    
         //     * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-decimals_corrected)));
 
         token_price_18
@@ -565,8 +555,6 @@ pub fn get_price(
 
     //     token_price_18
     // };
-
-
 
     let token_new_price_in_token_quote_fixed = token_new_price_in_token_quote_18
         * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(-18)));
@@ -688,6 +676,7 @@ fn multiply_amounts(token_price_usd_18: BigFloat, amount_18: BigFloat) -> UsdMul
     // .unwrap();
 
     // let rounded = total_amount_usd_rounded.round();
+    // test
 
     return UsdMultiplierResult {
         amount_18: total_amount_usd,

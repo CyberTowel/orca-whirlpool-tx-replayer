@@ -103,9 +103,7 @@ struct PoolMetaBase {
 // pub fn pool_meta_token()
 
 pub fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> PoolMeta {
-    println!("start get pool meta");
     let state = state(pool_id, rpc_connection);
-    println!("done get pool meta");
     let base_decimal = state.base_decimal;
     let base_lot_size = state.base_lot_size;
     let base_need_take_pnl = state.base_need_take_pnl;
@@ -173,11 +171,11 @@ pub fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> PoolMeta {
 
 fn state(pool_id: &String, rpc_connection: &RpcClient) -> LiquidityStateLayoutV4 {
     let ref pool = pool_id.parse().unwrap();
-    // let solana = RpcClient::new_with_timeout(
-    //     "https://api.mainnet-beta.solana.com".to_string(),
-    //     Duration::from_secs(120),
-    // );
-    let pool = rpc_connection.get_account_data(pool).unwrap();
+    let solana = RpcClient::new_with_timeout(
+        "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U".to_string(),
+        Duration::from_secs(120),
+    );
+    let pool = solana.get_account_data(pool).unwrap();
     let data = LiquidityStateLayoutV4::deserialize(&mut &pool[..]).unwrap();
 
     // dbg!("{:?}", data);

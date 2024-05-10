@@ -7,14 +7,34 @@ use num::FromPrimitive;
 use num_bigfloat::BigFloat;
 use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
+use serde::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc};
 use tokio_postgres::types::{Json, ToSql};
 use tokio_postgres::{Error as TPError, NoTls};
 
-use crate::token_parser::TokenPriceOracleValues;
+// use crate::token_parser::TokenPriceOracleValues;
 // use tokio_postgres::types::Json;
 
 pub fn testing() {}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenPriceOracleValues {
+    pub ubo: String,
+    pub signer: String,
+    pub pool_address: String,
+    pub token_address: String,
+    pub signature: String,
+
+    pub usd_total_pool: BigFloat,
+    pub usd_total_ubo: BigFloat,
+    pub usd_diff_ubo: BigFloat,
+    pub usd_diff_pool: BigFloat,
+
+    pub amount_total_pool: BigFloat,
+    pub amount_diff_pool: BigFloat,
+    pub amount_total_ubo: BigFloat,
+    pub amount_diff_ubo: BigFloat,
+}
 
 pub type DbPool = managed::Pool<DbClientPoolManager>;
 

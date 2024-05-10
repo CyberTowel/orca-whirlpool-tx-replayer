@@ -30,10 +30,10 @@ impl managed::Manager for RpcPoolManager {
     async fn create(&self) -> Result<Self::Type, Self::Error> {
         // println!("Creating new connection {:#?}", self.rpc_type);
 
-        // let mut rpc_url: &str =
-        //     "https://din-lb.solanarpc.dev/KsnzZimk2FZ7c4AHPd3EjGLuXjVnRZ5v3X3mgkq";
+        let mut rpc_url: &str =
+            "https://din-lb.solanarpc.dev/KsnzZimk2FZ7c4AHPd3EjGLuXjVnRZ5v3X3mgkq";
 
-        let mut rpc_url = "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U";
+        // let mut rpc_url = "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U";
 
         // let mut rpc_url = "https://rpc.ankr.com/solana/71915acca8127aacb9f83c90556138f82decde6b7a66f5fad32d2e005c26ca8e";
 

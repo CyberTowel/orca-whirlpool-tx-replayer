@@ -97,7 +97,8 @@ async fn main() -> Result<()> {
 
     // 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
 
-    let pool_id = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string();
+    // let pool_id = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string();
+    let pool_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string();
 
     let testing = pubsub_client
         .logs_subscribe(
@@ -149,7 +150,7 @@ async fn main() -> Result<()> {
         signatures_to_process.spawn(async move {
             // println!("{:?}", logs.value.signature);
 
-            let mut sleep_duraction = 10;
+            let mut sleep_duraction = 20;
             if (args.sleep.is_some()) {
                 sleep_duraction = args.sleep.unwrap();
             }
