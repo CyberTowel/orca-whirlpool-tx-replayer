@@ -159,7 +159,7 @@ impl TokenDbClient {
         let db_connect = create_db_pool();
 
         let runtime = tokio::runtime::Builder::new_current_thread()
-            .thread_name("solRpcClient")
+            .thread_name("solRpcClient_2")
             .enable_io()
             .enable_time()
             .build()
