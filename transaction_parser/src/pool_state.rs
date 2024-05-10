@@ -92,6 +92,16 @@ pub struct PoolMeta {
     pub quote_mint: Pubkey,
 }
 
+struct PoolMetaBase {
+    quote_mint: Pubkey,
+    base_mint: Pubkey,
+    quote_vault: Pubkey,
+    base_vault: Pubkey,
+    lp_mint: Pubkey,
+}
+
+// pub fn pool_meta_token()
+
 pub fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> PoolMeta {
     let state = state(pool_id, rpc_connection);
 

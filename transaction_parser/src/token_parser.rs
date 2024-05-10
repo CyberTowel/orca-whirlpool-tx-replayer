@@ -101,6 +101,26 @@ pub struct PriceItem {
     pub block_number: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenPriceOracleValues {
+    pub ubo: String,
+    pub signer: String,
+    pub pool_address: String,
+    pub token_address: String,
+    pub signature: String,
+
+    pub usd_total_pool: BigFloat,
+    pub usd_total_ubo: BigFloat,
+    pub usd_diff_ubo: BigFloat,
+    pub usd_diff_pool: BigFloat,
+
+    pub amount_total_pool: BigFloat,
+    pub amount_diff_pool: BigFloat,
+    pub amount_total_ubo: BigFloat,
+    pub amount_diff_ubo: BigFloat,
+}
+
+
 
 pub fn get_token_amounts(
     rpc_transaction: &EncodedConfirmedTransactionWithStatusMeta,

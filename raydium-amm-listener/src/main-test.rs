@@ -27,10 +27,8 @@ use solana_sdk::signature;
 use tokio::task::{self, JoinSet};
 use transaction_parser;
 use transaction_parser::rpc_pool_manager::{get_pub_sub_client, RpcPool, RpcPoolManager};
-// use transaction_parser::
 
 use deadpool::managed::RecycleResult;
-use transaction_parser::token_db::{DbClientPoolManager, DbPool};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -62,28 +60,7 @@ async fn main() -> Result<()> {
         rpc_type: args.rpc_type,
     };
 
-    let db_mgr: DbClientPoolManager = DbClientPoolManager {};
-
-    let db_pool_connection = DbPool::builder(db_mgr).max_size(1000).build().unwrap();
-
     let rpc_connection = RpcPool::builder(mgr).max_size(200).build().unwrap();
-
-    let connection = rpc_connection.clone().get().await.unwrap();
-
-    let db_pool_connect = db_pool_connection.clone().get().await.unwrap();
-
-    // let signature =
-    //     "5r6gK8BeV71QQ7riJHrrEubhT62nPFmumeEML81wtvgGseaZwbdHRobkdkbPePsxQ58PPpxVh2nLHyGywa6o4iVo"
-    //         .to_string();
-
-    // let result = transaction_parser::transactions_loader::init(
-    //     signature,
-    //     None,
-    //     &connection,
-    //     &db_pool_connect,
-    // );
-
-    // return Ok(());
 
     // let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
 
@@ -95,9 +72,7 @@ async fn main() -> Result<()> {
 
     let pubsub_client = get_pub_sub_client().await;
 
-    // 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
-
-    let pool_id = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string();
+    let pool_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string();
 
     let testing = pubsub_client
         .logs_subscribe(
@@ -118,21 +93,25 @@ async fn main() -> Result<()> {
     let mut stream = select_all(vec![dolar.0]);
     let mut signatures_to_process = JoinSet::new();
 
+    let connection = rpc_connection.clone().get().await.unwrap();
+
+    let signature =
+        "zbDDaNA8yupDfjMLT1ijyLFWP89zAtdnLWiPfU3mtXvoQKVQdNPGaz2Nm5FpMeNgLRV8DCPSLsjoQgZ597pDWQu";
+
+    let result =
+        transaction_parser::transactions_loader::init(signature.to_string(), None, &connection);
+
+    return Ok(());
+
     loop {
-        // let connection = rpc_connection.clone().get().await.unwrap();
-        let connection: managed::Object<RpcPoolManager> =
-            rpc_connection.clone().get().await.unwrap();
+        // let connection: managed::Object<RpcPoolManager> =
+        //     rpc_connection.clone().get().await.unwrap();
 
         // println!("Waiting for logs");
 
-        let db_pool = db_pool_connection.clone().get().await.unwrap();
+        let connection = rpc_connection.clone().get().await.unwrap();
 
-        let logs_stream = stream.next().await;
-
-        if (logs_stream.is_none()) {
-            continue;
-        }
-        let logs = logs_stream.unwrap();
+        let logs = stream.next().await.unwrap();
 
         let testing: bool = logs.value.err.is_some();
 
@@ -141,32 +120,48 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        // println!("{} streams waiting", stream.len().to_string());
-        // println!("{:#?}", logs.value.signature);
+        // // println!("{:#?}", logs.value);
 
         // let pool_id_c = pool_id.clone();
 
         signatures_to_process.spawn(async move {
-            println!("{:?}", logs.value.signature);
+            // println!("{:?}", logs.value.signature);
+
+            // println!("{:#?}", logs.value.logs);
+
+            let search_term = "initialize2";
+
+            // logs.value.logs
+
+            // let logs_aray = logs.value.logs; // .as_array().unwrap();
+
+            let tesitng = if logs.value.logs.iter().any(|s| s.contains(search_term)) {
+                println!("found");
+                println!("{:?}", logs.value.signature);
+                Some(logs.value.signature)
+            } else {
+                println!("not found");
+                None
+            };
+
+            if tesitng.is_none() {
+                return;
+            }
+
+            // let transaction_info =
 
             let mut sleep_duraction = 10;
             if (args.sleep.is_some()) {
                 sleep_duraction = args.sleep.unwrap();
             }
             // println!("sleep start for {} secs", { sleep_duraction });
-            // sleep(Duration::from_secs(sleep_duraction as u64));
+            sleep(Duration::from_secs(sleep_duraction as u64));
 
-            tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
+            // // let signature = "5wLsoFtf4k1Su9s8xxFeiep3Cx3P7oZWyV8bzEgQ29KqLjGWC2vpeSkvkNG39vPB6QTW5mR5fPJ3AdEdeEKszfMR";
 
-            //     // // let signature = "5wLsoFtf4k1Su9s8xxFeiep3Cx3P7oZWyV8bzEgQ29KqLjGWC2vpeSkvkNG39vPB6QTW5mR5fPJ3AdEdeEKszfMR";
-
-            let result = transaction_parser::transactions_loader::init(
-                logs.value.signature,
-                None,
-                &connection,
-                &db_pool,
-            );
-            //     // return result;
+            let result =
+                transaction_parser::transactions_loader::init(tesitng.unwrap(), None, &connection);
+            return result;
         });
 
         // return Ok(());

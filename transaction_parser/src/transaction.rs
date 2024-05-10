@@ -91,3 +91,11 @@ fn get_transaction_datetime(transaction: &EncodedConfirmedTransactionWithStatusM
 
     return transaction_datetime;
 }
+
+// pub fn parse_pool_create_instruction(){
+
+//     let mut testing;
+
+//     for item in
+
+// }
