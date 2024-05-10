@@ -68,9 +68,9 @@ async fn main() -> Result<()> {
 
     let rpc_connection = RpcPool::builder(mgr).max_size(100).build().unwrap();
 
-    let connection = rpc_connection.clone().get().await.unwrap();
+    // let connection = rpc_connection.clone().get().await.unwrap();
 
-    let db_pool_connect = db_pool_connection.clone().get().await.unwrap();
+    // let db_pool_connect = db_pool_connection.clone().get().await.unwrap();
 
     // let signature =
     //     "5r6gK8BeV71QQ7riJHrrEubhT62nPFmumeEML81wtvgGseaZwbdHRobkdkbPePsxQ58PPpxVh2nLHyGywa6o4iVo"
@@ -147,7 +147,7 @@ async fn main() -> Result<()> {
         // let pool_id_c = pool_id.clone();
 
         signatures_to_process.spawn(async move {
-            println!("{:?}", logs.value.signature);
+            // println!("{:?}", logs.value.signature);
 
             let mut sleep_duraction = 10;
             if (args.sleep.is_some()) {
