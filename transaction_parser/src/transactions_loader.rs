@@ -220,6 +220,7 @@ fn find_raydium_inner_instruction(
             ixs.iter().for_each(|x| {
                 x.instructions.iter().for_each(|i| match i {
                     UiInstruction::Compiled(ix) => {
+                        println!("testing 5");
                         panic!("inplement this UiParsedInstruction Compiled")
                         // println!("Data test: {:#?}", ix);
                         // let maybe_market = parse_market_from_data(ix.data.clone(), block_time);
@@ -247,6 +248,7 @@ fn find_raydium_inner_instruction(
                             None => {}
                         },
                         UiParsedInstruction::PartiallyDecoded(d) => {
+                            println!("testing 6");
                             if (d.program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8") {
                                 inner_instruction_accounts.extend(d.to_owned().accounts);
                             }
@@ -265,6 +267,8 @@ fn find_raydium_inner_instruction(
         OptionSerializer::None => {}
         OptionSerializer::Skip => {}
     };
+
+    println!("testing 7");
 
     inner_instruction_accounts
 }
