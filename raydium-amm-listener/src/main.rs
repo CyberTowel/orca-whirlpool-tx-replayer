@@ -11,6 +11,7 @@ use anyhow::Result;
 use futures::prelude::*;
 use futures::stream::SelectAll;
 use futures::{future::join_all, stream::select_all};
+use moka::future::Cache;
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 // use mpl_bubblegum::accounts::MerkleTree;
 // use processor::logs::process_logs;
@@ -119,10 +120,18 @@ async fn main() -> Result<()> {
     let mut stream = select_all(vec![dolar.0]);
     let mut signatures_to_process = JoinSet::new();
 
+    let cache: Cache<String, String> = Cache::new(10_000);
+
     loop {
         // let connection = rpc_connection.clone().get().await.unwrap();
         let connection: managed::Object<RpcPoolManager> =
             rpc_connection.clone().get().await.unwrap();
+
+        let my_cache = cache.clone();
+
+        my_cache
+            .insert("testing".to_string(), "testing".to_string())
+            .await;
 
         // println!("Waiting for logs");
 
