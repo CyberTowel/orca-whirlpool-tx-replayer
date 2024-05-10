@@ -103,8 +103,9 @@ struct PoolMetaBase {
 // pub fn pool_meta_token()
 
 pub fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> PoolMeta {
+    println!("start get pool meta");
     let state = state(pool_id, rpc_connection);
-
+    println!("done get pool meta");
     let base_decimal = state.base_decimal;
     let base_lot_size = state.base_lot_size;
     let base_need_take_pnl = state.base_need_take_pnl;
