@@ -95,7 +95,7 @@ pub fn init(
         }
     };
 
-    // println!("Pool id to get: {:#?}", pool_id_to_get);
+    println!("Pool id to get: {:#?}", pool_id_to_get_opt);
 
     if (pool_id_to_get_opt.is_none()) {
         println!("Pool id to get is none");
