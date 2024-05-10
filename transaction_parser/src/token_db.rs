@@ -433,7 +433,7 @@ impl TokenDbClient {
     }
 
     pub async fn insert_token_price_inn(&self, input: PriceItemDb) -> Result<(), TPError> {
-        println!("Inserting token price");
+        // println!("Inserting token price");
         //  conversion_ref, token_address, price_usd, datetime, transaction_hash, price_usd_formatted, oracle_id, blocknumber
 
         let dolar = self.db_pool.clone();

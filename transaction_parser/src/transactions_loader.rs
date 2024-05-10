@@ -126,10 +126,10 @@ pub fn init(
     let pool_info_cache = my_cache.get(&pool_id_to_get);
 
     let pool_meta_req = if pool_info_cache.is_some() {
-        println!(
-            "=========== Pool info from cache loaded for pool {}",
-            pool_id_to_get.to_string()
-        );
+        // println!(
+        //     "=========== Pool info from cache loaded for pool {}",
+        //     pool_id_to_get.to_string()
+        // );
         Some(pool_info_cache.unwrap())
     } else {
         let info_req = get_pool_meta(&pool_id_to_get, rpc_connection);
