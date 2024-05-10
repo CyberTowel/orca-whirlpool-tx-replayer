@@ -64,9 +64,9 @@ async fn main() -> Result<()> {
 
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
 
-    let db_pool_connection = DbPool::builder(db_mgr).max_size(200).build().unwrap();
+    let db_pool_connection = DbPool::builder(db_mgr).max_size(100).build().unwrap();
 
-    let rpc_connection = RpcPool::builder(mgr).max_size(1000).build().unwrap();
+    let rpc_connection = RpcPool::builder(mgr).max_size(100).build().unwrap();
 
     let connection = rpc_connection.clone().get().await.unwrap();
 
