@@ -25,7 +25,7 @@ pub fn init(
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
 ) {
-    println!("start processcing", signature);
+    println!("start processcing, {}", signature);
     // let sol_price_db = "1400000000000000000000".to_string();
 
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
@@ -58,7 +58,7 @@ pub fn init(
 
     let transactions_meta = transaction.transaction.clone().meta.unwrap(); // v["message"].as_array().unwrap();
 
-    println!("tesitng lipsum", signature);
+    println!("tesitng lipsum, {}", signature);
 
     let pool_id_to_get_opt: Option<String> = if pool_id.is_some() {
         pool_id.clone() //.unwrap()
