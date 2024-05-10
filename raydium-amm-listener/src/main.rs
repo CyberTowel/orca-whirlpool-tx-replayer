@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 use std::pin::Pin;
-use std::thread::sleep;
+use std::thread::{self, sleep};
 use std::time::Duration;
 
 use anyhow::Result;
@@ -66,9 +66,9 @@ async fn main() -> Result<()> {
 
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
 
-    let db_pool_connection = DbPool::builder(db_mgr).max_size(100).build().unwrap();
+    let db_pool_connection = DbPool::builder(db_mgr).max_size(1000).build().unwrap();
 
-    let rpc_connection = RpcPool::builder(mgr).max_size(100).build().unwrap();
+    let rpc_connection = RpcPool::builder(mgr).max_size(1000).build().unwrap();
 
     // let connection = rpc_connection.clone().get().await.unwrap();
 
@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
     let dolar = testing.unwrap();
 
     let mut stream = select_all(vec![dolar.0]);
-    let mut signatures_to_process = JoinSet::new();
+    // let mut signatures_to_process = JoinSet::new();
 
     let cache: Cache<String, PoolMeta> = Cache::new(10_000);
 
@@ -160,20 +160,37 @@ async fn main() -> Result<()> {
 
         // let pool_id_c = pool_id.clone();
 
-        signatures_to_process.spawn(async move {
-            // println!("{:?}", logs.value.signature);
+        let mut sleep_duraction = 20;
+        if (args.sleep.is_some()) {
+            sleep_duraction = args.sleep.unwrap();
+        }
 
-            let mut sleep_duraction = 20;
-            if (args.sleep.is_some()) {
-                sleep_duraction = args.sleep.unwrap();
-            }
-            // println!("sleep start for {} secs", { sleep_duraction });
+        tokio::spawn(async move {
             // sleep(Duration::from_secs(sleep_duraction as u64));
 
-            tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
+            println!(
+                "new transaction in main thread, {}, start sleep",
+                logs.value.signature
+            );
+            let sleep = tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
 
+            // loop {
+            //     tokio::select! {
+            //         () = &mut sleep => {
+            //             println!("timer elapsed");
+            //             sleep.as_mut().reset(Instant::now() + Duration::from_millis(50));
+            //         },
+            //     }
+            // }
+            // match sleep.() {
+            //     Pending => return Pending,
+            //     Ready(val) => val,
+            // }
+
+            // println!("{:?}", logs.value.signature);
             //     // // let signature = "5wLsoFtf4k1Su9s8xxFeiep3Cx3P7oZWyV8bzEgQ29KqLjGWC2vpeSkvkNG39vPB6QTW5mR5fPJ3AdEdeEKszfMR";
 
+            // println!("Processing signature {:?}", logs.value.signature);
             let result = transaction_parser::transactions_loader::init(
                 logs.value.signature,
                 None,

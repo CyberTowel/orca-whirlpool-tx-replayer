@@ -30,6 +30,12 @@ pub fn init(
     db_client: &TokenDbClient,
     my_cache: Cache<String, PoolMeta>,
 ) {
+    // std::thread::sleep(std::time::Duration::from_secs(10));
+
+    println!("done sleeping start process, {}", signature);
+    // return;
+    // tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
+
     // let sol_price_db = "1400000000000000000000".to_string();
 
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
@@ -50,6 +56,14 @@ pub fn init(
     }
 
     let transaction = transaction_req.unwrap();
+
+    // println!(
+    //     "Init transaction: {:#?}, timestamp: {}",
+    //     signature,
+    //     transaction.block_time.unwrap()
+    // );
+
+    // return;
     // println!("Transaction: {:#?}", transaction);
 
     let v = json!(transaction.transaction.transaction);
@@ -111,23 +125,40 @@ pub fn init(
 
     let pool_info_cache = my_cache.get(&pool_id_to_get);
 
-    let pool_meta = if pool_info_cache.is_some() {
+    let pool_meta_req = if pool_info_cache.is_some() {
         println!(
             "=========== Pool info from cache loaded for pool {}",
             pool_id_to_get.to_string()
         );
-        pool_info_cache.unwrap()
+        Some(pool_info_cache.unwrap())
     } else {
-        let info = get_pool_meta(&pool_id_to_get, rpc_connection);
+        let info_req = get_pool_meta(&pool_id_to_get, rpc_connection);
+
+        if info_req.is_none() {
+            println!(
+                "Error getting pool info for pool {}",
+                pool_id_to_get.to_string()
+            );
+            return;
+        }
+
+        let info = info_req.unwrap();
 
         my_cache.insert(pool_id_to_get.to_string(), info.clone());
 
-        info
+        Some(info)
     };
+
+    if (!pool_meta_req.is_some()) {
+        println!("Error getting pool meta for pool {}", pool_id_to_get);
+        return;
+    }
+
+    let pool_meta: PoolMeta = pool_meta_req.unwrap();
 
     let transaction_parsed = transaction::Transaction::new(&transaction);
 
-    let token_amounts = get_token_amounts(
+    let token_amounts_req = get_token_amounts(
         &transaction,
         &transaction_parsed.account_keys,
         &transaction_parsed.ubo,
@@ -139,6 +170,13 @@ pub fn init(
         pool_meta.base_decimal,
         // decimals_correct, // pool_state,
     );
+
+    if (token_amounts_req.is_none()) {
+        println!("Error getting token amounts for pool {}", pool_id_to_get);
+        return;
+    }
+
+    let token_amounts = token_amounts_req.unwrap();
 
     let sol_price_db = db_client
         .get_usd_price_sol(transaction_parsed.datetime)

@@ -149,20 +149,43 @@ pub fn get_token_amounts(
     base_vault_address: &str,
     quote_decimal: u64,
     base_decimal: u64,
-) -> TokenAmountsSwap {
+) -> Option<TokenAmountsSwap> {
     let (token_changes_by_wallet, changes_by_token_account_address) =
         parse_balance_changes(rpc_transaction, account_keys);
 
     let token_changes_ubo = token_changes_by_wallet.get(ubo).unwrap();
 
-    let token_changes_pool_new_a = changes_by_token_account_address
-        .get(quote_vault_address)
-        .unwrap();
+    let token_changes_pool_new_a_req = changes_by_token_account_address.get(quote_vault_address);
 
-    let token_changes_pool_new_b = changes_by_token_account_address
-        .get(base_vault_address)
-        .unwrap();
+    let token_changes_pool_new_b_req = changes_by_token_account_address.get(base_vault_address);
 
+    if (token_changes_pool_new_a_req.is_none()) {
+        return None;
+        // return TokenAmountsSwap {
+        //     token_amounts_quote: TokenAmounts {
+        //         token_address: quote_mint_address.to_string(),
+        //         amount_total_pool_18: BigFloat::from_i64(0),
+        //         amount_diff_pool_18: BigFloat::from_i64(0),
+        //         amount_total_ubo_18: BigFloat::from_i64(0),
+        //         amount_diff_ubo_18: BigFloat::from_i64(0),
+        //         amount_total_pool_pre_18: BigFloat::from_i64(0),
+        //     },
+        //     token_amounts_base: TokenAmounts {
+        //         token_address: base_mint_address.to_string(),
+        //         amount_total_pool_18: BigFloat::from_i64(0),
+        //         amount_diff_pool_18: BigFloat::from_i64(0),
+        //         amount_total_ubo_18: BigFloat::from_i64(0),
+        //         amount_diff_ubo_18: BigFloat::from_i64(0),
+        //         amount_total_pool_pre_18: BigFloat::from_i64(0),
+        //     },
+        //     token_new_price_in_token_quote_18: BigFloat::from_i64(0),
+        //     token_trade_price_in_token_quote_18: BigFloat::from_i64(0),
+        // };
+    }
+    // .unwrap();
+
+    let token_changes_pool_new_a = token_changes_pool_new_a_req.unwrap();
+    let token_changes_pool_new_b = token_changes_pool_new_b_req.unwrap();
     let token_changes_pool = merge_hashmap(
         token_changes_pool_new_a.clone(),
         token_changes_pool_new_b.clone(),
@@ -214,7 +237,7 @@ pub fn get_token_amounts(
         token_trade_price_in_token_quote_18: token_trade_price_in_token_qoute_18,
     };
 
-    return token_amounts_swap;
+    return Some(token_amounts_swap);
 }
 
 pub fn parse_balance_changes(
