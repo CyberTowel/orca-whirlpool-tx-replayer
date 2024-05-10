@@ -168,10 +168,10 @@ async fn main() -> Result<()> {
         tokio::spawn(async move {
             // sleep(Duration::from_secs(sleep_duraction as u64));
 
-            println!(
-                "new transaction in main thread, {}, start sleep",
-                logs.value.signature
-            );
+            // println!(
+            //     "new transaction in main thread, {}, start sleep",
+            //     logs.value.signature
+            // );
             let sleep = tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
 
             // loop {

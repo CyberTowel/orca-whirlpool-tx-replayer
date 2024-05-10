@@ -32,7 +32,7 @@ pub fn init(
 ) {
     // std::thread::sleep(std::time::Duration::from_secs(10));
 
-    println!("done sleeping start process, {}", signature);
+    // println!("done sleeping start process, {}", signature);
     // return;
     // tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
 
@@ -232,26 +232,26 @@ pub fn init(
     };
 
     // println!("item_to_save: {:#?}", item_to_save);
-    println!(
-        "price update for token {:#?} ->  {:#?}
-signature: {}
-====================", // token_new_price_18: {:#?}
-        // token_new_price_fixed: {:#?}
-        // token_new_price_in_token_quote_18: {:#?}
-        // token_new_price_in_token_quote_fixed: {:#?}
-        item_to_save.token_base_address.to_string(),
-        // item_to_save.token_new_price_18.to_f64().to_string(),
-        item_to_save.token_new_price_fixed.to_f64().to_string(),
-        item_to_save.signature,
-        // item_to_save
-        //     .token_new_price_in_token_quote_18
-        //     .to_f64()
-        //     .to_string(),
-        // item_to_save
-        //     .token_new_price_in_token_quote_fixed
-        //     .to_f64()
-        //     .to_string(),
-    );
+    //     println!(
+    //         "price update for token {:#?} ->  {:#?}
+    // signature: {}
+    // ====================", // token_new_price_18: {:#?}
+    //         // token_new_price_fixed: {:#?}
+    //         // token_new_price_in_token_quote_18: {:#?}
+    //         // token_new_price_in_token_quote_fixed: {:#?}
+    //         item_to_save.token_base_address.to_string(),
+    //         // item_to_save.token_new_price_18.to_f64().to_string(),
+    //         item_to_save.token_new_price_fixed.to_f64().to_string(),
+    //         item_to_save.signature,
+    //         // item_to_save
+    //         //     .token_new_price_in_token_quote_18
+    //         //     .to_f64()
+    //         //     .to_string(),
+    //         // item_to_save
+    //         //     .token_new_price_in_token_quote_fixed
+    //         //     .to_f64()
+    //         //     .to_string(),
+    //     );
 
     let price_item_c = item_to_save.clone();
 
