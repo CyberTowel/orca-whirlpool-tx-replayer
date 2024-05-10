@@ -92,11 +92,12 @@ pub fn init(
             let dolar_selit = find_raydium_inner_instruction(&transactions_meta.inner_instructions);
             // println!("Inner instruction accounts: {:#?}", dolar_selit);
 
-            if (dolar_selit.len() == 0) {
-                return;
+            if (dolar_selit.len() > 0) {
                 // return None;
+                Some(dolar_selit[1].to_string())
+            } else {
+                None
             }
-            Some(dolar_selit[1].to_string())
         }
     };
 
@@ -268,7 +269,7 @@ fn find_raydium_inner_instruction(
         OptionSerializer::Skip => {}
     };
 
-    println!("testing 7");
+    println!("testing 7, {:#?}", inner_instruction_accounts);
 
     inner_instruction_accounts
 }
