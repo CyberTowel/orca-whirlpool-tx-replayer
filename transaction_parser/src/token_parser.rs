@@ -4,6 +4,7 @@ use num::ToPrimitive;
 use num_bigfloat::{BigFloat, RoundingMode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{
     EncodedConfirmedTransactionWithStatusMeta, UiTransactionTokenBalance,
 };
@@ -117,6 +118,25 @@ pub struct TokenPriceOracleValues {
     pub amount_diff_pool: BigFloat,
     pub amount_total_ubo: BigFloat,
     pub amount_diff_ubo: BigFloat,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PoolMeta {
+    pub base_decimal: u64,
+    pub base_lot_size: u64,
+    pub base_need_take_pnl: u64,
+    pub base_total_pnl: u64,
+    pub base_total_deposited: u128,
+    pub base_vault: Pubkey,
+    pub base_mint: Pubkey,
+
+    pub quote_decimal: u64,
+    pub quote_lot_size: u64,
+    pub quote_need_take_pnl: u64,
+    pub quote_total_pnl: u64,
+    pub quote_total_deposited: u128,
+    pub quote_vault: Pubkey,
+    pub quote_mint: Pubkey,
 }
 
 pub fn get_token_amounts(

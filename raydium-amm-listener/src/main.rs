@@ -11,7 +11,7 @@ use anyhow::Result;
 use futures::prelude::*;
 use futures::stream::SelectAll;
 use futures::{future::join_all, stream::select_all};
-use moka::future::Cache;
+use moka::sync::Cache;
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 // use mpl_bubblegum::accounts::MerkleTree;
 // use processor::logs::process_logs;
@@ -32,6 +32,7 @@ use transaction_parser::rpc_pool_manager::{get_pub_sub_client, RpcPool, RpcPoolM
 
 use deadpool::managed::RecycleResult;
 use transaction_parser::token_db::{DbClientPoolManager, DbPool};
+use transaction_parser::token_parser::PoolMeta;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -120,7 +121,7 @@ async fn main() -> Result<()> {
     let mut stream = select_all(vec![dolar.0]);
     let mut signatures_to_process = JoinSet::new();
 
-    let cache: Cache<String, String> = Cache::new(10_000);
+    let cache: Cache<String, PoolMeta> = Cache::new(10_000);
 
     loop {
         // let connection = rpc_connection.clone().get().await.unwrap();
@@ -129,9 +130,9 @@ async fn main() -> Result<()> {
 
         let my_cache = cache.clone();
 
-        my_cache
-            .insert("testing".to_string(), "testing".to_string())
-            .await;
+        // my_cache
+        //     .insert("testing".to_string(), "testing".to_string())
+        //     .await;
 
         // println!("Waiting for logs");
 
@@ -142,6 +143,9 @@ async fn main() -> Result<()> {
         if (logs_stream.is_none()) {
             continue;
         }
+
+        // println!("testing 1");
+
         let logs = logs_stream.unwrap();
 
         let testing: bool = logs.value.err.is_some();
@@ -175,6 +179,7 @@ async fn main() -> Result<()> {
                 None,
                 &connection,
                 &db_pool,
+                my_cache,
             );
             //     // return result;
         });

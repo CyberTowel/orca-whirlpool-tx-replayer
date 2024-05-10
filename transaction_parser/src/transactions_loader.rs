@@ -1,4 +1,5 @@
 use chrono::prelude::*;
+use moka::sync::Cache;
 use serde_json::json;
 use solana_client::{rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::{config::program, program_error, signature::Signature};
@@ -11,7 +12,7 @@ use std::str::FromStr;
 use crate::{
     pool_state::get_pool_meta,
     token_db::TokenDbClient,
-    token_parser::{get_price, get_token_amounts, parse_token_amounts_new, PriceItem},
+    token_parser::{get_price, get_token_amounts, parse_token_amounts_new, PoolMeta, PriceItem},
     transaction,
 };
 
@@ -24,6 +25,7 @@ pub fn init(
     pool_id: Option<String>,
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
+    my_cache: Cache<String, PoolMeta>,
 ) {
     // let sol_price_db = "1400000000000000000000".to_string();
 
@@ -96,13 +98,29 @@ pub fn init(
     };
 
     if (pool_id_to_get_opt.is_none()) {
-        println!("Pool id to get is none for signature: {}", signature);
+        // println!("Pool id to get is none for signature: {}", signature);
         return;
     }
 
     let pool_id_to_get = pool_id_to_get_opt.unwrap();
 
-    let pool_meta = get_pool_meta(&pool_id_to_get, rpc_connection);
+    // let pool_meta = get_pool_meta(&pool_id_to_get, rpc_connection);
+
+    let pool_info_cache = my_cache.get(&pool_id_to_get);
+
+    let pool_meta = if pool_info_cache.is_some() {
+        println!(
+            "=========== Pool info from cache loaded for pool {}",
+            pool_id_to_get
+        );
+        pool_info_cache.unwrap()
+    } else {
+        let info = get_pool_meta(&pool_id_to_get, rpc_connection);
+
+        my_cache.insert(pool_id_to_get.to_string(), info.clone());
+
+        info
+    };
 
     let transaction_parsed = transaction::Transaction::new(&transaction);
 

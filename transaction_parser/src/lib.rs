@@ -1,7 +1,7 @@
 mod pool_state;
 pub mod rpc_pool_manager;
 pub mod token_db;
-mod token_parser;
+pub mod token_parser;
 pub mod transaction;
 pub mod transactions_loader;
 

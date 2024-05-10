@@ -95,13 +95,13 @@ async fn main() -> Result<()> {
 
     let connection = rpc_connection.clone().get().await.unwrap();
 
-    let signature =
-        "zbDDaNA8yupDfjMLT1ijyLFWP89zAtdnLWiPfU3mtXvoQKVQdNPGaz2Nm5FpMeNgLRV8DCPSLsjoQgZ597pDWQu";
+    // let signature =
+    //     "zbDDaNA8yupDfjMLT1ijyLFWP89zAtdnLWiPfU3mtXvoQKVQdNPGaz2Nm5FpMeNgLRV8DCPSLsjoQgZ597pDWQu";
 
-    let result =
-        transaction_parser::transactions_loader::init(signature.to_string(), None, &connection);
+    // let result =
+    //     transaction_parser::transactions_loader::init(signature.to_string(), None, &connection);
 
-    return Ok(());
+    // return Ok(());
 
     loop {
         // let connection: managed::Object<RpcPoolManager> =

@@ -7,6 +7,8 @@ use solana_program::pubkey::Pubkey;
 use solana_sdk::client::SyncClient;
 use std::time::Duration;
 
+use crate::token_parser::PoolMeta;
+
 /// See https://github.com/raydium-io/raydium-sdk/blob/master/src/liquidity/layout.ts
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
 pub struct LiquidityStateLayoutV4 {
@@ -74,26 +76,7 @@ pub struct LiquidityStateLayoutV4 {
     pub pnl_owner: Pubkey,
 }
 
-#[derive(Debug, Clone)]
-pub struct PoolMeta {
-    pub base_decimal: u64,
-    pub base_lot_size: u64,
-    pub base_need_take_pnl: u64,
-    pub base_total_pnl: u64,
-    pub base_total_deposited: u128,
-    pub base_vault: Pubkey,
-    pub base_mint: Pubkey,
-
-    pub quote_decimal: u64,
-    pub quote_lot_size: u64,
-    pub quote_need_take_pnl: u64,
-    pub quote_total_pnl: u64,
-    pub quote_total_deposited: u128,
-    pub quote_vault: Pubkey,
-    pub quote_mint: Pubkey,
-}
-
-struct PoolMetaBase {
+pub struct PoolMetaBase {
     quote_mint: Pubkey,
     base_mint: Pubkey,
     quote_vault: Pubkey,
