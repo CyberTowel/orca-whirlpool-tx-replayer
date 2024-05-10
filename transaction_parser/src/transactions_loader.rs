@@ -68,7 +68,11 @@ pub fn init(
 
             program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
         });
+
+        println!("tesing2");
+
         if init_instruction.is_some() {
+            println!("tesing3");
             // println!(
             //     "{:#?} {:#?} {:#?}",
             //     init_instruction.unwrap().as_object().unwrap()["data"],
@@ -84,6 +88,7 @@ pub fn init(
             Some(pool_id_instruction.to_string())
             // pool_id_instruction.as_str().unwrap().to_string()
         } else {
+            println!("tesing4");
             let dolar_selit = find_raydium_inner_instruction(&transactions_meta.inner_instructions);
             // println!("Inner instruction accounts: {:#?}", dolar_selit);
 
