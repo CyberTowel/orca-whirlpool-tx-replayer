@@ -703,3 +703,33 @@ fn multiply_amounts(token_price_usd_18: BigFloat, amount_18: BigFloat) -> UsdMul
         amount_18_rounded: total_amount_usd_rounded,
     };
 }
+
+pub fn parse_token_price_oracle_values(
+    ubo: String,
+    signer: String,
+    pool_id: String,
+    token_address: String,
+    token_amounts: &TokenAmounts,
+    token_amounts_usd: &TokenAmountsPriced,
+    signature: &String,
+) -> TokenPriceOracleValues {
+    let tpo_values_a = TokenPriceOracleValues {
+        ubo: ubo,
+        signer: signer,
+        pool_address: pool_id,
+        token_address: token_address,
+        signature: signature.to_string(),
+
+        usd_total_pool: token_amounts_usd.usd_total_pool_18_rounded,
+        usd_total_ubo: token_amounts_usd.usd_total_ubo_18_rounded,
+        usd_diff_ubo: token_amounts_usd.usd_diff_ubo_18_rounded,
+        usd_diff_pool: token_amounts_usd.usd_diff_pool_18_rounded,
+
+        amount_total_pool: token_amounts.amount_total_pool_18,
+        amount_diff_pool: token_amounts.amount_diff_pool_18,
+        amount_total_ubo: token_amounts.amount_total_ubo_18,
+        amount_diff_ubo: token_amounts.amount_diff_ubo_18,
+    };
+
+    return tpo_values_a;
+}

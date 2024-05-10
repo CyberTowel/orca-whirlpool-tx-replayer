@@ -12,7 +12,10 @@ use std::str::FromStr;
 use crate::{
     pool_state::get_pool_meta,
     token_db::TokenDbClient,
-    token_parser::{get_price, get_token_amounts, parse_token_amounts_new, PoolMeta, PriceItem},
+    token_parser::{
+        get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
+        PoolMeta, PriceItem,
+    },
     transaction,
 };
 
@@ -111,7 +114,7 @@ pub fn init(
     let pool_meta = if pool_info_cache.is_some() {
         println!(
             "=========== Pool info from cache loaded for pool {}",
-            pool_id_to_get
+            pool_id_to_get.to_string()
         );
         pool_info_cache.unwrap()
     } else {
@@ -185,7 +188,7 @@ pub fn init(
         datetime: datetime,
         signer: transaction_parsed.signer.to_string(),
         ubo: transaction_parsed.ubo.to_string(),
-        pool_address: pool_id_to_get,
+        pool_address: pool_id_to_get.clone(),
         usd_total_pool: swap_token_amounts_priced.usd_total_pool_18,
         block_number: transaction_parsed.block_number.to_string(),
     };
@@ -210,7 +213,59 @@ signature: {}
         //     .token_new_price_in_token_quote_fixed
         //     .to_f64()
         //     .to_string(),
-    )
+    );
+
+    let price_item_c = item_to_save.clone();
+
+    let reponse = db_client.save_token_values(item_to_save);
+
+    let tpo_values_a = parse_token_price_oracle_values(
+        transaction_parsed.ubo.to_string(),
+        transaction_parsed.signer.to_string(),
+        pool_id_to_get.to_string(),
+        pool_meta.base_mint.to_string(),
+        &token_amounts.token_amounts_quote,
+        &swap_token_amounts_priced.token_amounts_priced_a,
+        &signature,
+    );
+
+    let tpo_values_b = parse_token_price_oracle_values(
+        transaction_parsed.ubo.to_string(),
+        transaction_parsed.signer.to_string(),
+        pool_id_to_get.to_string(),
+        pool_meta.quote_mint.to_string(),
+        &token_amounts.token_amounts_base,
+        &swap_token_amounts_priced.token_amounts_priced_b,
+        &signature,
+    );
+
+    let response_token_usd_a = db_client.insert_token_usd_values(&signature, &tpo_values_a);
+
+    if response_token_usd_a.is_err() {
+        println!(
+            "Error saving token usd values to db: {:#?}",
+            response_token_usd_a
+        );
+    }
+
+    let response_token_usd_b = db_client.insert_token_usd_values(&signature, &tpo_values_b);
+
+    if response_token_usd_b.is_err() {
+        println!(
+            "Error saving token usd values to db: {:#?}",
+            response_token_usd_b
+        );
+    }
+
+    if reponse.is_err() {
+        println!("Error saving to db: {:#?}", reponse);
+    }
+
+    // return (
+    //     signature.to_string(),
+    //     price_item_c.datetime,
+    //     "success".to_string(),
+    // );
 
     // println!("Token amounts: {:#?}", swap_token_amounts_priced);
 }

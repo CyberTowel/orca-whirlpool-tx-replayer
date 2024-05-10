@@ -12,62 +12,64 @@ use std::{str::FromStr, sync::Arc};
 use tokio_postgres::types::{Json, ToSql};
 use tokio_postgres::{Error as TPError, NoTls};
 
+use crate::token_parser::{PriceItem, TokenPriceOracleValues};
+
 // use crate::token_parser::TokenPriceOracleValues;
 // use tokio_postgres::types::Json;
 
 pub fn testing() {}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenPriceOracleValues {
-    pub ubo: String,
-    pub signer: String,
-    pub pool_address: String,
-    pub token_address: String,
-    pub signature: String,
+// #[derive(Debug, Clone, Serialize, Deserialize)]
+// pub struct TokenPriceOracleValues {
+//     pub ubo: String,
+//     pub signer: String,
+//     pub pool_address: String,
+//     pub token_address: String,
+//     pub signature: String,
 
-    pub usd_total_pool: BigFloat,
-    pub usd_total_ubo: BigFloat,
-    pub usd_diff_ubo: BigFloat,
-    pub usd_diff_pool: BigFloat,
+//     pub usd_total_pool: BigFloat,
+//     pub usd_total_ubo: BigFloat,
+//     pub usd_diff_ubo: BigFloat,
+//     pub usd_diff_pool: BigFloat,
 
-    pub amount_total_pool: BigFloat,
-    pub amount_diff_pool: BigFloat,
-    pub amount_total_ubo: BigFloat,
-    pub amount_diff_ubo: BigFloat,
-}
+//     pub amount_total_pool: BigFloat,
+//     pub amount_diff_pool: BigFloat,
+//     pub amount_total_ubo: BigFloat,
+//     pub amount_diff_ubo: BigFloat,
+// }
 
 pub type DbPool = managed::Pool<DbClientPoolManager>;
 
 pub struct DbClientPoolManager {}
 
-#[derive(Debug, Clone)]
-pub struct PriceItem {
-    pub signature: String,
-    pub token_quote_address: String,
-    pub token_base_address: String,
+// #[derive(Debug, Clone)]
+// pub struct PriceItem {
+//     pub signature: String,
+//     pub token_quote_address: String,
+//     pub token_base_address: String,
 
-    pub token_new_price_18: BigFloat,
-    pub token_new_price_in_token_quote_18: BigFloat,
-    pub token_new_price_fixed: BigFloat,
-    pub token_new_price_in_token_quote_fixed: BigFloat,
+//     pub token_new_price_18: BigFloat,
+//     pub token_new_price_in_token_quote_18: BigFloat,
+//     pub token_new_price_fixed: BigFloat,
+//     pub token_new_price_in_token_quote_fixed: BigFloat,
 
-    pub token_trade_price_18: BigFloat,
-    pub token_trade_price_in_token_quote_18: BigFloat,
-    pub token_trade_price_fixed: BigFloat,
-    pub token_trade_price_in_token_quote_fixed: BigFloat,
+//     pub token_trade_price_18: BigFloat,
+//     pub token_trade_price_in_token_quote_18: BigFloat,
+//     pub token_trade_price_fixed: BigFloat,
+//     pub token_trade_price_in_token_quote_fixed: BigFloat,
 
-    pub usd_total_pool: BigFloat,
+//     pub usd_total_pool: BigFloat,
 
-    pub datetime: String,
-    pub signer: String,
-    pub ubo: String,
-    pub pool_address: String,
-    pub block_number: String,
-    // pub token_a_usd: TokenAmountsPriced,
-    // pub token_b_usd: TokenAmountsPriced,
-    // pub token_amounts_a: TokenAmounts,
-    // pub token_amounts_b: TokenAmounts,
-}
+//     pub datetime: String,
+//     pub signer: String,
+//     pub ubo: String,
+//     pub pool_address: String,
+//     pub block_number: String,
+//     // pub token_a_usd: TokenAmountsPriced,
+//     // pub token_b_usd: TokenAmountsPriced,
+//     // pub token_amounts_a: TokenAmounts,
+//     // pub token_amounts_b: TokenAmounts,
+// }
 
 #[derive(Debug, Clone)]
 pub struct PriceItemDb {
@@ -431,6 +433,7 @@ impl TokenDbClient {
     }
 
     pub async fn insert_token_price_inn(&self, input: PriceItemDb) -> Result<(), TPError> {
+        println!("Inserting token price");
         //  conversion_ref, token_address, price_usd, datetime, transaction_hash, price_usd_formatted, oracle_id, blocknumber
 
         let dolar = self.db_pool.clone();
@@ -515,16 +518,18 @@ impl TokenDbClient {
             let conversion_ref: String = row.get("conversion_ref");
             let token_address: String = row.get("token_address");
             let price: Decimal = row.get("price");
-            // let datetime: NaiveDateTime = row.get("datetime");
+            let datetime: Option<chrono::DateTime<Utc>> = row.get("datetime");
             // let transaction_hash: String = row.get("transaction_hash");
             let price_fixed: Decimal = row.get("price_fixed");
             // let oracle_id: String = row.get("oracle_id");
             // let blocknumber: Decimal = row.get("blocknumber");
 
-            return (conversion_ref, token_address, price, price_fixed);
+            return (conversion_ref, token_address, price, price_fixed, datetime);
         });
 
         let values_saved_db: Vec<_> = dolar_selit.collect();
+
+        println!("values_saved_db {:?}", values_saved_db);
 
         return Ok(());
     }
