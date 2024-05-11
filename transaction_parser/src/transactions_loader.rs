@@ -167,7 +167,7 @@ pub async fn init(
 
     let pool_meta_req = if pool_info_cache.is_some() {
         let info = pool_info_cache.unwrap();
-        println!("=========== Pool info from cache loaded for pool",);
+        // println!("=========== Pool info from cache loaded for pool",);
         Some(info)
     } else {
         let info_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;

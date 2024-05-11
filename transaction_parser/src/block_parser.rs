@@ -22,7 +22,7 @@ pub async fn parse_block(
     //
 
     let connection = rpc_connection.get().await.unwrap();
-    let db_connection = db_client.get().await.unwrap();
+    // let db_connection = db_client.get().await.unwrap();
 
     let rpc_block_config = RpcBlockConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
@@ -35,6 +35,10 @@ pub async fn parse_block(
     let block_req = connection
         .get_block_with_config(block_number, rpc_block_config)
         .await;
+
+    if (block_req.is_err()) {
+        return;
+    }
 
     let block = block_req.unwrap();
 

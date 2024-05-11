@@ -84,20 +84,40 @@ async fn main() -> Result<()> {
 
     let cache: Cache<String, PoolMeta> = Cache::new(100_000);
 
-    let start = std::time::Instant::now();
+    let start_at_block = 265012503;
 
-    parse_block(
-        265012503,
-        &rpc_connection,
-        &rpc_connection_builder,
-        &db_pool_connection,
-        &cache,
-    )
-    .await;
+    for i in 0..100 {
+        let start = std::time::Instant::now();
 
-    let duration = start.elapsed();
+        let block_number = start_at_block + i;
+        let connection = rpc_connection.clone();
+        let db_pool_connect = db_pool_connection.clone();
+        let rpc_connection_builder = rpc_connection_builder.clone();
+        let my_cache = cache.clone();
 
-    println!("Time elapsed is: {:?}", duration);
+        // tokio::spawn(async move {
+        parse_block(
+            block_number,
+            &connection,
+            &rpc_connection_builder,
+            &db_pool_connect,
+            &my_cache,
+        )
+        .await;
+        let duration = start.elapsed();
+
+        println!("Time elapsed is: {:?}", duration);
+        // });
+    }
+
+    // parse_block(
+    //     265012503,
+    //     &rpc_connection,
+    //     &rpc_connection_builder,
+    //     &db_pool_connection,
+    //     &cache,
+    // )
+    // .await;
 
     // let tesitng = connection.get_block_with_config(
     //     265012503,
