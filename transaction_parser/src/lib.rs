@@ -1,3 +1,4 @@
+pub mod block_parser;
 mod pool_state;
 pub mod rpc_pool_manager;
 pub mod token_db;

@@ -1,10 +1,13 @@
 use chrono::prelude::*;
-use moka::sync::Cache;
+use moka::future::Cache;
 use serde_json::json;
-use solana_client::{rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
-use solana_sdk::{config::program, program_error, signature::Signature};
+use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
+use solana_sdk::{
+    commitment_config::CommitmentConfig, config::program, program_error, signature::Signature,
+};
 use solana_transaction_status::{
-    option_serializer::OptionSerializer, UiInnerInstructions, UiInstruction, UiParsedInstruction,
+    option_serializer::OptionSerializer, EncodedConfirmedTransactionWithStatusMeta,
+    EncodedTransactionWithStatusMeta, UiInnerInstructions, UiInstruction, UiParsedInstruction,
     UiTransactionEncoding,
 };
 use std::str::FromStr;
@@ -23,29 +26,22 @@ pub fn testing_nested() {
     println!("Testing nested");
 }
 
-pub fn init(
+pub async fn get_transction(
     signature: String,
     pool_id: Option<String>,
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
     my_cache: Cache<String, PoolMeta>,
 ) {
-    // std::thread::sleep(std::time::Duration::from_secs(10));
-
-    // println!("done sleeping start process, {}", signature);
-    // return;
-    // tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
-
-    // let sol_price_db = "1400000000000000000000".to_string();
-
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
-        commitment: None,
+        commitment: Some(CommitmentConfig::finalized()),
         max_supported_transaction_version: Some(1),
     };
 
     let transaction_req = rpc_connection
-        .get_transaction_with_config(&Signature::from_str(&signature).unwrap(), rpc_config);
+        .get_transaction_with_config(&Signature::from_str(&signature).unwrap(), rpc_config)
+        .await;
 
     if transaction_req.is_err() {
         println!(
@@ -55,21 +51,62 @@ pub fn init(
         return;
     }
 
-    let transaction = transaction_req.unwrap();
+    let confirmed_tx = transaction_req.unwrap();
 
-    let transaction_datetime = DateTime::from_timestamp(transaction.block_time.unwrap(), 0)
+    let transaction = EncodedTransactionWithStatusMeta {
+        transaction: confirmed_tx.transaction.transaction,
+        meta: confirmed_tx.transaction.meta,
+        version: confirmed_tx.transaction.version,
+    };
+
+    let block_time = confirmed_tx.block_time.unwrap();
+    let block_number = confirmed_tx.slot;
+
+    init(
+        signature,
+        pool_id,
+        rpc_connection,
+        rpc_connection,
+        db_client,
+        &my_cache,
+        &transaction,
+        block_time,
+        block_number,
+    )
+    .await;
+}
+
+pub async fn init(
+    signature: String,
+    pool_id: Option<String>,
+    rpc_connection: &RpcClient,
+    rpc_connection_build: &RpcClient,
+    db_client: &TokenDbClient,
+    my_cache: &Cache<String, PoolMeta>,
+    transaction: &EncodedTransactionWithStatusMeta,
+    block_time: i64,
+    block_number: u64,
+) {
+    // std::thread::sleep(std::time::Duration::from_secs(10));
+
+    // println!("done sleeping start process, {}", signature);
+    // return;
+    // tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
+
+    // let sol_price_db = "1400000000000000000000".to_string();
+
+    let transaction_datetime = DateTime::from_timestamp(block_time, 0)
         .unwrap()
         .to_rfc3339();
 
-    println!(
-        "Init transaction: {:#?}, timestamp: {}",
-        signature, transaction_datetime
-    );
+    // println!(
+    //     "Init transaction: {:#?}, timestamp: {}",
+    //     signature, transaction_datetime
+    // );
 
-    return;
     // println!("Transaction: {:#?}", transaction);
 
-    let v = json!(transaction.transaction.transaction);
+    let v = json!(transaction.transaction);
     // let account_keys = v["message"]["accountKeys"].as_array().unwrap();
 
     // let signer = find_signer(account_keys);
@@ -77,7 +114,7 @@ pub fn init(
 
     let instructions = v["message"]["instructions"].as_array().unwrap();
 
-    let transactions_meta = transaction.transaction.clone().meta.unwrap(); // v["message"].as_array().unwrap();
+    let transactions_meta = transaction.clone().meta.unwrap(); // v["message"].as_array().unwrap();
 
     let pool_id_to_get_opt: Option<String> = if pool_id.is_some() {
         pool_id.clone() //.unwrap()
@@ -126,28 +163,28 @@ pub fn init(
 
     // let pool_meta = get_pool_meta(&pool_id_to_get, rpc_connection);
 
-    let pool_info_cache = my_cache.get(&pool_id_to_get);
+    let pool_info_cache = my_cache.get(&pool_id_to_get).await;
 
     let pool_meta_req = if pool_info_cache.is_some() {
-        // println!(
-        //     "=========== Pool info from cache loaded for pool {}",
-        //     pool_id_to_get.to_string()
-        // );
-        Some(pool_info_cache.unwrap())
+        let info = pool_info_cache.unwrap();
+        println!("=========== Pool info from cache loaded for pool",);
+        Some(info)
     } else {
-        let info_req = get_pool_meta(&pool_id_to_get, rpc_connection);
+        let info_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
 
         if info_req.is_none() {
-            println!(
-                "Error getting pool info for pool {}",
-                pool_id_to_get.to_string()
-            );
+            // println!(
+            //     "Error getting pool info for pool {}",
+            //     pool_id_to_get.to_string()
+            // );
             return;
         }
 
         let info = info_req.unwrap();
 
-        my_cache.insert(pool_id_to_get.to_string(), info.clone());
+        my_cache
+            .insert(pool_id_to_get.to_string(), info.clone())
+            .await;
 
         Some(info)
     };
@@ -159,7 +196,7 @@ pub fn init(
 
     let pool_meta: PoolMeta = pool_meta_req.unwrap();
 
-    let transaction_parsed = transaction::Transaction::new(&transaction);
+    let transaction_parsed = transaction::Transaction::new(transaction, block_time, block_number);
 
     let token_amounts_req = get_token_amounts(
         &transaction,
@@ -301,6 +338,8 @@ pub fn init(
     if reponse.is_err() {
         println!("Error saving to db: {:#?}", reponse);
     }
+
+    // println!("done")
 
     // return (
     //     signature.to_string(),

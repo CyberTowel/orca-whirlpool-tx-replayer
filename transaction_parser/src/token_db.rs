@@ -529,7 +529,7 @@ impl TokenDbClient {
 
         let values_saved_db: Vec<_> = dolar_selit.collect();
 
-        println!("values_saved_db {:?}", values_saved_db);
+        // println!("values_saved_db {:?}", values_saved_db);
 
         return Ok(());
     }
@@ -646,14 +646,20 @@ impl DbTokenTesterInner {
 }
 
 fn parse_value_to_numeric(value: &BigFloat, round_digits: Option<i64>) -> PgNumeric {
-    let testing = BigDecimal::from_str(&value.to_string()).unwrap();
+    let testing = BigDecimal::from_str(&value.to_string());
+
+    if (testing.is_err()) {
+        return PgNumeric::new(Some(BigDecimal::from_i64(0).unwrap()));
+    }
+
+    let bigint = testing.unwrap();
 
     // if(round_digits.is_some())
 
     let price_numeric = if (round_digits.is_some()) {
-        PgNumeric::new(Some(testing.round(0)))
+        PgNumeric::new(Some(bigint.round(0)))
     } else {
-        PgNumeric::new(Some(testing))
+        PgNumeric::new(Some(bigint))
     };
 
     let value_c = price_numeric.clone();

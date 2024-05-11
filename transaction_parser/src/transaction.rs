@@ -1,7 +1,9 @@
 use chrono::DateTime;
 use serde_json::{json, Value};
 
-use solana_transaction_status::EncodedConfirmedTransactionWithStatusMeta;
+use solana_transaction_status::{
+    EncodedConfirmedTransactionWithStatusMeta, EncodedTransactionWithStatusMeta,
+};
 
 #[derive(Debug)]
 pub struct Transaction {
@@ -19,11 +21,15 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(rpc_transaction: &EncodedConfirmedTransactionWithStatusMeta) -> Transaction {
+    pub fn new(
+        rpc_transaction: &EncodedTransactionWithStatusMeta,
+        block_time: i64,
+        block_number: u64,
+    ) -> Transaction {
         // let token_a_address: &str = "So11111111111111111111111111111111111111112";
         // let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
 
-        let v = json!(rpc_transaction.transaction.transaction);
+        let v = json!(rpc_transaction.transaction);
         let account_keys = v["message"]["accountKeys"].as_array().unwrap();
 
         let signer = find_signer(account_keys);
@@ -50,18 +56,20 @@ impl Transaction {
             None => &singer_c,
         };
 
-        let datetime = get_transaction_datetime(rpc_transaction);
+        let datetime = DateTime::from_timestamp(block_time, 0)
+            .unwrap()
+            .to_rfc3339();
 
         let transaction = Transaction {
             is_a_parrot: true,
             signer: signer,
             ubo: ubo.to_string(),
-            block_timestamp: rpc_transaction.block_time.unwrap(),
+            block_timestamp: block_time,
             datetime: datetime,
             // token_a_address: token_a_address.to_string(),
             // token_b_address: token_b_address.to_string(),
             account_keys: account_keys.clone(),
-            block_number: rpc_transaction.slot,
+            block_number: block_number,
             // token_amounts: token_amounts,
         };
 
@@ -84,13 +92,13 @@ fn find_signer(account_keys: &Vec<Value>) -> String {
     return signer;
 }
 
-fn get_transaction_datetime(transaction: &EncodedConfirmedTransactionWithStatusMeta) -> String {
-    let transaction_datetime = DateTime::from_timestamp(transaction.block_time.unwrap(), 0)
-        .unwrap()
-        .to_rfc3339();
+// fn get_transaction_datetime(transaction: &EncodedTransactionWithStatusMeta) -> String {
+//     let transaction_datetime = DateTime::from_timestamp(transaction.block_time.unwrap(), 0)
+//         .unwrap()
+//         .to_rfc3339();
 
-    return transaction_datetime;
-}
+//     return transaction_datetime;
+// }
 
 // pub fn parse_pool_create_instruction(){
 

@@ -11,30 +11,24 @@ use anyhow::Result;
 use futures::prelude::*;
 use futures::stream::SelectAll;
 use futures::{future::join_all, stream::select_all};
-use moka::future::Cache;
+use moka::sync::Cache;
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 // use mpl_bubblegum::accounts::MerkleTree;
 // use processor::logs::process_logs;
 // use processor::metadata::fetch_store_metadata;
 // use processor::queue_processor::process_transactions_queue;
 // use sea_orm::SqlxPostgresConnector;
-use solana_client::rpc_config::{
-    RpcBlockConfig, RpcBlockSubscribeConfig, RpcBlockSubscribeFilter, RpcTransactionLogsConfig,
-    RpcTransactionLogsFilter,
-};
-use solana_client::rpc_response::{Response, RpcLogsResponse, SlotUpdate};
+use solana_client::rpc_config::{RpcTransactionLogsConfig, RpcTransactionLogsFilter};
+use solana_client::rpc_response::{Response, RpcLogsResponse};
 use solana_sdk::commitment_config::CommitmentConfig;
 // use sqlx::{Acquire, PgPool};
 use clap::Parser;
 use deadpool::managed::{self, Metrics, Pool};
 use solana_sdk::signature;
-use solana_sdk::transaction::Transaction;
 use tokio::task::{self, JoinSet};
 use transaction_parser;
-use transaction_parser::block_parser::parse_block;
 use transaction_parser::rpc_pool_manager::{get_pub_sub_client, RpcPool, RpcPoolManager};
 // use transaction_parser::
-use solana_transaction_status::UiTransactionEncoding;
 
 use deadpool::managed::RecycleResult;
 use transaction_parser::token_db::{DbClientPoolManager, DbPool};
@@ -70,49 +64,11 @@ async fn main() -> Result<()> {
         rpc_type: args.rpc_type,
     };
 
-    let mgr_info = RpcPoolManager {
-        rpc_type: Some("info_rpc".to_string()),
-    };
-
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
 
     let db_pool_connection = DbPool::builder(db_mgr).max_size(1000).build().unwrap();
 
     let rpc_connection = RpcPool::builder(mgr).max_size(1000).build().unwrap();
-
-    let rpc_connection_builder = RpcPool::builder(mgr_info).max_size(100).build().unwrap();
-
-    let cache: Cache<String, PoolMeta> = Cache::new(100_000);
-
-    let start = std::time::Instant::now();
-
-    parse_block(
-        265012503,
-        &rpc_connection,
-        &rpc_connection_builder,
-        &db_pool_connection,
-        &cache,
-    )
-    .await;
-
-    let duration = start.elapsed();
-
-    println!("Time elapsed is: {:?}", duration);
-
-    // let tesitng = connection.get_block_with_config(
-    //     265012503,
-    //     RpcBlockConfig {
-    //         encoding: Some(UiTransactionEncoding::JsonParsed),
-    //         commitment: Some(CommitmentConfig::finalized()),
-    //         transaction_details: Some(solana_transaction_status::TransactionDetails::Full),
-    //         rewards: Some(true),
-    //         max_supported_transaction_version: Some(0),
-    //     },
-    // );
-
-    // println!("{:#?}", tesitng.unwrap().transactions.unwrap().len());
-
-    return Ok(());
 
     // let connection = rpc_connection.clone().get().await.unwrap();
 
@@ -146,36 +102,17 @@ async fn main() -> Result<()> {
     // let pool_id = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string();
     let pool_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string();
 
-    // let testing = pubsub_client
-    //     .logs_subscribe(
-    //         RpcTransactionLogsFilter::Mentions(vec![
-    //             // "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
-    //             pool_id.clone(),
-    //         ]),
-    //         RpcTransactionLogsConfig {
-    //             commitment: Some(CommitmentConfig::processed()),
-    //         },
-    //     )
-    //     .await;
-
-    let testing = pubsub_client.slot_updates_subscribe().await;
-
-    // let testing = pubsub_client
-    //     .block_subscribe(
-    //         RpcBlockSubscribeFilter::All,
-    //         // RpcBlockSubscribeFilter::MentionsAccountOrProgram(
-    //         //     "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
-    //         // ),
-    //         None,
-    //         // Some(RpcBlockSubscribeConfig {
-    //         //     encoding: Some(UiTransactionEncoding::JsonParsed),
-    //         //     commitment: Some(CommitmentConfig::processed()),
-    //         //     transaction_details: Some(solana_transaction_status::TransactionDetails::Full),
-    //         //     show_rewards: Some(true),
-    //         //     max_supported_transaction_version: Some(1),
-    //         // }),
-    //     )
-    //     .await;
+    let testing = pubsub_client
+        .logs_subscribe(
+            RpcTransactionLogsFilter::Mentions(vec![
+                // "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
+                pool_id.clone(),
+            ]),
+            RpcTransactionLogsConfig {
+                commitment: Some(CommitmentConfig::processed()),
+            },
+        )
+        .await;
 
     println!("Listener added");
 
@@ -183,6 +120,8 @@ async fn main() -> Result<()> {
 
     let mut stream = select_all(vec![dolar.0]);
     // let mut signatures_to_process = JoinSet::new();
+
+    let cache: Cache<String, PoolMeta> = Cache::new(10_000);
 
     loop {
         // let connection = rpc_connection.clone().get().await.unwrap();
@@ -205,73 +144,62 @@ async fn main() -> Result<()> {
             continue;
         }
 
-        // // println!("testing 1");
+        // println!("testing 1");
 
-        // println!("{:#?}", logs_stream.unwrap());
+        let logs = logs_stream.unwrap();
 
-        let testing_dolar: solana_client::rpc_response::SlotUpdate = logs_stream.unwrap().into();
-        println!("{:#?}", testing_dolar);
+        let testing: bool = logs.value.err.is_some();
 
-        //  {
-        //     // solana_client::rpc_response::SlotUpdate::Completed { slot, timestamp } => {
-        //     //     println!("slot: {}, timestamp: {}", slot, timestamp);
-        //     // },
-        // }
+        if (testing) {
+            // println!("Transaction error");
+            continue;
+        }
 
-        // let logs = logs_stream.unwrap();
+        // println!("{} streams waiting", stream.len().to_string());
+        // println!("{:#?}", logs.value.signature);
 
-        // let testing: bool = logs.value.err.is_some();
+        // let pool_id_c = pool_id.clone();
 
-        // if (testing) {
-        //     // println!("Transaction error");
-        //     continue;
-        // }
+        let mut sleep_duraction = 20;
+        if (args.sleep.is_some()) {
+            sleep_duraction = args.sleep.unwrap();
+        }
 
-        // // println!("{} streams waiting", stream.len().to_string());
-        // // println!("{:#?}", logs.value.signature);
+        tokio::spawn(async move {
+            // sleep(Duration::from_secs(sleep_duraction as u64));
 
-        // // let pool_id_c = pool_id.clone();
+            // println!(
+            //     "new transaction in main thread, {}, start sleep",
+            //     logs.value.signature
+            // );
+            let sleep = tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
 
-        // let mut sleep_duraction = 20;
-        // if (args.sleep.is_some()) {
-        //     sleep_duraction = args.sleep.unwrap();
-        // }
+            // loop {
+            //     tokio::select! {
+            //         () = &mut sleep => {
+            //             println!("timer elapsed");
+            //             sleep.as_mut().reset(Instant::now() + Duration::from_millis(50));
+            //         },
+            //     }
+            // }
+            // match sleep.() {
+            //     Pending => return Pending,
+            //     Ready(val) => val,
+            // }
 
-        // tokio::spawn(async move {
-        //     // sleep(Duration::from_secs(sleep_duraction as u64));
+            // println!("{:?}", logs.value.signature);
+            //     // // let signature = "5wLsoFtf4k1Su9s8xxFeiep3Cx3P7oZWyV8bzEgQ29KqLjGWC2vpeSkvkNG39vPB6QTW5mR5fPJ3AdEdeEKszfMR";
 
-        //     // println!(
-        //     //     "new transaction in main thread, {}, start sleep",
-        //     //     logs.value.signature
-        //     // );
-        //     let sleep = tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
-
-        //     // loop {
-        //     //     tokio::select! {
-        //     //         () = &mut sleep => {
-        //     //             println!("timer elapsed");
-        //     //             sleep.as_mut().reset(Instant::now() + Duration::from_millis(50));
-        //     //         },
-        //     //     }
-        //     // }
-        //     // match sleep.() {
-        //     //     Pending => return Pending,
-        //     //     Ready(val) => val,
-        //     // }
-
-        //     // println!("{:?}", logs.value.signature);
-        //     //     // // let signature = "5wLsoFtf4k1Su9s8xxFeiep3Cx3P7oZWyV8bzEgQ29KqLjGWC2vpeSkvkNG39vPB6QTW5mR5fPJ3AdEdeEKszfMR";
-
-        //     // println!("Processing signature {:?}", logs.value.signature);
-        //     let result = transaction_parser::transactions_loader::init(
-        //         logs.value.signature,
-        //         None,
-        //         &connection,
-        //         &db_pool,
-        //         my_cache,
-        //     );
-        //     //     // return result;
-        // });
+            // println!("Processing signature {:?}", logs.value.signature);
+            let result = transaction_parser::transactions_loader::init(
+                logs.value.signature,
+                None,
+                &connection,
+                &db_pool,
+                my_cache,
+            );
+            //     // return result;
+        });
 
         // return Ok(());
 

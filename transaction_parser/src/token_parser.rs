@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{
-    EncodedConfirmedTransactionWithStatusMeta, UiTransactionTokenBalance,
+    EncodedConfirmedTransactionWithStatusMeta, EncodedTransactionWithStatusMeta,
+    UiTransactionTokenBalance,
 };
 use std::{collections::HashMap, fmt::Binary, str::FromStr};
 
@@ -140,7 +141,7 @@ pub struct PoolMeta {
 }
 
 pub fn get_token_amounts(
-    rpc_transaction: &EncodedConfirmedTransactionWithStatusMeta,
+    rpc_transaction: &EncodedTransactionWithStatusMeta,
     account_keys: &Vec<Value>,
     ubo: &str,
     quote_mint_address: &str,
@@ -241,30 +242,20 @@ pub fn get_token_amounts(
 }
 
 pub fn parse_balance_changes(
-    transaction: &EncodedConfirmedTransactionWithStatusMeta,
+    transaction: &EncodedTransactionWithStatusMeta,
     account_keys: &Vec<Value>,
 ) -> (
     HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>,
     HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>,
 ) {
-    let post_balances = transaction.transaction.clone().meta.unwrap().post_balances;
-    let pre_balances = transaction.transaction.clone().meta.unwrap().pre_balances;
+    let post_balances = transaction.clone().meta.unwrap().post_balances;
+    let pre_balances = transaction.clone().meta.unwrap().pre_balances;
 
-    let post_token_balances: Option<Vec<UiTransactionTokenBalance>> = transaction
-        .transaction
-        .clone()
-        .meta
-        .unwrap()
-        .post_token_balances
-        .into();
+    let post_token_balances: Option<Vec<UiTransactionTokenBalance>> =
+        transaction.clone().meta.unwrap().post_token_balances.into();
 
-    let pre_token_balances: Option<Vec<UiTransactionTokenBalance>> = transaction
-        .transaction
-        .clone()
-        .meta
-        .unwrap()
-        .pre_token_balances
-        .into();
+    let pre_token_balances: Option<Vec<UiTransactionTokenBalance>> =
+        transaction.clone().meta.unwrap().pre_token_balances.into();
 
     let mut changes_by_owner: HashMap<String, HashMap<String, BalanceChange>> = HashMap::new();
 
