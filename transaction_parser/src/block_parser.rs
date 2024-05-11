@@ -42,11 +42,15 @@ pub async fn parse_block(
 
     let block = block_req.unwrap();
 
+    let block_transactions = block.transactions.unwrap();
+
+    println!("transaction amount: {:#?}", block_transactions.len());
+
     // println!("{:#?}", tesitng.unwrap());
 
     // let block_time = block.block_time.unwrap();
 
-    for transaction in block.transactions.unwrap() {
+    for transaction in block_transactions {
         let rpc_conn = rpc_connection.get().await.unwrap();
         let rpc_build_conn = rpc_connection_builder.get().await.unwrap();
         let db_conn = db_client.get().await.unwrap();
