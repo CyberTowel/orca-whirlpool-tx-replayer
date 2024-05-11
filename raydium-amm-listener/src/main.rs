@@ -60,6 +60,9 @@ struct Args {
 
     #[clap(long)]
     sleep: Option<usize>,
+
+    #[clap(long)]
+    block_amount: Option<usize>,
 }
 
 #[tokio::main]
@@ -86,7 +89,15 @@ async fn main() -> Result<()> {
 
     let start_at_block = 265012503;
 
-    for i in 0..100 {
+    let start = std::time::Instant::now();
+
+    let items_to_get = if args.block_amount.is_some() {
+        args.block_amount.unwrap() as u64
+    } else {
+        10
+    };
+
+    for i in 0..items_to_get {
         let start = std::time::Instant::now();
 
         let block_number = start_at_block + i;
@@ -109,6 +120,12 @@ async fn main() -> Result<()> {
         println!("Time elapsed is: {:?}", duration);
         // });
     }
+
+    let duration = start.elapsed();
+    let duration_per_item = duration / items_to_get as u32;
+
+    println!("Time elapsed is: {:?}", duration);
+    println!("Time elapsed per item is: {:?}", duration_per_item);
 
     // parse_block(
     //     265012503,
