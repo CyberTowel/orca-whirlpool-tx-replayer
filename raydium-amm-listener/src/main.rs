@@ -123,27 +123,27 @@ async fn main() -> Result<()> {
 =====================================
 "
         );
-        let start2 = std::time::Instant::now();
+        //         let start2 = std::time::Instant::now();
 
-        parse_block(
-            block_number,
-            &connection,
-            &rpc_connection_builder,
-            &db_pool_connect,
-            &my_cache,
-        )
-        .await;
-        let duration2 = start2.elapsed();
+        //         parse_block(
+        //             block_number,
+        //             &connection,
+        //             &rpc_connection_builder,
+        //             &db_pool_connect,
+        //             &my_cache,
+        //         )
+        //         .await;
+        //         let duration2 = start2.elapsed();
 
-        println!("Time elapsed second round is: {:?}", duration2);
+        //         println!("Time elapsed second round is: {:?}", duration2);
 
-        println!(
-            "
-=====================================
-=====================================
-"
-        );
-        // });
+        //         println!(
+        //             "
+        // =====================================
+        // =====================================
+        // "
+        //         );
+        //         // });
     }
 
     let duration = start.elapsed();
