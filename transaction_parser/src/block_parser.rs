@@ -17,10 +17,11 @@ pub async fn parse_block(
     rpc_connection: &Pool<RpcPoolManager>,
     rpc_connection_builder: &Pool<RpcPoolManager>,
     db_client: &Pool<DbClientPoolManager>,
-    my_cache: &Cache<String, PoolMeta>,
+    my_cache: &Cache<String, Option<PoolMeta>>,
 ) {
     //
 
+    let start = std::time::Instant::now();
     let connection = rpc_connection.get().await.unwrap();
     // let db_connection = db_client.get().await.unwrap();
 
@@ -35,6 +36,12 @@ pub async fn parse_block(
     let block_req = connection
         .get_block_with_config(block_number, rpc_block_config)
         .await;
+
+    let duration = start.elapsed();
+    println!(
+        "Time elapsed to get block {} is: {:?}",
+        block_number, duration
+    );
 
     if (block_req.is_err()) {
         return;

@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
 
     let rpc_connection_builder = RpcPool::builder(mgr_info).max_size(100).build().unwrap();
 
-    let cache: Cache<String, PoolMeta> = Cache::new(100_000);
+    let cache: Cache<String, Option<PoolMeta>> = Cache::new(100_000);
 
     let start_at_block = 265012503;
 
@@ -118,6 +118,31 @@ async fn main() -> Result<()> {
         let duration = start.elapsed();
 
         println!("Time elapsed is: {:?}", duration);
+        println!(
+            "
+=====================================
+"
+        );
+        let start2 = std::time::Instant::now();
+
+        parse_block(
+            block_number,
+            &connection,
+            &rpc_connection_builder,
+            &db_pool_connect,
+            &my_cache,
+        )
+        .await;
+        let duration2 = start2.elapsed();
+
+        println!("Time elapsed second round is: {:?}", duration2);
+
+        println!(
+            "
+=====================================
+=====================================
+"
+        );
         // });
     }
 

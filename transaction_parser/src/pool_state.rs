@@ -87,6 +87,8 @@ pub struct PoolMetaBase {
 // pub fn pool_meta_token()
 
 pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Option<PoolMeta> {
+    // println!("start request: {:?}", pool_id);
+
     let pubkey = Pubkey::from_str(pool_id).unwrap();
 
     let state_req = rpc_connection.get_account_data(&pubkey).await;
@@ -95,23 +97,25 @@ pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Opti
         return None;
     }
 
-    let state = LiquidityStateLayoutV4::deserialize(&mut &state_req.unwrap()[..]).unwrap();
+    let state = state_req.unwrap();
 
-    let base_decimal = state.base_decimal;
-    let base_lot_size = state.base_lot_size;
-    let base_need_take_pnl = state.base_need_take_pnl;
-    let base_total_pnl = state.base_total_pnl;
-    let base_total_deposited = state.base_total_deposited;
-    let base_vault = state.base_vault;
-    let base_mint = state.base_mint;
+    let state_parsed = LiquidityStateLayoutV4::deserialize(&mut &state[..]).unwrap();
 
-    let quote_decimal = state.quote_decimal;
-    let quote_lot_size = state.quote_lot_size;
-    let quote_need_take_pnl = state.quote_need_take_pnl;
-    let quote_total_pnl = state.quote_total_pnl;
-    let quote_total_deposited = state.quote_total_deposited;
-    let quote_vault = state.quote_vault;
-    let quote_mint = state.quote_mint;
+    let base_decimal = state_parsed.base_decimal;
+    let base_lot_size = state_parsed.base_lot_size;
+    let base_need_take_pnl = state_parsed.base_need_take_pnl;
+    let base_total_pnl = state_parsed.base_total_pnl;
+    let base_total_deposited = state_parsed.base_total_deposited;
+    let base_vault = state_parsed.base_vault;
+    let base_mint = state_parsed.base_mint;
+
+    let quote_decimal = state_parsed.quote_decimal;
+    let quote_lot_size = state_parsed.quote_lot_size;
+    let quote_need_take_pnl = state_parsed.quote_need_take_pnl;
+    let quote_total_pnl = state_parsed.quote_total_pnl;
+    let quote_total_deposited = state_parsed.quote_total_deposited;
+    let quote_vault = state_parsed.quote_vault;
+    let quote_mint = state_parsed.quote_mint;
 
     if base_mint.to_string() == "So11111111111111111111111111111111111111112"
         && quote_mint.to_string() != "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"

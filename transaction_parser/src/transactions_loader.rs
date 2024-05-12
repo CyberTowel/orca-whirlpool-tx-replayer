@@ -3,7 +3,8 @@ use moka::future::Cache;
 use serde_json::json;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::{
-    commitment_config::CommitmentConfig, config::program, program_error, signature::Signature,
+    commitment_config::CommitmentConfig, config::program, program_error, pubkey::Pubkey,
+    signature::Signature,
 };
 use solana_transaction_status::{
     option_serializer::OptionSerializer, EncodedConfirmedTransactionWithStatusMeta,
@@ -13,7 +14,7 @@ use solana_transaction_status::{
 use std::str::FromStr;
 
 use crate::{
-    pool_state::get_pool_meta,
+    pool_state::{get_pool_meta, LiquidityStateLayoutV4},
     token_db::TokenDbClient,
     token_parser::{
         get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
@@ -31,7 +32,7 @@ pub async fn get_transction(
     pool_id: Option<String>,
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
-    my_cache: Cache<String, PoolMeta>,
+    my_cache: Cache<String, Option<PoolMeta>>,
 ) {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
@@ -82,7 +83,7 @@ pub async fn init(
     rpc_connection: &RpcClient,
     rpc_connection_build: &RpcClient,
     db_client: &TokenDbClient,
-    my_cache: &Cache<String, PoolMeta>,
+    my_cache: &Cache<String, Option<PoolMeta>>,
     transaction: &EncodedTransactionWithStatusMeta,
     block_time: i64,
     block_number: u64,
@@ -161,40 +162,103 @@ pub async fn init(
 
     let pool_id_to_get = pool_id_to_get_opt.unwrap();
 
+    let pool_id_clone = pool_id_to_get.clone();
+
     // let pool_meta = get_pool_meta(&pool_id_to_get, rpc_connection);
 
     let pool_info_cache = my_cache.get(&pool_id_to_get).await;
 
     let pool_meta_req = if pool_info_cache.is_some() {
         let info = pool_info_cache.unwrap();
-        // println!("=========== Pool info from cache loaded for pool",);
+        // println!(
+        //     "=========== Pool info from cache loaded for pool {}",
+        //     pool_id_to_get
+        // );
         Some(info)
     } else {
-        let info_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
+        // my_cache.insert(pool_id_to_get.to_string(), testing).await;
 
-        if info_req.is_none() {
-            // println!(
-            //     "Error getting pool info for pool {}",
-            //     pool_id_to_get.to_string()
-            // );
-            return;
-        }
+        // let meta_test = PoolMeta {
+        //     base_decimal: 6,
+        //     base_lot_size: 10000000,
+        //     base_need_take_pnl: 0,
+        //     base_total_pnl: 0,
+        //     base_total_deposited: 0,
+        //     base_vault: Pubkey::from_str("HUM2zGxzxUZ5hgc3AWdXBykK35NRSUgCYhAaJcVhrp8n").unwrap(),
+        //     base_mint: Pubkey::from_str("HfHU9YS9hH5buRKDfjEyMopfP9QtuDznR1wqUpzJtWHT").unwrap(),
+        //     quote_decimal: 9,
+        //     quote_lot_size: 100,
+        //     quote_need_take_pnl: 0,
+        //     quote_total_pnl: 0,
+        //     quote_total_deposited: 1715371200,
+        //     quote_vault: Pubkey::from_str("9QVgsXhHMW6Ksky2jFHoJwJR4WRVFca8ZjuEE5cwtNi").unwrap(),
+        //     quote_mint: Pubkey::from_str("So11111111111111111111111111111111111111112").unwrap(),
+        // };
 
-        let info = info_req.unwrap();
+        // my_cache
+        //     .insert(pool_id_to_get.to_string(), meta_test.clone())
+        //     .await;
 
-        my_cache
-            .insert(pool_id_to_get.to_string(), info.clone())
+        let info = my_cache
+            .get_with(pool_id_to_get.clone(), async move {
+                // println!("Task {pool_id_to_get} inserting a value.");
+                let inf_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
+                // Arc::new(vec![0u8; TEN_MIB])
+
+                if inf_req.is_none() {
+                    // println!(
+                    //     "Error getting pool info for pool {}",
+                    //     pool_id_to_get.to_string()
+                    // );
+                    return None;
+                }
+
+                Some(inf_req.unwrap())
+            })
             .await;
+
+        // let info_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
+
+        // if info_req.is_none() {
+        //     // println!(
+        //     //     "Error getting pool info for pool {}",
+        //     //     pool_id_to_get.to_string()
+        //     // );
+        //     return;
+        // }
+
+        // let info = info_req.unwrap();
+
+        // println!(
+        //     "=========== Pool info loaded for pool without cache {}",
+        //     pool_id_clone
+        // );
+
+        // my_cache
+        //     .insert(pool_id_to_get.to_string(), info.clone())
+        //     .await;
+
+        // println!(
+        //     "=========== Pool info inserted to cache for pool {:#?}",
+        //     info
+        // );
 
         Some(info)
     };
 
     if (!pool_meta_req.is_some()) {
-        println!("Error getting pool meta for pool {}", pool_id_to_get);
+        // println!("Error getting pool meta for pool {}", pool_id_clone);
         return;
     }
 
-    let pool_meta: PoolMeta = pool_meta_req.unwrap();
+    let pool_meta_opt = pool_meta_req.unwrap();
+
+    if (!pool_meta_opt.is_some()) {
+        // println!("Error getting pool meta for pool opt {}", pool_id_clone);
+        return;
+    }
+
+    let pool_meta = pool_meta_opt.unwrap();
 
     let transaction_parsed = transaction::Transaction::new(transaction, block_time, block_number);
 
@@ -212,7 +276,7 @@ pub async fn init(
     );
 
     if (token_amounts_req.is_none()) {
-        println!("Error getting token amounts for pool {}", pool_id_to_get);
+        // println!("Error getting token amounts for pool {}", pool_id_to_get);
         return;
     }
 
@@ -266,7 +330,7 @@ pub async fn init(
         datetime: datetime,
         signer: transaction_parsed.signer.to_string(),
         ubo: transaction_parsed.ubo.to_string(),
-        pool_address: pool_id_to_get.clone(),
+        pool_address: pool_id_clone.clone(),
         usd_total_pool: swap_token_amounts_priced.usd_total_pool_18,
         block_number: transaction_parsed.block_number.to_string(),
     };
@@ -293,7 +357,7 @@ pub async fn init(
     //         //     .to_string(),
     //     );
 
-    // let price_item_c = item_to_save.clone();
+    let price_item_c = item_to_save.clone();
 
     // let reponse = db_client.save_token_values(item_to_save);
 
