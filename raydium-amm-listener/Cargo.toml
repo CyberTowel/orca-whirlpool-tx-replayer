@@ -12,7 +12,7 @@ solana-transaction-status = "1.16.18"
 futures = "0.3.28"
 anyhow = "1.0.79"
 clap = { workspace = true }
-deadpool = {version = "0.10.0"}
+deadpool = {version = "0.10.0", features = ["rt_tokio_1"]}
 
 transaction_parser = { path = "../transaction_parser" }
 moka = { version = "0.12.7", features = ["future", "sync"] }

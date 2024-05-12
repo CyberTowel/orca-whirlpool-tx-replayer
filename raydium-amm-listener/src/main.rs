@@ -83,7 +83,7 @@ async fn main() -> Result<()> {
 
     let rpc_connection = RpcPool::builder(mgr).max_size(1000).build().unwrap();
 
-    let rpc_connection_builder = RpcPool::builder(mgr_info).max_size(100).build().unwrap();
+    let rpc_connection_builder = RpcPool::builder(mgr_info).max_size(1000).build().unwrap();
 
     let cache: Cache<String, Option<PoolMeta>> = Cache::new(100_000);
 
@@ -97,6 +97,8 @@ async fn main() -> Result<()> {
         10
     };
 
+    let mut signatures_to_process = JoinSet::new();
+
     for i in 0..items_to_get {
         let start = std::time::Instant::now();
 
@@ -106,45 +108,43 @@ async fn main() -> Result<()> {
         let rpc_connection_builder = rpc_connection_builder.clone();
         let my_cache = cache.clone();
 
-        // tokio::spawn(async move {
-        parse_block(
-            block_number,
-            &connection,
-            &rpc_connection_builder,
-            &db_pool_connect,
-            &my_cache,
-        )
-        .await;
-        let duration = start.elapsed();
+        signatures_to_process.spawn(async move {
+            let result = parse_block(
+                block_number,
+                &connection,
+                &rpc_connection_builder,
+                &db_pool_connect,
+                &my_cache,
+            )
+            .await;
+            let duration = start.elapsed();
 
-        println!("Time elapsed is: {:?}", duration);
-        println!(
-            "
+            println!("Time elapsed is: {:?}", duration);
+            println!(
+                "
 =====================================
 "
-        );
-        //         let start2 = std::time::Instant::now();
+            );
 
-        //         parse_block(
-        //             block_number,
-        //             &connection,
-        //             &rpc_connection_builder,
-        //             &db_pool_connect,
-        //             &my_cache,
-        //         )
-        //         .await;
-        //         let duration2 = start2.elapsed();
-
-        //         println!("Time elapsed second round is: {:?}", duration2);
-
-        //         println!(
-        //             "
-        // =====================================
-        // =====================================
-        // "
-        //         );
-        //         // });
+            return result;
+        });
     }
+
+    while let Some(res) = signatures_to_process.join_next().await {
+        let (block_number, transaction_amount, duration_rpc, duraction_total) = res.unwrap();
+
+        println!(
+            "done with block {}, with {} transaction -> time to get rpc {:?}, total duration: {:?}",
+            block_number, transaction_amount, duration_rpc, duraction_total
+        );
+        // let result_i = match res {
+        //     Ok(_) => res.unwrap(),
+        //     Err(_) => ("".to_string(), "".to_string(), "".to_string()),
+        // };
+        // crawled_signatures.push(result_i);
+    }
+
+    println!("done");
 
     let duration = start.elapsed();
     let duration_per_item = duration / items_to_get as u32;

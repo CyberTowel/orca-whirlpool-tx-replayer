@@ -18,7 +18,7 @@ pub async fn parse_block(
     rpc_connection_builder: &Pool<RpcPoolManager>,
     db_client: &Pool<DbClientPoolManager>,
     my_cache: &Cache<String, Option<PoolMeta>>,
-) {
+) -> (u64, usize, std::time::Duration, std::time::Duration) {
     //
 
     let start = std::time::Instant::now();
@@ -37,21 +37,24 @@ pub async fn parse_block(
         .get_block_with_config(block_number, rpc_block_config)
         .await;
 
-    let duration = start.elapsed();
-    println!(
-        "Time elapsed to get block {} is: {:?}",
-        block_number, duration
-    );
+    let duration_rpc = start.elapsed();
+    // println!(
+    //     "Time elapsed to get block {} is: {:?}",
+    //     block_number, duration
+    // );
 
     if (block_req.is_err()) {
-        return;
+        // println!("Error getting block: {:#?}", block_req.as_ref().err());
+        return (block_number, 0, duration_rpc, duration_rpc);
     }
 
     let block = block_req.unwrap();
 
     let block_transactions = block.transactions.unwrap();
 
-    println!("transaction amount: {:#?}", block_transactions.len());
+    let transaction_amount = block_transactions.len();
+
+    // println!("transaction amount: {:#?}", block_transactions.len());
 
     // println!("{:#?}", tesitng.unwrap());
 
@@ -91,6 +94,9 @@ pub async fn parse_block(
             .await;
         });
     }
+    println!("Transaction amount");
+
+    let duraction_total = start.elapsed();
 
     // let block_number = block.to_string();
 
@@ -105,6 +111,13 @@ pub async fn parse_block(
     //     block_number,
     // )
     // .await;
+
+    return (
+        block_number,
+        transaction_amount,
+        duration_rpc,
+        duraction_total,
+    );
 
     // println!("Transaction amount {:#?}", signature);
 }
