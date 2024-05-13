@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use deadpool::managed::{self, Metrics, Pool};
 use moka::future::Cache;
 use serde_json::json;
@@ -21,6 +22,7 @@ pub async fn parse_block(
 ) -> (u64, usize, std::time::Duration, std::time::Duration) {
     //
 
+    println!("{:#?} block parsing started", block_number);
     let start = std::time::Instant::now();
     let connection = rpc_connection.get().await.unwrap();
     // let db_connection = db_client.get().await.unwrap();
@@ -60,6 +62,12 @@ pub async fn parse_block(
 
     // let block_time = block.block_time.unwrap();
 
+    let block_time = block.block_time.unwrap();
+    let transaction_datetime = DateTime::from_timestamp(block_time, 0)
+        .unwrap()
+        .to_rfc3339();
+    println!("Block time: {:#?}", transaction_datetime);
+
     for transaction in block_transactions {
         let rpc_conn = rpc_connection.get().await.unwrap();
         let rpc_build_conn = rpc_connection_builder.get().await.unwrap();
@@ -68,8 +76,6 @@ pub async fn parse_block(
         let signature = json!(transaction.transaction);
 
         let signature = signature["signatures"][0].as_str().unwrap().to_string();
-
-        let block_time = block.block_time.unwrap();
 
         // let transaction_encoded = transaction;
 
@@ -94,7 +100,6 @@ pub async fn parse_block(
             .await;
         });
     }
-    println!("Transaction amount");
 
     let duraction_total = start.elapsed();
 

@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::collections::HashMap;
 use std::pin::Pin;
 use std::thread::{self, sleep};
 use std::time::Duration;
@@ -87,7 +88,13 @@ async fn main() -> Result<()> {
 
     let cache: Cache<String, Option<PoolMeta>> = Cache::new(100_000);
 
-    let start_at_block = 265012503;
+    let block_number_cache: Cache<u64, (u64, usize, Duration, Duration)> = Cache::new(100_000);
+
+    let connection = rpc_connection_builder.get().await.unwrap();
+
+    let mut block_to_get = connection.get_slot().await.unwrap();
+
+    println!("Start at block: {:#?}", block_to_get);
 
     let start = std::time::Instant::now();
 
@@ -99,17 +106,53 @@ async fn main() -> Result<()> {
 
     let mut signatures_to_process = JoinSet::new();
 
-    for i in 0..items_to_get {
+    // loop {
+    //     let connection = rpc_connection_builder.get().await.unwrap();
+
+    //     let slot = connection.get_slot().await.unwrap();
+
+    //     let start = std::time::Instant::now();
+
+    //     // let block_number = start_at_block + i;
+    //     let connection = rpc_connection.clone();
+    //     let db_pool_connect = db_pool_connection.clone();
+    //     let rpc_connection_builder = rpc_connection_builder.clone();
+    //     let my_cache = cache.clone();
+
+    //     println!("{:#?} block received", slot);
+
+    //     // println!("Connection established, {:#?}", slot);
+
+    //     // println!("Waiting for logs");
+    // }
+
+    // return Ok(());
+
+    let mut active_request: HashMap<u64, bool> = HashMap::new();
+
+    println!("hashmap created, {}", active_request.len());
+
+    // return Ok(());
+
+    // for i in 0..items_to_get {
+    loop {
+        if (active_request.len() > 10) {
+            // println!("current hasmap items, {}", active_request.len());
+            continue;
+        }
+
+        active_request.insert(block_to_get, true);
+        block_to_get = block_to_get + 1;
         let start = std::time::Instant::now();
 
-        let block_number = start_at_block + i;
+        let block_number = block_to_get;
         let connection = rpc_connection.clone();
         let db_pool_connect = db_pool_connection.clone();
         let rpc_connection_builder = rpc_connection_builder.clone();
         let my_cache = cache.clone();
 
         signatures_to_process.spawn(async move {
-            let (block_number, transaction_amount, duration_rpc, duraction_total) = parse_block(
+            let result = parse_block(
                 block_number,
                 &connection,
                 &rpc_connection_builder,
@@ -117,35 +160,26 @@ async fn main() -> Result<()> {
                 &my_cache,
             )
             .await;
-
-            // println!("result {}", transaction_amount);
-
             let duration = start.elapsed();
 
             println!("Time elapsed is: {:?}", duration);
             println!(
-                "=====================================
-            "
+                "
+=====================================
+"
             );
 
-            return (
-                block_number,
-                transaction_amount,
-                duration_rpc,
-                duraction_total,
-            );
+            // active_request.
+
+            return result;
         });
+
+        println!("block done: {}", block_to_get);
+        active_request.remove(&block_to_get);
     }
 
-    let mut total_transation = 0;
-
     while let Some(res) = signatures_to_process.join_next().await {
-        let testing = res.unwrap();
-        // println!("{:#?}", testing);
-
-        let (block_number, transaction_amount, duration_rpc, duraction_total) = testing;
-
-        total_transation += transaction_amount;
+        let (block_number, transaction_amount, duration_rpc, duraction_total) = res.unwrap();
 
         println!(
             "done with block {}, with {} transaction -> time to get rpc {:?}, total duration: {:?}",
@@ -162,16 +196,9 @@ async fn main() -> Result<()> {
 
     let duration = start.elapsed();
     let duration_per_item = duration / items_to_get as u32;
-    let duration_per_transaction = duration / total_transation as u32;
 
-    println!(
-        "Time elapsed is: {:?} for total transaction {:?}",
-        duration, total_transation
-    );
-    println!(
-        "Time elapsed per block is: {:?} ({:?} per transaction)",
-        duration_per_item, duration_per_transaction
-    );
+    println!("Time elapsed is: {:?}", duration);
+    println!("Time elapsed per item is: {:?}", duration_per_item);
 
     // parse_block(
     //     265012503,

@@ -16,3 +16,5 @@ deadpool = {version = "0.10.0", features = ["rt_tokio_1"]}
 
 transaction_parser = { path = "../transaction_parser" }
 moka = { version = "0.12.7", features = ["future", "sync"] }
+bincode.workspace = true
+serde = "1.0.197"
