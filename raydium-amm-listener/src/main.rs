@@ -1,44 +1,19 @@
-use std::borrow::Borrow;
-use std::pin::Pin;
-use std::thread::{self, sleep};
-use std::time::Duration;
-
 use anyhow::Result;
-// use backfill::backfill::backfill_tree;
-// use config::rpc_config::{get_pubsub_client, setup_rpc_clients};
-// use dotenv::dotenv;
-// use futures::future::join;
-use futures::prelude::*;
-use futures::stream::SelectAll;
-use futures::{future::join_all, stream::select_all};
-use moka::future::Cache;
-use solana_client::nonblocking::pubsub_client::PubsubClient;
-// use mpl_bubblegum::accounts::MerkleTree;
-// use processor::logs::process_logs;
-// use processor::metadata::fetch_store_metadata;
-// use processor::queue_processor::process_transactions_queue;
-// use sea_orm::SqlxPostgresConnector;
-use solana_client::rpc_config::{
-    RpcBlockConfig, RpcBlockSubscribeConfig, RpcBlockSubscribeFilter, RpcTransactionLogsConfig,
-    RpcTransactionLogsFilter,
-};
-use solana_client::rpc_response::{Response, RpcLogsResponse, SlotUpdate};
-use solana_sdk::commitment_config::CommitmentConfig;
-// use sqlx::{Acquire, PgPool};
 use clap::Parser;
-use deadpool::managed::{self, Metrics, Pool};
-use solana_sdk::signature;
-use solana_sdk::transaction::Transaction;
-use tokio::task::{self, JoinSet};
-use transaction_parser;
-use transaction_parser::block_parser::parse_block;
-use transaction_parser::rpc_pool_manager::{get_pub_sub_client, RpcPool, RpcPoolManager};
-// use transaction_parser::
-use solana_transaction_status::UiTransactionEncoding;
-
-use deadpool::managed::RecycleResult;
+use consumer::start_workers;
+use deadpool::managed::Pool;
+use flume::{unbounded, Receiver, Sender};
+use moka::future::Cache;
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::thread;
+use std::time::Duration;
+use transaction_parser::rpc_pool_manager::{RpcPool, RpcPoolManager};
 use transaction_parser::token_db::{DbClientPoolManager, DbPool};
 use transaction_parser::token_parser::PoolMeta;
+
+mod consumer;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -65,8 +40,23 @@ struct Args {
     block_amount: Option<usize>,
 }
 
+pub struct ParserConnections {
+    pub rpc_connection: Pool<RpcPoolManager>,
+    pub rpc_connection_builder: Pool<RpcPoolManager>,
+    pub db_client: Pool<DbClientPoolManager>,
+    pub my_cache: Cache<String, Option<PoolMeta>>,
+}
+
+pub struct BlockParsedDebug {
+    pub block_number: u64,
+    pub transaction_amount: usize,
+    pub duration_rpc: std::time::Duration,
+    pub duraction_total: std::time::Duration,
+    pub transaction_datetime: String,
+}
+
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() {
     let args = Args::parse();
 
     let mgr = RpcPoolManager {
@@ -77,6 +67,12 @@ async fn main() -> Result<()> {
         rpc_type: Some("info_rpc".to_string()),
     };
 
+    let mut durations_total: VecDeque<Duration> = VecDeque::with_capacity(10);
+    let mut rolling_avg_total = Duration::new(0, 0);
+
+    let mut durations_rpc: VecDeque<Duration> = VecDeque::with_capacity(10);
+    let mut rolling_avg_rpc = Duration::new(0, 0);
+
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
 
     let db_pool_connection = DbPool::builder(db_mgr).max_size(1000).build().unwrap();
@@ -85,344 +81,75 @@ async fn main() -> Result<()> {
 
     let rpc_connection_builder = RpcPool::builder(mgr_info).max_size(1000).build().unwrap();
 
-    let cache: Cache<String, Option<PoolMeta>> = Cache::new(100_000);
+    let cache: Cache<String, Option<PoolMeta>> = Cache::new(1_000_000);
 
-    let start_at_block = 265012503;
-
-    let start = std::time::Instant::now();
-
-    let items_to_get = if args.block_amount.is_some() {
-        args.block_amount.unwrap() as u64
-    } else {
-        10
+    let connections = ParserConnections {
+        rpc_connection,
+        rpc_connection_builder,
+        db_client: db_pool_connection,
+        my_cache: cache,
     };
 
-    let mut signatures_to_process = JoinSet::new();
+    let start_at = 245528177;
 
-    for i in 0..items_to_get {
-        let start = std::time::Instant::now();
+    let (block_parser_worker, block_parser_watcher) = flume::unbounded::<u64>();
+    let block_completed_worker_block_worker = block_parser_worker.clone();
 
-        let block_number = start_at_block + i;
-        let connection = rpc_connection.clone();
-        let db_pool_connect = db_pool_connection.clone();
-        let rpc_connection_builder = rpc_connection_builder.clone();
-        let my_cache = cache.clone();
+    // let block_parser_worker_internal = block_parser_worker.clone();
 
-        signatures_to_process.spawn(async move {
-            let (block_number, transaction_amount, duration_rpc, duraction_total) = parse_block(
-                block_number,
-                &connection,
-                &rpc_connection_builder,
-                &db_pool_connect,
-                &my_cache,
-            )
-            .await;
+    let counter = Arc::new(AtomicUsize::new(245528177));
 
-            // println!("result {}", transaction_amount);
+    let (_block_completed_worker, block_completed_watcher) =
+        flume::unbounded::<Option<BlockParsedDebug>>();
 
-            let duration = start.elapsed();
+    tokio::spawn(async move {
+        while let Ok(msg) = block_completed_watcher.recv_async().await {
+            let result = msg.unwrap();
 
-            println!("Time elapsed is: {:?}", duration);
+            durations_total.push_back(result.duraction_total);
+            durations_rpc.push_back(result.duration_rpc);
+
+            if durations_total.len() > 10 {
+                rolling_avg_total -= durations_total.pop_front().unwrap();
+                rolling_avg_rpc -= durations_rpc.pop_front().unwrap();
+            }
+
+            rolling_avg_total += result.duraction_total;
+            rolling_avg_rpc += result.duration_rpc;
+
+            let avg = rolling_avg_total / durations_total.len() as u32;
+            let avg_rpc = rolling_avg_rpc / durations_rpc.len() as u32;
+
+            let completed_task = result.block_number - start_at;
+
             println!(
-                "=====================================
-            "
+                "Completed task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}",
+                completed_task,
+                result.block_number,
+                result.transaction_datetime,
+                result.transaction_amount,
+                avg,
+                avg_rpc
             );
 
-            return (
-                block_number,
-                transaction_amount,
-                duration_rpc,
-                duraction_total,
-            );
-        });
-    }
+            let block_worker_c = block_completed_worker_block_worker.clone();
 
-    let mut total_transation = 0;
-
-    while let Some(res) = signatures_to_process.join_next().await {
-        let testing = res.unwrap();
-        // println!("{:#?}", testing);
-
-        let (block_number, transaction_amount, duration_rpc, duraction_total) = testing;
-
-        total_transation += transaction_amount;
-
-        println!(
-            "done with block {}, with {} transaction -> time to get rpc {:?}, total duration: {:?}",
-            block_number, transaction_amount, duration_rpc, duraction_total
-        );
-        // let result_i = match res {
-        //     Ok(_) => res.unwrap(),
-        //     Err(_) => ("".to_string(), "".to_string(), "".to_string()),
-        // };
-        // crawled_signatures.push(result_i);
-    }
-
-    println!("done");
-
-    let duration = start.elapsed();
-    let duration_per_item = duration / items_to_get as u32;
-    let duration_per_transaction = duration / total_transation as u32;
-
-    println!(
-        "Time elapsed is: {:?} for total transaction {:?}",
-        duration, total_transation
-    );
-    println!(
-        "Time elapsed per block is: {:?} ({:?} per transaction)",
-        duration_per_item, duration_per_transaction
-    );
-
-    // parse_block(
-    //     265012503,
-    //     &rpc_connection,
-    //     &rpc_connection_builder,
-    //     &db_pool_connection,
-    //     &cache,
-    // )
-    // .await;
-
-    // let tesitng = connection.get_block_with_config(
-    //     265012503,
-    //     RpcBlockConfig {
-    //         encoding: Some(UiTransactionEncoding::JsonParsed),
-    //         commitment: Some(CommitmentConfig::finalized()),
-    //         transaction_details: Some(solana_transaction_status::TransactionDetails::Full),
-    //         rewards: Some(true),
-    //         max_supported_transaction_version: Some(0),
-    //     },
-    // );
-
-    // println!("{:#?}", tesitng.unwrap().transactions.unwrap().len());
-
-    return Ok(());
-
-    // let connection = rpc_connection.clone().get().await.unwrap();
-
-    // let db_pool_connect = db_pool_connection.clone().get().await.unwrap();
-
-    // let signature =
-    //     "5r6gK8BeV71QQ7riJHrrEubhT62nPFmumeEML81wtvgGseaZwbdHRobkdkbPePsxQ58PPpxVh2nLHyGywa6o4iVo"
-    //         .to_string();
-
-    // let result = transaction_parser::transactions_loader::init(
-    //     signature,
-    //     None,
-    //     &connection,
-    //     &db_pool_connect,
-    // );
-
-    // return Ok(());
-
-    // let mut rpc_url = "wss://api.mainnet-beta.solana.com/";
-
-    // println!("Connecting to {}", rpc_url);
-
-    // let pubsub_client = PubsubClient::new(rpc_url).await.unwrap();
-
-    println!("Pubsub client created");
-
-    let pubsub_client = get_pub_sub_client().await;
-
-    // 675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8
-
-    // let pool_id = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4".to_string();
-    let pool_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string();
-
-    // let testing = pubsub_client
-    //     .logs_subscribe(
-    //         RpcTransactionLogsFilter::Mentions(vec![
-    //             // "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
-    //             pool_id.clone(),
-    //         ]),
-    //         RpcTransactionLogsConfig {
-    //             commitment: Some(CommitmentConfig::processed()),
-    //         },
-    //     )
-    //     .await;
-
-    let testing = pubsub_client.slot_updates_subscribe().await;
-
-    // let testing = pubsub_client
-    //     .block_subscribe(
-    //         RpcBlockSubscribeFilter::All,
-    //         // RpcBlockSubscribeFilter::MentionsAccountOrProgram(
-    //         //     "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".to_string(),
-    //         // ),
-    //         None,
-    //         // Some(RpcBlockSubscribeConfig {
-    //         //     encoding: Some(UiTransactionEncoding::JsonParsed),
-    //         //     commitment: Some(CommitmentConfig::processed()),
-    //         //     transaction_details: Some(solana_transaction_status::TransactionDetails::Full),
-    //         //     show_rewards: Some(true),
-    //         //     max_supported_transaction_version: Some(1),
-    //         // }),
-    //     )
-    //     .await;
-
-    println!("Listener added");
-
-    let dolar = testing.unwrap();
-
-    let mut stream = select_all(vec![dolar.0]);
-    // let mut signatures_to_process = JoinSet::new();
-
-    loop {
-        // let connection = rpc_connection.clone().get().await.unwrap();
-        let connection: managed::Object<RpcPoolManager> =
-            rpc_connection.clone().get().await.unwrap();
-
-        let my_cache = cache.clone();
-
-        // my_cache
-        //     .insert("testing".to_string(), "testing".to_string())
-        //     .await;
-
-        // println!("Waiting for logs");
-
-        let db_pool = db_pool_connection.clone().get().await.unwrap();
-
-        let logs_stream = stream.next().await;
-
-        if (logs_stream.is_none()) {
-            continue;
+            // let block_number = msg.unwrap().block_number;
+            block_worker_c.send(result.block_number).unwrap();
         }
+    });
 
-        // // println!("testing 1");
+    start_workers(
+        _block_completed_worker,
+        block_parser_watcher,
+        counter.clone(),
+        connections,
+    );
 
-        // println!("{:#?}", logs_stream.unwrap());
-
-        let testing_dolar: solana_client::rpc_response::SlotUpdate = logs_stream.unwrap().into();
-        println!("{:#?}", testing_dolar);
-
-        //  {
-        //     // solana_client::rpc_response::SlotUpdate::Completed { slot, timestamp } => {
-        //     //     println!("slot: {}, timestamp: {}", slot, timestamp);
-        //     // },
-        // }
-
-        // let logs = logs_stream.unwrap();
-
-        // let testing: bool = logs.value.err.is_some();
-
-        // if (testing) {
-        //     // println!("Transaction error");
-        //     continue;
-        // }
-
-        // // println!("{} streams waiting", stream.len().to_string());
-        // // println!("{:#?}", logs.value.signature);
-
-        // // let pool_id_c = pool_id.clone();
-
-        // let mut sleep_duraction = 20;
-        // if (args.sleep.is_some()) {
-        //     sleep_duraction = args.sleep.unwrap();
-        // }
-
-        // tokio::spawn(async move {
-        //     // sleep(Duration::from_secs(sleep_duraction as u64));
-
-        //     // println!(
-        //     //     "new transaction in main thread, {}, start sleep",
-        //     //     logs.value.signature
-        //     // );
-        //     let sleep = tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
-
-        //     // loop {
-        //     //     tokio::select! {
-        //     //         () = &mut sleep => {
-        //     //             println!("timer elapsed");
-        //     //             sleep.as_mut().reset(Instant::now() + Duration::from_millis(50));
-        //     //         },
-        //     //     }
-        //     // }
-        //     // match sleep.() {
-        //     //     Pending => return Pending,
-        //     //     Ready(val) => val,
-        //     // }
-
-        //     // println!("{:?}", logs.value.signature);
-        //     //     // // let signature = "5wLsoFtf4k1Su9s8xxFeiep3Cx3P7oZWyV8bzEgQ29KqLjGWC2vpeSkvkNG39vPB6QTW5mR5fPJ3AdEdeEKszfMR";
-
-        //     // println!("Processing signature {:?}", logs.value.signature);
-        //     let result = transaction_parser::transactions_loader::init(
-        //         logs.value.signature,
-        //         None,
-        //         &connection,
-        //         &db_pool,
-        //         my_cache,
-        //     );
-        //     //     // return result;
-        // });
-
-        // return Ok(());
-
-        //         else {
-        //             transaction_parser::transactions::testing_nested();
-
-        //             transaction_parser::transactions::init(logs.value.signature, &connection);
-
-        //             transaction_parser::add(logs.value.signature.clone());
-        //             println!(
-        //                 "
-        // ===========================================================
-        // signature {:?} success
-        // ===========================================================
-        // ",
-        //                 // raydium_amm_saver
-        //                 logs.value.signature
-        //             );
-        //         }
-
-        // process_logs(logs.value).await;
+    for i in 0..2 {
+        let block_consumer = block_parser_worker.clone();
+        block_consumer.send(i).unwrap();
     }
 
-    // handle_stream(testing.unwrap());
-    Ok(())
-    // .into_iter();
-
-    // let stream = testing.map(|mut result| {
-    //     let mut testing = result.0.next();
-
-    // match testing {
-    //     Ok(subscription) => {
-    //         let stream = subscription.0;
-    //         task::spawn(handle_stream(stream));
-    //     }
-    //     Err(e) => {
-    //         eprintln!("error creating subscription: {e}");
-    //     }
-    // }
-    // });
-
-    // let handle = task::spawn(handle_stream(stream));
-
-    // // task::spawn(handle_metadata_downloads(database_pool.clone()));
-
-    // // join_all(tree_addresses.into_iter().map(backfill_tree)).await;
-
-    // // task::spawn(process_transactions_queue(database_pool.clone())).await?;
-
-    // Ok(())
+    loop {}
 }
-
-// async fn handle_stream(
-//     mut stream: SelectAll<Pin<Box<dyn Stream<Item = Response<RpcLogsResponse>> + Send>>>,
-// ) {
-//     loop {
-//         let logs = stream.next().await.unwrap();
-
-//         println!("{:?}", logs.value);
-//         // process_logs(logs.value).await;
-//     }
-// }
-
-// async fn handle_metadata_downloads(pool: PgPool) {
-//     let connection = SqlxPostgresConnector::from_sqlx_postgres_pool(pool);
-//     loop {
-//         let _ = fetch_store_metadata(&connection).await;
-//         println!("No metadata to update, sleeping for 5 secs");
-//         sleep(Duration::from_secs(5))
-//     }
-// }

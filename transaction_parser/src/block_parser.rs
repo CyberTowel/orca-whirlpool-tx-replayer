@@ -19,10 +19,9 @@ pub async fn parse_block(
     rpc_connection_builder: &Pool<RpcPoolManager>,
     db_client: &Pool<DbClientPoolManager>,
     my_cache: &Cache<String, Option<PoolMeta>>,
-) -> (u64, usize, std::time::Duration, std::time::Duration) {
+) -> (u64, usize, std::time::Duration, std::time::Duration, String) {
     //
 
-    println!("{:#?} block parsing started", block_number);
     let start = std::time::Instant::now();
     let connection = rpc_connection.get().await.unwrap();
     // let db_connection = db_client.get().await.unwrap();
@@ -47,7 +46,7 @@ pub async fn parse_block(
 
     if (block_req.is_err()) {
         // println!("Error getting block: {:#?}", block_req.as_ref().err());
-        return (block_number, 0, duration_rpc, duration_rpc);
+        return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
     }
 
     let block = block_req.unwrap();
@@ -66,7 +65,7 @@ pub async fn parse_block(
     let transaction_datetime = DateTime::from_timestamp(block_time, 0)
         .unwrap()
         .to_rfc3339();
-    println!("Block time: {:#?}", transaction_datetime);
+    // println!("Block time: {:#?}", transaction_datetime);
 
     for transaction in block_transactions {
         let rpc_conn = rpc_connection.get().await.unwrap();
@@ -122,6 +121,7 @@ pub async fn parse_block(
         transaction_amount,
         duration_rpc,
         duraction_total,
+        transaction_datetime,
     );
 
     // println!("Transaction amount {:#?}", signature);
