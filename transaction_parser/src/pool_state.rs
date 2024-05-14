@@ -99,7 +99,14 @@ pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Opti
 
     let state = state_req.unwrap();
 
-    let state_parsed = LiquidityStateLayoutV4::deserialize(&mut &state[..]).unwrap();
+    let state_parsed_try = LiquidityStateLayoutV4::deserialize(&mut &state[..]);
+
+    if (state_parsed_try.is_err()) {
+        return None;
+    }
+
+    let state_parsed = state_parsed_try.unwrap();
+    //.unwrap();
 
     let base_decimal = state_parsed.base_decimal;
     let base_lot_size = state_parsed.base_lot_size;
