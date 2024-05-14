@@ -22,7 +22,7 @@ struct Args {
     sample_rate: Option<usize>,
 
     #[clap(long)]
-    start_at: Option<String>,
+    start_at_block: Option<u64>,
 
     #[clap(long)]
     pool_id: Option<String>,
@@ -38,6 +38,8 @@ struct Args {
 
     #[clap(long)]
     block_amount: Option<usize>,
+    #[clap(long)]
+    worker_amount: Option<usize>,
 }
 
 pub struct ParserConnections {
@@ -59,6 +61,12 @@ pub struct BlockParsedDebug {
 async fn main() {
     let args = Args::parse();
 
+    let worker_amount = args.worker_amount.unwrap_or(10);
+
+    let start_at_block = args.start_at_block.unwrap_or(245528177);
+
+    let sample_rate = args.sample_rate.unwrap_or(10);
+
     let mgr = RpcPoolManager {
         rpc_type: args.rpc_type,
     };
@@ -67,10 +75,15 @@ async fn main() {
         rpc_type: Some("info_rpc".to_string()),
     };
 
-    let mut durations_total: VecDeque<Duration> = VecDeque::with_capacity(10);
+    println!(
+        "Start {:?} workers, start at block: {}, speed sample rate {}",
+        worker_amount, start_at_block, sample_rate
+    );
+
+    let mut durations_total: VecDeque<Duration> = VecDeque::with_capacity(sample_rate);
     let mut rolling_avg_total = Duration::new(0, 0);
 
-    let mut durations_rpc: VecDeque<Duration> = VecDeque::with_capacity(10);
+    let mut durations_rpc: VecDeque<Duration> = VecDeque::with_capacity(sample_rate);
     let mut rolling_avg_rpc = Duration::new(0, 0);
 
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
@@ -90,14 +103,14 @@ async fn main() {
         my_cache: cache,
     };
 
-    let start_at = 245528177;
+    // let start_at = 245528177;
 
     let (block_parser_worker, block_parser_watcher) = flume::unbounded::<u64>();
     let block_completed_worker_block_worker = block_parser_worker.clone();
 
     // let block_parser_worker_internal = block_parser_worker.clone();
 
-    let counter = Arc::new(AtomicUsize::new(245528177));
+    let counter = Arc::new(AtomicUsize::new(start_at_block as usize));
 
     let (_block_completed_worker, block_completed_watcher) =
         flume::unbounded::<Option<BlockParsedDebug>>();
@@ -109,7 +122,7 @@ async fn main() {
             durations_total.push_back(result.duraction_total);
             durations_rpc.push_back(result.duration_rpc);
 
-            if durations_total.len() > 10 {
+            if durations_total.len() > sample_rate + 1 {
                 rolling_avg_total -= durations_total.pop_front().unwrap();
                 rolling_avg_rpc -= durations_rpc.pop_front().unwrap();
             }
@@ -120,7 +133,7 @@ async fn main() {
             let avg = rolling_avg_total / durations_total.len() as u32;
             let avg_rpc = rolling_avg_rpc / durations_rpc.len() as u32;
 
-            let completed_task = result.block_number - start_at;
+            let completed_task = result.block_number - start_at_block;
 
             println!(
                 "Completed task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}",
@@ -144,11 +157,12 @@ async fn main() {
         block_parser_watcher,
         counter.clone(),
         connections,
+        worker_amount,
     );
 
-    for i in 0..2 {
+    for i in 0..worker_amount {
         let block_consumer = block_parser_worker.clone();
-        block_consumer.send(i).unwrap();
+        block_consumer.send(i as u64).unwrap();
     }
 
     loop {}

@@ -11,8 +11,9 @@ pub fn start_workers(
     rx: Receiver<u64>,
     counter: Arc<AtomicUsize>,
     connections: ParserConnections,
+    worker_amount: usize,
 ) {
-    for i in 0..2 {
+    for i in 0..worker_amount {
         let testing = tx_completed.clone();
         let rx1 = rx.clone();
 
