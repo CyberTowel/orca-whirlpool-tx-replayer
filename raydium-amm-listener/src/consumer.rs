@@ -30,7 +30,6 @@ pub fn start_workers(
                 // Handle received message
                 let counter_value = counter_clone.fetch_add(1, Ordering::SeqCst);
 
-                println!("Worker {} processing block {}", i, counter_value);
                 let result = retry(|| async {
                     parse_block(
                         counter_value as u64,
@@ -77,23 +76,26 @@ pub fn start_workers(
                 //     continue;
                 // };
 
-                let (
-                    block_number,
-                    transaction_amount,
-                    duration_rpc,
-                    duraction_total,
-                    transaction_datetime,
-                ) = result.unwrap();
+                if (result.is_ok()) {
+                    let (
+                        block_number,
+                        transaction_amount,
+                        duration_rpc,
+                        duraction_total,
+                        transaction_datetime,
+                    ) = result.unwrap();
 
-                let block_parsed_debug = BlockParsedDebug {
-                    block_number: block_number as u64,
-                    transaction_amount,
-                    duration_rpc,
-                    duraction_total,
-                    transaction_datetime,
-                };
-
-                dolar.send(Some(block_parsed_debug)).unwrap();
+                    let block_parsed_debug = BlockParsedDebug {
+                        block_number: block_number as u64,
+                        transaction_amount,
+                        duration_rpc,
+                        duraction_total,
+                        transaction_datetime,
+                    };
+                    dolar.send(Some(block_parsed_debug)).unwrap();
+                } else {
+                    dolar.send(None).unwrap();
+                }
             }
         });
     }

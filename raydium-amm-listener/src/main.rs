@@ -63,7 +63,7 @@ pub struct BlockParsedDebug {
 async fn main() {
     let args = Args::parse();
 
-    let worker_amount = args.worker_amount.unwrap_or(100);
+    let worker_amount = args.worker_amount.unwrap_or(1);
 
 
 
@@ -85,7 +85,7 @@ async fn main() {
     
     println!("Current block height: {:?}", testing_block);
 
-    let start_at_block = args.start_at_block.unwrap_or(testing_block);
+    let start_at_block = args.start_at_block.unwrap_or(testing_block) + 100;
 
     // let start_at_block = start_at_block_param;
 
@@ -143,7 +143,13 @@ async fn main() {
 
     tokio::spawn(async move {
         while let Ok(msg) = block_completed_watcher.recv_async().await {
-            let result = msg.unwrap();
+            let result = msg.unwrap_or(BlockParsedDebug {
+                block_number: 0,
+                transaction_amount: 0,
+                duration_rpc: Duration::new(0, 0),
+                duraction_total: Duration::new(0, 0),
+                transaction_datetime: "".to_string(),
+            });
 
             durations_total.push_back(result.duraction_total);
             durations_rpc.push_back(result.duration_rpc);
@@ -167,7 +173,12 @@ async fn main() {
             let avg = rolling_avg_total / durations_total.len() as u32;
             let avg_rpc = rolling_avg_rpc / durations_rpc.len() as u32;
 
-            let completed_task = result.block_number - start_at_block;
+            let completed_task = if(result.block_number == 0) {
+               0
+            } else {
+                result.block_number - start_at_block
+            };
+            
 
             println!(
                 "Completed task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}",
