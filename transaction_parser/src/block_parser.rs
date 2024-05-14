@@ -56,6 +56,8 @@ pub async fn parse_block(
     if block_req.is_err() {
         let error = block_req.as_ref().err().unwrap();
 
+        println!("Error getting block: {:#?}", error);
+
         let tesitng = error.kind();
 
         let error_code: &i64 = match tesitng {
