@@ -15,7 +15,7 @@ where
             Ok(value) => return Ok(value), // Return the successful value
 
             Err(err) => {
-                // println!("Error: {:?}", err);
+                println!("Error: {:?}", err);
                 let jitter = rand::thread_rng().gen_range(0..backoff); // Add some jitter
                 tokio::time::sleep(Duration::from_millis(backoff + jitter)).await; // Wait before retrying
 

@@ -30,6 +30,7 @@ pub fn start_workers(
                 // Handle received message
                 let counter_value = counter_clone.fetch_add(1, Ordering::SeqCst);
 
+                println!("Worker {} processing block {}", i, counter_value);
                 let result = retry(|| async {
                     parse_block(
                         counter_value as u64,

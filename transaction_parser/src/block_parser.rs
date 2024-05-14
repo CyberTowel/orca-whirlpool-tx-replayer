@@ -48,10 +48,10 @@ pub async fn parse_block(
         .await;
 
     let duration_rpc = start.elapsed();
-    // println!(
-    //     "Time elapsed to get block {} is: {:?}",
-    //     block_number, duration
-    // );
+    println!(
+        "Time elapsed to get block {} is: {:?}",
+        block_number, duration_rpc
+    );
 
     if block_req.is_err() {
         let error = block_req.as_ref().err().unwrap();
