@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use tokio::time::Instant;
 use transaction_parser::rpc_pool_manager::{RpcPool, RpcPoolManager};
 use transaction_parser::token_db::{DbClientPoolManager, DbPool};
 use transaction_parser::token_parser::PoolMeta;
@@ -86,6 +87,10 @@ async fn main() {
     let mut durations_rpc: VecDeque<Duration> = VecDeque::with_capacity(sample_rate);
     let mut rolling_avg_rpc = Duration::new(0, 0);
 
+    let mut start_times_duration: VecDeque<Instant> = VecDeque::with_capacity(sample_rate);
+
+    let mut start_times_duration_test = start_times_duration.clone();
+
     let db_mgr: DbClientPoolManager = DbClientPoolManager {};
 
     let db_pool_connection = DbPool::builder(db_mgr).max_size(1000).build().unwrap();
@@ -122,9 +127,17 @@ async fn main() {
             durations_total.push_back(result.duraction_total);
             durations_rpc.push_back(result.duration_rpc);
 
+            let mut rolling_duration_block: Option<Duration> = None;
+
             if durations_total.len() > sample_rate + 1 {
                 rolling_avg_total -= durations_total.pop_front().unwrap();
                 rolling_avg_rpc -= durations_rpc.pop_front().unwrap();
+                let start_time = start_times_duration.pop_front();
+                let end_time = Instant::now();
+                let duration = end_time - start_time.unwrap();
+
+                rolling_duration_block = Some(duration / sample_rate as u32);
+                // println!("Duration: {:?}", duration);
             }
 
             rolling_avg_total += result.duraction_total;
@@ -136,18 +149,20 @@ async fn main() {
             let completed_task = result.block_number - start_at_block;
 
             println!(
-                "Completed task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}",
+                "Completed task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}",
                 completed_task,
                 result.block_number,
                 result.transaction_datetime,
                 result.transaction_amount,
                 avg,
-                avg_rpc
+                avg_rpc, 
+                rolling_duration_block
             );
 
             let block_worker_c = block_completed_worker_block_worker.clone();
 
             // let block_number = msg.unwrap().block_number;
+            start_times_duration.push_back(tokio::time::Instant::now());
             block_worker_c.send(result.block_number).unwrap();
         }
     });
@@ -161,6 +176,7 @@ async fn main() {
     );
 
     for i in 0..worker_amount {
+        start_times_duration_test.push_back(tokio::time::Instant::now());
         let block_consumer = block_parser_worker.clone();
         block_consumer.send(i as u64).unwrap();
     }
