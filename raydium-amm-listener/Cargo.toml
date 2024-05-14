@@ -19,3 +19,4 @@ moka = { version = "0.12.7", features = ["future", "sync"] }
 bincode.workspace = true
 serde = "1.0.197"
 flume = "0.11.0"
+rand = "0.8.5"

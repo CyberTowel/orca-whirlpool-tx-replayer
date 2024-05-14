@@ -2,6 +2,8 @@ use chrono::DateTime;
 use deadpool::managed::{self, Metrics, Pool};
 use moka::future::Cache;
 use serde_json::json;
+use solana_client::client_error::{self, ClientErrorKind};
+use solana_client::rpc_request::RpcError::{self, RpcResponseError};
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcBlockConfig};
 use solana_sdk::{commitment_config::CommitmentConfig, signature};
 use solana_transaction_status::UiTransactionEncoding;
@@ -13,15 +15,22 @@ use crate::{
     transactions_loader::init,
 };
 
+#[derive(Debug)]
+pub enum RpcErrorCustom {
+    BlockNotFoundError, // {
+                        //     code: i64,
+                        //     message: String,
+                        //     data: String,
+                        // },
+}
+
 pub async fn parse_block(
     block_number: u64,
     rpc_connection: &Pool<RpcPoolManager>,
     rpc_connection_builder: &Pool<RpcPoolManager>,
     db_client: &Pool<DbClientPoolManager>,
     my_cache: &Cache<String, Option<PoolMeta>>,
-) -> (u64, usize, std::time::Duration, std::time::Duration, String) {
-    //
-
+) -> Result<(u64, usize, std::time::Duration, std::time::Duration, String), RpcErrorCustom> {
     let start = std::time::Instant::now();
     let connection = rpc_connection.get().await.unwrap();
     // let db_connection = db_client.get().await.unwrap();
@@ -44,9 +53,56 @@ pub async fn parse_block(
     //     block_number, duration
     // );
 
-    if (block_req.is_err()) {
+    if block_req.is_err() {
+        let error = block_req.as_ref().err().unwrap();
+
+        let tesitng = error.kind();
+
+        let error_code: &i64 = match tesitng {
+            ClientErrorKind::RpcError(RpcResponseError {
+                code,
+                message: _,
+                data: _,
+            }) => {
+                // println!("Error getting block test: {:#?}", code);
+                // return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
+                code
+            }
+            _ => &0,
+        };
+
+        // println!("will return error");
+
+        // return Err({ error_code.clone() });
+        return Err(RpcErrorCustom::BlockNotFoundError);
+
+        // println!("Error getting block: {:#?}", error_code);
+
+        // println!("Error getting block: {:#?}", tesitng);
+
+        // if (tesitng. == RpcError::RpcResponseError) {
+        //     println!("Error getting block: {:#?}", error);
+        //     return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
+        // }
+
+        // match error {
+        //     _ => {}
+        //     RpcResponseError {
+        //         code,
+        //         message,
+        //         data,
+        //     } => {
+        //         println!("Error getting block: {:#?}", error);
+        //         return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
+        //     }
+        // }
+        // if (error.kind == -32009) {
+        //     println!("Block not found: {:#?}", block_number);
+        //     // return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
+        // }
+
         // println!("Error getting block: {:#?}", block_req.as_ref().err());
-        return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
+        // return Ok((block_number, 0, duration_rpc, duration_rpc, "".to_string()));
     }
 
     let block = block_req.unwrap();
@@ -116,13 +172,13 @@ pub async fn parse_block(
     // )
     // .await;
 
-    return (
+    Ok((
         block_number,
         transaction_amount,
         duration_rpc,
         duraction_total,
         transaction_datetime,
-    );
+    ))
 
     // println!("Transaction amount {:#?}", signature);
 }

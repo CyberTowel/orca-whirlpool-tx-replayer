@@ -15,6 +15,7 @@ use transaction_parser::token_db::{DbClientPoolManager, DbPool};
 use transaction_parser::token_parser::PoolMeta;
 
 mod consumer;
+mod helpers;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -62,9 +63,9 @@ pub struct BlockParsedDebug {
 async fn main() {
     let args = Args::parse();
 
-    let worker_amount = args.worker_amount.unwrap_or(10);
+    let worker_amount = args.worker_amount.unwrap_or(100);
 
-    let start_at_block = args.start_at_block.unwrap_or(245528177);
+
 
     let sample_rate = args.sample_rate.unwrap_or(10);
 
@@ -75,6 +76,20 @@ async fn main() {
     let mgr_info = RpcPoolManager {
         rpc_type: Some("info_rpc".to_string()),
     };
+
+    let rpc_connection_builder = RpcPool::builder(mgr_info).max_size(1000).build().unwrap();
+
+    let connect = rpc_connection_builder.clone().get().await.unwrap();
+
+    let testing_block = connect.get_slot().await.unwrap_or(265757043);
+    
+    println!("Current block height: {:?}", testing_block);
+
+    let start_at_block = args.start_at_block.unwrap_or(testing_block);
+
+    // let start_at_block = start_at_block_param;
+
+
 
     println!(
         "Start {:?} workers, start at block: {}, speed sample rate {}",
@@ -97,9 +112,15 @@ async fn main() {
 
     let rpc_connection = RpcPool::builder(mgr).max_size(1000).build().unwrap();
 
-    let rpc_connection_builder = RpcPool::builder(mgr_info).max_size(1000).build().unwrap();
+   
 
     let cache: Cache<String, Option<PoolMeta>> = Cache::new(1_000_000);
+
+
+
+
+
+
 
     let connections = ParserConnections {
         rpc_connection,
