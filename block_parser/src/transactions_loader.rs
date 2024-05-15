@@ -320,7 +320,11 @@ pub async fn init(
         .unwrap()
         .to_rfc3339();
 
-    let item_to_save = PriceItem {
+    if transactions_meta.err.is_some() {
+        return;
+    }
+
+    let price_item_to_save = PriceItem {
         signature: signature.to_string(),
         token_quote_address: pool_meta.quote_mint.to_string(),
         token_base_address: pool_meta.base_mint.to_string(),
@@ -365,9 +369,9 @@ pub async fn init(
     //         //     .to_string(),
     //     );
 
-    let _price_item_c = item_to_save.clone();
+    let _price_item_c = price_item_to_save.clone();
 
-    let reponse = db_client.save_token_values(item_to_save);
+    let reponse = db_client.save_token_values(price_item_to_save);
 
     let tpo_values_a = parse_token_price_oracle_values(
         transaction_parsed.ubo.to_string(),
