@@ -84,7 +84,7 @@ async fn main() {
 
     println!("Current block height: {:?}", testing_block);
 
-    let start_at_block = args.start_at_block.unwrap_or(testing_block - 3000);
+    let start_at_block = args.start_at_block.unwrap_or(testing_block);
 
     // let start_at_block = start_at_block_param;
 
