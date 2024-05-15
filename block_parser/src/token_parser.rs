@@ -6,10 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{
-    EncodedConfirmedTransactionWithStatusMeta, EncodedTransactionWithStatusMeta,
+    EncodedTransactionWithStatusMeta,
     UiTransactionTokenBalance,
 };
-use std::{collections::HashMap, fmt::Binary, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 #[derive(Debug)]
 pub enum Error {}
@@ -160,7 +160,7 @@ pub fn get_token_amounts(
 
     let token_changes_pool_new_b_req = changes_by_token_account_address.get(base_vault_address);
 
-    if (token_changes_pool_new_a_req.is_none()) {
+    if token_changes_pool_new_a_req.is_none() {
         return None;
         // return TokenAmountsSwap {
         //     token_amounts_quote: TokenAmounts {
@@ -311,7 +311,7 @@ pub fn parse_balance_changes(
 
         let owner_address = owner.unwrap();
 
-        let owner_address_c = owner_address.clone();
+        let _owner_address_c = owner_address.clone();
 
         let index_usize = balance.account_index.to_usize().unwrap();
         let pub_key_token_address = account_keys[index_usize]["pubkey"].as_str().unwrap();
@@ -382,12 +382,12 @@ fn parse_token_amounts(
         None => BigFloat::from_i64(0),
     };
 
-    let mut token_amount_pool = match token_changes_pool.get(token_address) {
+    let token_amount_pool = match token_changes_pool.get(token_address) {
         Some(x) => x.balance_post,
         None => BigFloat::from_i64(0),
     };
 
-    let mut token_amount_pool_pre = match token_changes_pool.get(token_address) {
+    let token_amount_pool_pre = match token_changes_pool.get(token_address) {
         Some(x) => x.balance_pre,
         None => BigFloat::from_i64(0),
     };
@@ -397,7 +397,7 @@ fn parse_token_amounts(
         None => BigFloat::from_i64(0),
     };
 
-    let mut amount_diff_pool = match token_changes_pool.get(token_address) {
+    let amount_diff_pool = match token_changes_pool.get(token_address) {
         Some(x) => x.difference,
         None => BigFloat::from_i64(0),
     };
@@ -437,7 +437,7 @@ fn parse_token_amounts(
         // amount_diff_pool += amount_diff_pool_ne;
     }
 
-    let token_perc_ubo = parse_token_amount_rounded(token_amount_ubo, token_amount_pool);
+    let _token_perc_ubo = parse_token_amount_rounded(token_amount_ubo, token_amount_pool);
 
     let amount_total_pool_bf = token_amount_pool
         * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18 - (token_decimals as i64))));
@@ -530,12 +530,12 @@ pub fn get_price(
     // let price_usd_token_base_bf = BigFloat::from_str(price_usd_token_base).unwrap();
 
     let token_quote_price_18 = if stable_coin_ref {
-        (BigFloat::from_i16(1) * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18))))
+        BigFloat::from_i16(1) * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18)))
     } else {
         BigFloat::from_str(sol_price_db).unwrap()
     };
 
-    let decimals_corrected = 18 - base_decimal as i64 - quote_decimal as i64;
+    let _decimals_corrected = 18 - base_decimal as i64 - quote_decimal as i64;
 
     let token_new_price_18 =
     // if stable_coin_ref 

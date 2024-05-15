@@ -172,7 +172,7 @@ async fn main() {
             items_to_process
         };
 
-        if (signatures_to_use.len() == 0) {
+        if signatures_to_use.len() == 0 {
             println!("No more signatures to process");
             break;
         }

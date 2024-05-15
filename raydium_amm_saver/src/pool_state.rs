@@ -1,9 +1,8 @@
 // use crate::state::LiquidityStateLayoutV4;
 use borsh::{BorshDeserialize, BorshSerialize};
-use deadpool::managed::Pool;
+
 use solana_client::rpc_client::RpcClient;
 use solana_program::pubkey::Pubkey;
-use solana_sdk::client::SyncClient;
 use std::time::Duration;
 
 /// See https://github.com/raydium-io/raydium-sdk/blob/master/src/liquidity/layout.ts

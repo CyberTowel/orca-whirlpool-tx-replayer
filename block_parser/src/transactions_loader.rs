@@ -2,19 +2,15 @@ use chrono::prelude::*;
 use moka::future::Cache;
 use serde_json::json;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
-use solana_sdk::{
-    commitment_config::CommitmentConfig, config::program, program_error, pubkey::Pubkey,
-    signature::Signature,
-};
+use solana_sdk::{commitment_config::CommitmentConfig, signature::Signature};
 use solana_transaction_status::{
-    option_serializer::OptionSerializer, EncodedConfirmedTransactionWithStatusMeta,
-    EncodedTransactionWithStatusMeta, UiInnerInstructions, UiInstruction, UiParsedInstruction,
-    UiTransactionEncoding,
+    option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta, UiInnerInstructions,
+    UiInstruction, UiParsedInstruction, UiTransactionEncoding,
 };
 use std::str::FromStr;
 
 use crate::{
-    pool_state::{get_pool_meta, LiquidityStateLayoutV4},
+    pool_state::get_pool_meta,
     token_db::TokenDbClient,
     token_parser::{
         get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
@@ -80,7 +76,7 @@ pub async fn get_transction(
 pub async fn init(
     signature: String,
     pool_id: Option<String>,
-    rpc_connection: &RpcClient,
+    _rpc_connection: &RpcClient,
     rpc_connection_build: &RpcClient,
     db_client: &TokenDbClient,
     my_cache: &Cache<String, Option<PoolMeta>>,
@@ -96,7 +92,7 @@ pub async fn init(
 
     // let sol_price_db = "1400000000000000000000".to_string();
 
-    let transaction_datetime = DateTime::from_timestamp(block_time, 0)
+    let _transaction_datetime = DateTime::from_timestamp(block_time, 0)
         .unwrap()
         .to_rfc3339();
 
@@ -146,7 +142,7 @@ pub async fn init(
 
             // println!("Inner instruction accounts: {:#?}", dolar_selit);
 
-            if (dolar_selit.len() > 0) {
+            if dolar_selit.len() > 0 {
                 // return None;
                 Some(dolar_selit[1].to_string())
             } else {
@@ -155,7 +151,7 @@ pub async fn init(
         }
     };
 
-    if (pool_id_to_get_opt.is_none()) {
+    if pool_id_to_get_opt.is_none() {
         // println!("Pool id to get is none for signature: {}", signature);
         return;
     }
@@ -246,14 +242,14 @@ pub async fn init(
         Some(info)
     };
 
-    if (!pool_meta_req.is_some()) {
+    if !pool_meta_req.is_some() {
         // println!("Error getting pool meta for pool {}", pool_id_clone);
         return;
     }
 
     let pool_meta_opt = pool_meta_req.unwrap();
 
-    if (!pool_meta_opt.is_some()) {
+    if !pool_meta_opt.is_some() {
         // println!("Error getting pool meta for pool opt {}", pool_id_clone);
         return;
     }
@@ -275,7 +271,7 @@ pub async fn init(
         // decimals_correct, // pool_state,
     );
 
-    if (token_amounts_req.is_none()) {
+    if token_amounts_req.is_none() {
         // println!("Error getting token amounts for pool {}", pool_id_to_get);
         return;
     }
@@ -357,7 +353,7 @@ pub async fn init(
     //         //     .to_string(),
     //     );
 
-    let price_item_c = item_to_save.clone();
+    let _price_item_c = item_to_save.clone();
 
     let reponse = db_client.save_token_values(item_to_save);
 
@@ -423,7 +419,7 @@ fn find_raydium_inner_instruction(
         OptionSerializer::Some(ixs) => {
             ixs.iter().for_each(|x| {
                 x.instructions.iter().for_each(|i| match i {
-                    UiInstruction::Compiled(ix) => {
+                    UiInstruction::Compiled(_ix) => {
                         println!("testing 5");
                         panic!("inplement this UiParsedInstruction Compiled")
                         // println!("Data test: {:#?}", ix);
@@ -436,7 +432,7 @@ fn find_raydium_inner_instruction(
                     UiInstruction::Parsed(ix) => match ix {
                         UiParsedInstruction::Parsed(x) => match x.parsed.get("data") {
                             Some(d) => match d {
-                                serde_json::Value::String(data) => {
+                                serde_json::Value::String(_data) => {
                                     // println!("Data test: {:#?}", d);
 
                                     panic!("inplement this UiParsedInstruction")
@@ -452,7 +448,7 @@ fn find_raydium_inner_instruction(
                             None => {}
                         },
                         UiParsedInstruction::PartiallyDecoded(d) => {
-                            if (d.program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8") {
+                            if d.program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" {
                                 inner_instruction_accounts.extend(d.to_owned().accounts);
                             }
 
@@ -472,25 +468,4 @@ fn find_raydium_inner_instruction(
     };
 
     inner_instruction_accounts
-}
-
-fn parse_market_from_data(data: String, block_time: i64) -> Option<String> {
-    return None;
-    // let bytes = match bs58::decode(data).into_vec() {
-    //     Ok(b) => b,
-    //     Err(_) => return None,
-    // };
-    // let mut slice: &[u8] = &bytes[16..];
-
-    // let event: Result<MarketMetaDataLog, Error> =
-    //     anchor_lang::AnchorDeserialize::deserialize(&mut slice);
-
-    // match event {
-    //     Ok(e) => {
-    //         let datetime = to_timestampz(block_time as u64);
-    //         let new_market = OpenBookMarketMetadata::from_event(e, datetime);
-    //         Some(new_market)
-    //     }
-    //     _ => None,
-    // }
 }

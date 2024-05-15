@@ -5,18 +5,18 @@ use deadpool::managed::RecycleResult;
 use deadpool::managed::{self, Metrics};
 use deadpool_postgres::Manager;
 use deadpool_postgres::{ManagerConfig, RecyclingMethod};
-use num::FromPrimitive;
+
 use num_bigfloat::BigFloat;
 use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
 use std::{str::FromStr, sync::Arc};
-use tokio_postgres::types::{Json, ToSql};
+
 use tokio_postgres::Error as TPError;
 use tokio_postgres::NoTls;
 // use tokio_postgres::types::Json;
 
 // use crate::raydium_saver::pg_saving::create_db_pool;
-use crate::token_parser::{TokenAmounts, TokenPriceOracleValues};
+use crate::token_parser::{TokenPriceOracleValues};
 
 pub fn testing() {}
 
@@ -138,7 +138,7 @@ impl Drop for TokenDbClient {
 
 impl DbTokenMethods {
     pub async fn send(&self, _testing: bool) -> Result<bool, TPError> {
-        let url = "testing";
+        let _url = "testing";
 
         Ok(true)
     }
@@ -275,7 +275,7 @@ impl TokenDbClient {
 
     pub async fn insert_token_usd_values_inn(
         &self,
-        signature: &str,
+        _signature: &str,
         input: &TokenPriceOracleValues,
     ) -> Result<(), TPError> {
         let dolar = self.db_pool.clone();
@@ -508,7 +508,7 @@ impl TokenDbClient {
             return (conversion_ref, token_address, price, price_fixed);
         });
 
-        let values_saved_db: Vec<_> = dolar_selit.collect();
+        let _values_saved_db: Vec<_> = dolar_selit.collect();
 
         return Ok(());
     }
@@ -629,7 +629,7 @@ fn parse_value_to_numeric(value: &BigFloat, round_digits: Option<i64>) -> PgNume
 
     // if(round_digits.is_some())
 
-    let price_numeric = if (round_digits.is_some()) {
+    let price_numeric = if round_digits.is_some() {
         PgNumeric::new(Some(testing.round(0)))
     } else {
         PgNumeric::new(Some(testing))

@@ -1,16 +1,15 @@
-use anyhow::Result;
 use block_parser::rpc_pool_manager::{RpcPool, RpcPoolManager};
 use block_parser::token_db::{DbClientPoolManager, DbPool};
 use block_parser::token_parser::PoolMeta;
 use clap::Parser;
 use consumer::start_workers;
 use deadpool::managed::Pool;
-use flume::{unbounded, Receiver, Sender};
+
 use moka::future::Cache;
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
-use std::thread;
+
 use std::time::Duration;
 use tokio::time::Instant;
 

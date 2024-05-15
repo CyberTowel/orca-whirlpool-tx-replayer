@@ -1,9 +1,7 @@
 use chrono::DateTime;
 use serde_json::{json, Value};
 
-use solana_transaction_status::{
-    EncodedConfirmedTransactionWithStatusMeta, EncodedTransactionWithStatusMeta,
-};
+use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
 #[derive(Debug)]
 pub struct Transaction {

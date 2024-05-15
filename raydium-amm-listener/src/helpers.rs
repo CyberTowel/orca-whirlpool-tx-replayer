@@ -1,5 +1,5 @@
 use rand::Rng;
-use std::{fmt::Display, time::Duration};
+use std::{time::Duration};
 
 pub async fn retry_blocks<F, Fut, T, E>(mut operation: F) -> Result<T, E>
 where

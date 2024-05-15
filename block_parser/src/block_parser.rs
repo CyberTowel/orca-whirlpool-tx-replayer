@@ -1,17 +1,14 @@
 use chrono::DateTime;
-use deadpool::managed::{self, Metrics, Pool};
+use deadpool::managed::Pool;
 use moka::future::Cache;
 use serde_json::json;
-use solana_client::client_error::{self, ClientErrorKind};
-use solana_client::rpc_request::RpcError::{self, RpcResponseError};
-use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcBlockConfig};
-use solana_sdk::{commitment_config::CommitmentConfig, signature};
+
+use solana_client::rpc_config::RpcBlockConfig;
+use solana_sdk::commitment_config::CommitmentConfig;
 use solana_transaction_status::UiTransactionEncoding;
 
 use crate::{
-    rpc_pool_manager::RpcPoolManager,
-    token_db::{DbClientPoolManager, TokenDbClient},
-    token_parser::PoolMeta,
+    rpc_pool_manager::RpcPoolManager, token_db::DbClientPoolManager, token_parser::PoolMeta,
     transactions_loader::init,
 };
 
@@ -56,7 +53,7 @@ pub async fn parse_block(
     if block_req.is_err() {
         let error = block_req.as_ref().err().unwrap();
 
-        let tesitng = error.kind();
+        let _tesitng = error.kind();
 
         // let error_code: &i64 = match tesitng {
         //     ClientErrorKind::RpcError(RpcResponseError {
@@ -130,7 +127,7 @@ pub async fn parse_block(
 
         let signature = json!(transaction.transaction);
 
-        let signature = signature["signatures"][0].as_str().unwrap().to_string();
+        let _signature = signature["signatures"][0].as_str().unwrap().to_string();
 
         // let transaction_encoded = transaction;
 

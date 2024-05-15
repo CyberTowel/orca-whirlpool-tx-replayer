@@ -7,9 +7,9 @@ use num::FromPrimitive;
 use num_bigfloat::BigFloat;
 use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+
 use std::{str::FromStr, sync::Arc};
-use tokio_postgres::types::{Json, ToSql};
+
 use tokio_postgres::{Error as TPError, NoTls};
 
 use crate::token_parser::{PriceItem, TokenPriceOracleValues};
@@ -156,7 +156,7 @@ impl Drop for TokenDbClient {
 
 impl DbTokenMethods {
     pub async fn send(&self, _testing: bool) -> Result<bool, TPError> {
-        let url = "testing";
+        let _url = "testing";
 
         Ok(true)
     }
@@ -293,7 +293,7 @@ impl TokenDbClient {
 
     pub async fn insert_token_usd_values_inn(
         &self,
-        signature: &str,
+        _signature: &str,
         input: &TokenPriceOracleValues,
     ) -> Result<(), TPError> {
         let dolar = self.db_pool.clone();
@@ -527,7 +527,7 @@ impl TokenDbClient {
             return (conversion_ref, token_address, price, price_fixed, datetime);
         });
 
-        let values_saved_db: Vec<_> = dolar_selit.collect();
+        let _values_saved_db: Vec<_> = dolar_selit.collect();
 
         // println!("values_saved_db {:?}", values_saved_db);
 
@@ -648,7 +648,7 @@ impl DbTokenTesterInner {
 fn parse_value_to_numeric(value: &BigFloat, round_digits: Option<i64>) -> PgNumeric {
     let testing = BigDecimal::from_str(&value.to_string());
 
-    if (testing.is_err()) {
+    if testing.is_err() {
         return PgNumeric::new(Some(BigDecimal::from_i64(0).unwrap()));
     }
 
@@ -656,7 +656,7 @@ fn parse_value_to_numeric(value: &BigFloat, round_digits: Option<i64>) -> PgNume
 
     // if(round_digits.is_some())
 
-    let price_numeric = if (round_digits.is_some()) {
+    let price_numeric = if round_digits.is_some() {
         PgNumeric::new(Some(bigint.round(0)))
     } else {
         PgNumeric::new(Some(bigint))

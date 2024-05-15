@@ -1,25 +1,14 @@
-use deadpool::managed::Pool;
-use solana_client::{
-    rpc_client::GetConfirmedSignaturesForAddress2Config,
-    rpc_response::RpcConfirmedTransactionStatusWithSignature,
-};
-use solana_sdk::{pubkey::Pubkey, signature::Signature};
-use std::str::FromStr;
-
-use self::raydium::RpcPoolManager;
-
 pub mod raydium {
-    use arl::RateLimiter;
+
     use async_trait::async_trait;
-    use helpers::dbgtest;
-    use solana_transaction_status::UiTransactionEncoding;
+
     use std::str::FromStr;
 
     use deadpool::managed::{self, Metrics, Pool};
 
     use deadpool::managed::RecycleResult;
 
-    use crate::pool_state::{LiquidityStateLayoutV4, PoolMeta};
+    use crate::pool_state::PoolMeta;
     use crate::token_db::DbClientPoolManager;
     use crate::token_parser::PoolVars;
     use crate::transaction_parser::parser_transaction;
@@ -93,7 +82,7 @@ pub mod raydium {
             crawled_signatures.push(result_i);
         }
 
-        let (signature_from, datatime_from, _err) = crawled_signatures.first().unwrap();
+        let (_signature_from, datatime_from, _err) = crawled_signatures.first().unwrap();
         let (signature_until, datatime_until, _err_until) = crawled_signatures.last().unwrap();
         println!(
             "
@@ -121,8 +110,7 @@ Processed {:?} until {:?} ({:#?})
 
             // let mut rpc_url = "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U";
             // let mut rpc_url = "http://65.108.76.168:8899";
-            let mut rpc_url =
-                "https://din-lb.solanarpc.dev/KsnzZimk2FZ7c4AHPd3EjGLuXjVnRZ5v3X3mgkq";
+            let rpc_url = "https://din-lb.solanarpc.dev/KsnzZimk2FZ7c4AHPd3EjGLuXjVnRZ5v3X3mgkq";
             // let mut rpc_url = "https://rpc.ankr.com/solana/71915acca8127aacb9f83c90556138f82decde6b7a66f5fad32d2e005c26ca8e";
 
             if self.rpc_type.is_some() {
@@ -164,7 +152,7 @@ Processed {:?} until {:?} ({:#?})
 
         let mut before_signature: Option<Signature> = None;
 
-        if (before_signature_param.is_some()) {
+        if before_signature_param.is_some() {
             before_signature = Some(Signature::from_str(&before_signature_param.unwrap()).unwrap());
         }
 
@@ -197,12 +185,12 @@ Processed {:?} until {:?} ({:#?})
                 .get_signatures_for_address_with_config(&pool_pubkey, signature_pagination_config)
                 .unwrap();
 
-            if (signatures_to_process.last().is_some()) {
+            if signatures_to_process.last().is_some() {
                 let last_signature = &signatures_to_process.last().unwrap().signature;
                 before_signature = Option::Some(Signature::from_str(&last_signature).unwrap());
             }
 
-            if (signatures_to_process.len() == 0) {
+            if signatures_to_process.len() == 0 {
                 println!("No more signatures to process");
                 break;
             }
@@ -254,7 +242,7 @@ Processed {:?} until {:?} ({:#?})
 
         // let items: Vec<String> = all_signatures.iter().take(101).collect();
 
-        if (process_interval > all_signatures.len()) {
+        if process_interval > all_signatures.len() {
             return (all_signatures, None);
         }
 
@@ -268,8 +256,7 @@ Processed {:?} until {:?} ({:#?})
 
 pub mod pg_saving {
     use deadpool::managed::Pool;
-    use deadpool_postgres::{Manager, ManagerConfig, RecyclingMethod};
-    use tokio_postgres::NoTls;
+    use deadpool_postgres::Manager;
 
     #[derive(Debug)]
     pub struct PriceDbItem {
@@ -291,23 +278,6 @@ pub mod pg_saving {
         // pub ubo_token_b_amount: i64,
         // pub ubo_token_a_pool_amount: i64,
         // pub ubo_token_b_pool_amount: i64,
-    }
-
-    pub fn create_db_pool() -> Pool<Manager> {
-        // let mut cfg = Config::new();
-        let mut pg_config = tokio_postgres::Config::new();
-        pg_config.host("65.108.76.168");
-        pg_config.port(5432);
-        // cfg.host(pg_config.host_path("/run/postgresql"););
-        pg_config.user("postgres");
-        pg_config.password("2u_XEQuJYvCZnEu5WHZx");
-        pg_config.dbname("token_pricing");
-        let mgr_config = ManagerConfig {
-            recycling_method: RecyclingMethod::Fast,
-        };
-        let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
-        let pool = Pool::builder(mgr).max_size(16).build().unwrap();
-        return pool;
     }
 
     pub async fn _save_price_to_db(_price_item: PriceDbItem, pool: &Pool<Manager>) {

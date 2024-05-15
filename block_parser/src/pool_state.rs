@@ -1,11 +1,10 @@
 // use crate::state::LiquidityStateLayoutV4;
 use borsh::{BorshDeserialize, BorshSerialize};
-use deadpool::managed::Pool;
-use moka::future::Cache;
+
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_program::pubkey::Pubkey;
 // use solana_sdk::client::SyncClient;
-use std::{str::FromStr, time::Duration};
+use std::str::FromStr;
 
 use crate::token_parser::PoolMeta;
 
@@ -76,14 +75,6 @@ pub struct LiquidityStateLayoutV4 {
     pub pnl_owner: Pubkey,
 }
 
-pub struct PoolMetaBase {
-    quote_mint: Pubkey,
-    base_mint: Pubkey,
-    quote_vault: Pubkey,
-    base_vault: Pubkey,
-    lp_mint: Pubkey,
-}
-
 // pub fn pool_meta_token()
 
 pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Option<PoolMeta> {
@@ -93,7 +84,7 @@ pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Opti
 
     let state_req = rpc_connection.get_account_data(&pubkey).await;
 
-    if (state_req.is_err()) {
+    if state_req.is_err() {
         return None;
     }
 
@@ -101,7 +92,7 @@ pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Opti
 
     let state_parsed_try = LiquidityStateLayoutV4::deserialize(&mut &state[..]);
 
-    if (state_parsed_try.is_err()) {
+    if state_parsed_try.is_err() {
         return None;
     }
 
@@ -167,47 +158,4 @@ pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Opti
     return Some(meta);
 
     // return state;
-}
-
-// pub fn get_pool_state(pool_id: String) -> LiquidityStateLayoutV4 {
-//     // LiquidityStateLayoutV4::try_from_slice(data).unwrap()
-//     let state = state(&pool_id);
-//     return state;
-// }
-
-async fn state(pool_id: &String, rpc_connection: &RpcClient) -> Option<LiquidityStateLayoutV4> {
-    let ref pool = pool_id.parse().unwrap();
-    // let solana = RpcClient::new_with_timeout(
-    //     "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U".to_string(),
-    //     Duration::from_secs(120),
-    // );
-
-    // let client = RpcClient::new_with_commitment(
-    //     // cluster,
-    //     // "https://solana-mainnet.g.alchemy.com/v2/0uuM5dFqqhu79XiFtEa4dZkfLZDlNOGZ",
-    //     "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U".to_string(),
-    //     // "http://66.248.205.6:8899",
-    //     // "https://solana-mainnet.api.syndica.io/api-token/31LXqG31wuwf82G821o7odUPqZnuxHjkaeCtsbDmVFyorPVtZgcTt3fd9to6CNEaMMRHMwJHASa4WQsttc15zhLwnLbZ8qNTQxekxymxfhSFzda3mhpp4F95xLmZKqjPueVMBWCdYUA32dPCjm8w9SzSebRWtmocZVs1m9KsbFq4MGvgsKtxYJvc86QEqJtdzcn82BVcpsXV7Cmbr4oL3j37yyi8RfLGCDdoQo2mUKC8xDPocCB4rMsb8PM7JB8kLsPWEdCeGsfwb66wBMVGyT8zr9fZsB6fxJvMjgP5W1xyL2BnCVRZ1dotGawiwung88pxuy84o1tpTpmJWHqwFdxHKCWQwxXeJysZ81DzCY3X9nVdxbMpUnz9tJVzFMSwxNomKFT925ogVNgYHYzV2TCBYSKyj53s8xiKZU6X4nAGXFkpTRXGHbnAvi8cRB9cPXaQyc2Yad6GxUeCTyPQqPJ8fZ8gHZmPCF9UKv836Ao93AawumPL1e4RdLScW".to_string(),
-    //     solana_sdk::commitment_config::CommitmentConfig::finalized(),
-    // );
-
-    println!("get info");
-
-    let pool_req = rpc_connection.get_account_data(pool).await;
-
-    println!("testing after");
-
-    if (pool_req.is_err()) {
-        println!("Error: {:?}", pool_req.err().unwrap());
-        return None;
-    }
-
-    println!("sucesss!! ");
-
-    let pool: Vec<u8> = pool_req.unwrap();
-    let data = LiquidityStateLayoutV4::deserialize(&mut &pool[..]).unwrap();
-
-    // dbg!("{:?}", data);
-
-    return Some(data);
 }

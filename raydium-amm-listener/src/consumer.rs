@@ -14,7 +14,7 @@ pub fn start_workers(
     connections: ParserConnections,
     worker_amount: usize,
 ) {
-    for i in 0..worker_amount {
+    for _i in 0..worker_amount {
         let testing = tx_completed.clone();
         let rx1 = rx.clone();
 
@@ -25,7 +25,7 @@ pub fn start_workers(
 
         let counter_clone = counter.clone();
         tokio::spawn(async move {
-            while let Ok(msg) = rx1.recv_async().await {
+            while let Ok(_msg) = rx1.recv_async().await {
                 let dolar = testing.clone();
                 // Handle received message
                 let counter_value = counter_clone.fetch_add(1, Ordering::SeqCst);
@@ -76,7 +76,7 @@ pub fn start_workers(
                 //     continue;
                 // };
 
-                if (result.is_ok()) {
+                if result.is_ok() {
                     let (
                         block_number,
                         transaction_amount,

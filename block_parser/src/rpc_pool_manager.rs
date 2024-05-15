@@ -1,15 +1,10 @@
 use async_trait::async_trait;
 
-use deadpool::managed::{self, Metrics, Pool};
+use deadpool::managed::{self, Metrics};
 
 use deadpool::managed::RecycleResult;
 
-use solana_client::rpc_client::GetConfirmedSignaturesForAddress2Config;
-use solana_client::{
-    nonblocking::rpc_client::RpcClient, rpc_response::RpcConfirmedTransactionStatusWithSignature,
-};
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Signature;
+use solana_client::nonblocking::rpc_client::RpcClient;
 
 use solana_client::nonblocking::pubsub_client::PubsubClient;
 
@@ -20,7 +15,7 @@ pub struct RpcPoolManager {
 #[derive(Debug)]
 pub enum Error {}
 
-const wss_url: &str = "wss://api.mainnet-beta.solana.com/";
+const WSS_URL: &str = "wss://api.mainnet-beta.solana.com/";
 
 #[async_trait]
 impl managed::Manager for RpcPoolManager {
@@ -78,6 +73,6 @@ impl managed::Manager for RpcPoolManager {
 pub type RpcPool = managed::Pool<RpcPoolManager>;
 
 pub async fn get_pub_sub_client() -> PubsubClient {
-    let pubsub_client = PubsubClient::new(wss_url).await.unwrap();
+    let pubsub_client = PubsubClient::new(WSS_URL).await.unwrap();
     return pubsub_client;
 }
