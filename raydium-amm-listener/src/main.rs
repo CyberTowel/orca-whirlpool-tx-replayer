@@ -57,6 +57,7 @@ pub struct BlockParsedDebug {
     pub duration_rpc: std::time::Duration,
     pub duraction_total: std::time::Duration,
     pub transaction_datetime: String,
+    pub error: Option<String>,
 }
 
 #[tokio::main]
@@ -85,7 +86,7 @@ async fn main() {
     
     println!("Current block height: {:?}", testing_block);
 
-    let start_at_block = args.start_at_block.unwrap_or(testing_block);
+    let start_at_block = args.start_at_block.unwrap_or(testing_block) + 100;
 
     // let start_at_block = start_at_block_param;
 
@@ -112,15 +113,7 @@ async fn main() {
 
     let rpc_connection = RpcPool::builder(mgr).max_size(1000).build().unwrap();
 
-   
-
     let cache: Cache<String, Option<PoolMeta>> = Cache::new(1_000_000);
-
-
-
-
-
-
 
     let connections = ParserConnections {
         rpc_connection,
@@ -128,8 +121,6 @@ async fn main() {
         db_client: db_pool_connection,
         my_cache: cache,
     };
-
-    // let start_at = 245528177;
 
     let (block_parser_worker, block_parser_watcher) = flume::unbounded::<u64>();
     let block_completed_worker_block_worker = block_parser_worker.clone();
@@ -149,6 +140,7 @@ async fn main() {
                 duration_rpc: Duration::new(0, 0),
                 duraction_total: Duration::new(0, 0),
                 transaction_datetime: "".to_string(),
+                error:Some("Uknown Error".to_string())
             });
 
             durations_total.push_back(result.duraction_total);
@@ -173,22 +165,30 @@ async fn main() {
             let avg = rolling_avg_total / durations_total.len() as u32;
             let avg_rpc = rolling_avg_rpc / durations_rpc.len() as u32;
 
-            let completed_task = if(result.block_number == 0) {
+            let completed_task = if result.block_number == 0 {
                0
             } else {
                 result.block_number - start_at_block
             };
+
+            let status = if result.error.is_some() {
+                "Error executing"
+            } else {
+                "Completed"
+            };
             
 
             println!(
-                "Completed task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}",
+                "{} task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}, err:{}",
+                status,
                 completed_task,
                 result.block_number,
                 result.transaction_datetime,
                 result.transaction_amount,
                 avg,
                 avg_rpc, 
-                rolling_duration_block
+                rolling_duration_block, 
+                result.error.unwrap_or("".to_string())
             );
 
             let block_worker_c = block_completed_worker_block_worker.clone();

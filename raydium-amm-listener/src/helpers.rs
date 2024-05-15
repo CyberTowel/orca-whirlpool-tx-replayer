@@ -1,7 +1,7 @@
 use rand::Rng;
 use std::{fmt::Display, time::Duration};
 
-pub async fn retry<F, Fut, T, E>(mut operation: F) -> Result<T, E>
+pub async fn retry_blocks<F, Fut, T, E>(mut operation: F) -> Result<T, E>
 where
     F: FnMut() -> Fut,
     Fut: std::future::Future<Output = Result<T, E>>,
@@ -19,22 +19,19 @@ where
             Err(err) => {
                 rety_counts += 1;
 
-                println!("retry counts: {:?}", rety_counts);
-
-                if (rety_counts > 10) {
-                    println!(
-                        "Request has had an error for 10 tiems, continue Error: {:?}",
-                        err
-                    );
+                if rety_counts > 20 {
+                    // println!(
+                    //     "Block {:?} has been tried 20 times, giving up",
+                    //     block_numbner
+                    // );
                     return Err(err);
                 }
-                // println!("Error: {:?}", err);
+
                 let jitter = rand::thread_rng().gen_range(0..backoff); // Add some jitter
                 tokio::time::sleep(Duration::from_millis(backoff + jitter)).await; // Wait before retrying
 
                 backoff = backoff.saturating_mul(2).min(max_backoff); // Exponential backoff
             }
-            _ => {}
         }
     }
 }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use transaction_parser::block_parser::{parse_block, RpcErrorCustom};
 
-use crate::helpers::retry;
+use crate::helpers::retry_blocks;
 use crate::{BlockParsedDebug, ParserConnections};
 
 pub fn start_workers(
@@ -30,7 +30,7 @@ pub fn start_workers(
                 // Handle received message
                 let counter_value = counter_clone.fetch_add(1, Ordering::SeqCst);
 
-                let result = retry(|| async {
+                let result = retry_blocks(|| async {
                     parse_block(
                         counter_value as u64,
                         &rpc_connection_c,
@@ -91,10 +91,21 @@ pub fn start_workers(
                         duration_rpc,
                         duraction_total,
                         transaction_datetime,
+                        error: None,
                     };
                     dolar.send(Some(block_parsed_debug)).unwrap();
                 } else {
-                    dolar.send(None).unwrap();
+                    // println!("failed to parse block: {:?}", counter_value);
+                    dolar
+                        .send(Some(BlockParsedDebug {
+                            block_number: counter_value as u64,
+                            transaction_amount: 0,
+                            duration_rpc: Duration::new(0, 0),
+                            duraction_total: Duration::new(0, 0),
+                            transaction_datetime: "".to_string(),
+                            error: Some("error loading block rpc after 20 retries".to_string()),
+                        }))
+                        .unwrap();
                 }
             }
         });

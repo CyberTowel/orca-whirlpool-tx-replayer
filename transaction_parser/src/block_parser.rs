@@ -48,30 +48,28 @@ pub async fn parse_block(
         .await;
 
     let duration_rpc = start.elapsed();
-    println!(
-        "Time elapsed to get block {} is: {:?}",
-        block_number, duration_rpc
-    );
+    // println!(
+    //     "Time elapsed to get block {} is: {:?}",
+    //     block_number, duration_rpc
+    // );
 
     if block_req.is_err() {
         let error = block_req.as_ref().err().unwrap();
 
-        println!("Error getting block: {:#?}", error);
-
         let tesitng = error.kind();
 
-        let error_code: &i64 = match tesitng {
-            ClientErrorKind::RpcError(RpcResponseError {
-                code,
-                message: _,
-                data: _,
-            }) => {
-                // println!("Error getting block test: {:#?}", code);
-                // return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
-                code
-            }
-            _ => &0,
-        };
+        // let error_code: &i64 = match tesitng {
+        //     ClientErrorKind::RpcError(RpcResponseError {
+        //         code,
+        //         message: _,
+        //         data: _,
+        //     }) => {
+        //         // println!("Error getting block test: {:#?}", code);
+        //         // return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
+        //         code
+        //     }
+        //     _ => &0,
+        // };
 
         // println!("will return error");
 
