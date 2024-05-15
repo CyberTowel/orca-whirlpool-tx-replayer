@@ -63,7 +63,7 @@ pub struct BlockParsedDebug {
 async fn main() {
     let args = Args::parse();
 
-    let worker_amount = args.worker_amount.unwrap_or(1);
+    let worker_amount = args.worker_amount.unwrap_or(10);
 
     let sample_rate = args.sample_rate.unwrap_or(10);
 
@@ -83,7 +83,7 @@ async fn main() {
 
     println!("Current block height: {:?}", testing_block);
 
-    let start_at_block = args.start_at_block.unwrap_or(testing_block);
+    let start_at_block = args.start_at_block.unwrap_or(testing_block - 3000);
 
     // let start_at_block = start_at_block_param;
 
@@ -128,6 +128,7 @@ async fn main() {
         flume::unbounded::<Option<BlockParsedDebug>>();
 
     tokio::spawn(async move {
+        // println!("Start block parser watcher");
         while let Ok(msg) = block_completed_watcher.recv_async().await {
             let result = msg.unwrap_or(BlockParsedDebug {
                 block_number: 0,
@@ -173,7 +174,7 @@ async fn main() {
             };
 
             println!(
-                "{} task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}, err:{}",
+                "{} task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}, {}",
                 status,
                 completed_task,
                 result.block_number,

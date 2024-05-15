@@ -49,8 +49,6 @@ impl managed::Manager for RpcPoolManager {
         }
 
         // println!("testing:");
-
-        // println!("RPC URL: {:#?}", rpc_url);
         Ok(RpcClient::new_with_commitment(
             // cluster,
             // "https://solana-mainnet.g.alchemy.com/v2/0uuM5dFqqhu79XiFtEa4dZkfLZDlNOGZ",

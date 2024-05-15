@@ -1,5 +1,5 @@
 use rand::Rng;
-use std::{time::Duration};
+use std::time::Duration;
 
 pub async fn retry_blocks<F, Fut, T, E>(mut operation: F) -> Result<T, E>
 where
@@ -19,11 +19,10 @@ where
             Err(err) => {
                 rety_counts += 1;
 
+                // println!("retry count {}, Error: {:?}", rety_counts, err);
+
                 if rety_counts > 20 {
-                    // println!(
-                    //     "Block {:?} has been tried 20 times, giving up",
-                    //     block_numbner
-                    // );
+                    println!("Block has been tried 20 times, giving up",);
                     return Err(err);
                 }
 
