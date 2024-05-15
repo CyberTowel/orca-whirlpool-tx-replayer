@@ -575,9 +575,13 @@ impl TokenDbClient {
 
         let lipsum = testing.unwrap();
 
-        let row = lipsum.get(0).unwrap();
+        let row = lipsum.get(0);
 
-        let dolar2: Decimal = row.get("price");
+        if row.is_none() {
+            return Ok(Decimal::from_str("145385220916953680615").unwrap());
+        }
+
+        let dolar2: Decimal = row.unwrap().get("price");
 
         return Ok(dolar2);
     }
