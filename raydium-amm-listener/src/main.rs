@@ -57,6 +57,7 @@ pub struct BlockParsedDebug {
     pub duraction_total: std::time::Duration,
     pub transaction_datetime: String,
     pub error: Option<String>,
+    pub sol_price_db: String,
 }
 
 #[tokio::main]
@@ -137,6 +138,7 @@ async fn main() {
                 duraction_total: Duration::new(0, 0),
                 transaction_datetime: "".to_string(),
                 error: Some("Uknown Error".to_string()),
+                sol_price_db: "".to_string(),
             });
 
             durations_total.push_back(result.duraction_total);
@@ -174,7 +176,7 @@ async fn main() {
             };
 
             println!(
-                "{} task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}, {}",
+                "{} task {:?} Block number: {} timestmap: {} transaction #: {}\tRolling average total: {:?}\trolling avarage get_block {:?}\trolling_duration_block {:?}\tsol price {} {}",
                 status,
                 completed_task,
                 result.block_number,
@@ -183,7 +185,8 @@ async fn main() {
                 avg,
                 avg_rpc,
                 rolling_duration_block,
-                result.error.unwrap_or("".to_string())
+                result.sol_price_db,
+                result.error.unwrap_or("".to_string()),
             );
 
             let block_worker_c = block_completed_worker_block_worker.clone();

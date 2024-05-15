@@ -83,6 +83,7 @@ pub fn start_workers(
                         duration_rpc,
                         duraction_total,
                         transaction_datetime,
+                        sol_price_db,
                     ) = result.unwrap();
 
                     let block_parsed_debug = BlockParsedDebug {
@@ -92,6 +93,7 @@ pub fn start_workers(
                         duraction_total,
                         transaction_datetime,
                         error: None,
+                        sol_price_db,
                     };
                     dolar.send(Some(block_parsed_debug)).unwrap();
                 } else {
@@ -104,6 +106,7 @@ pub fn start_workers(
                             duraction_total: Duration::new(0, 0),
                             transaction_datetime: "".to_string(),
                             error: Some("error loading block rpc after 20 retries".to_string()),
+                            sol_price_db: "".to_string(),
                         }))
                         .unwrap();
                 }

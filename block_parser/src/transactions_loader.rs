@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use moka::future::Cache;
+use rust_decimal::Decimal;
 use serde_json::json;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signature};
@@ -69,6 +70,7 @@ pub async fn get_transction(
         &transaction,
         block_time,
         block_number,
+        None,
     )
     .await;
 }
@@ -83,7 +85,10 @@ pub async fn init(
     transaction: &EncodedTransactionWithStatusMeta,
     block_time: i64,
     block_number: u64,
+    sol_price_18: Option<Decimal>,
 ) {
+    // let sol_price_db =
+
     // std::thread::sleep(std::time::Duration::from_secs(10));
 
     // println!("done sleeping start process, {}", signature);
@@ -258,6 +263,17 @@ pub async fn init(
 
     let transaction_parsed = transaction::Transaction::new(transaction, block_time, block_number);
 
+    let sol_price_db = if sol_price_18.is_some() {
+        sol_price_18.unwrap()
+        // println!("Sol price 18: {:#?}", sol_price_18.unwrap().to_string());
+    } else {
+        println!("get sol price per transaction");
+
+        db_client
+            .get_usd_price_sol(transaction_parsed.datetime)
+            .unwrap()
+    };
+
     let token_amounts_req = get_token_amounts(
         &transaction,
         &transaction_parsed.account_keys,
@@ -277,10 +293,6 @@ pub async fn init(
     }
 
     let token_amounts = token_amounts_req.unwrap();
-
-    let sol_price_db = db_client
-        .get_usd_price_sol(transaction_parsed.datetime)
-        .unwrap();
 
     // println!("Sol price: {:#?}", sol_price_db.to_string());
 

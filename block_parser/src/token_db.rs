@@ -549,13 +549,15 @@ impl TokenDbClient {
 
     pub async fn get_usd_price_sol_inn(&self, transaction_datetime: String) -> DbResult<Decimal> {
         let statement =
-            "SELECT * FROM token_prices_temp WHERE token_address = $1 AND conversion_ref = 'USD'
-                    order by abs(extract(epoch from (timestamp - $2))) limit 1";
+            "SELECT * FROM token_prices WHERE token_address = $1 AND conversion_ref = 'USD'
+                    order by abs(extract(epoch from (datetime - $2))) limit 1";
 
         let rolar: DateTime<Utc> = chrono::DateTime::from_str(&transaction_datetime).unwrap();
 
         let dolar = self.db_pool.clone();
         let datetime_param: NaiveDateTime = rolar.naive_utc();
+
+        let timestamp: DateTime<Utc> = DateTime::from_naive_utc_and_offset(datetime_param, Utc);
 
         let db_connect = match dolar {
             Some(x) => x,
@@ -566,10 +568,7 @@ impl TokenDbClient {
         let testing = client
             .query(
                 statement,
-                &[
-                    &"So11111111111111111111111111111111111111112",
-                    &datetime_param,
-                ],
+                &[&"So11111111111111111111111111111111111111112", &timestamp],
             )
             .await;
         // .unwrap();
@@ -578,7 +577,7 @@ impl TokenDbClient {
 
         let row = lipsum.get(0).unwrap();
 
-        let dolar2: Decimal = row.get("value_num");
+        let dolar2: Decimal = row.get("price");
 
         return Ok(dolar2);
     }

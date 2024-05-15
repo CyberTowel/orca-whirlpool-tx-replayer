@@ -27,7 +27,17 @@ pub async fn parse_block(
     rpc_connection_builder: &Pool<RpcPoolManager>,
     db_client: &Pool<DbClientPoolManager>,
     my_cache: &Cache<String, Option<PoolMeta>>,
-) -> Result<(u64, usize, std::time::Duration, std::time::Duration, String), RpcErrorCustom> {
+) -> Result<
+    (
+        u64,
+        usize,
+        std::time::Duration,
+        std::time::Duration,
+        String,
+        String,
+    ),
+    RpcErrorCustom,
+> {
     let start = std::time::Instant::now();
     let connection = rpc_connection.get().await.unwrap();
     // let db_connection = db_client.get().await.unwrap();
@@ -120,6 +130,12 @@ pub async fn parse_block(
         .to_rfc3339();
     // println!("Block time: {:#?}", transaction_datetime);
 
+    let db_client_sol_price = db_client.get().await.unwrap();
+    let sol_price_transaction_datetime = transaction_datetime.clone();
+    let sol_price_db = db_client_sol_price
+        .get_usd_price_sol(sol_price_transaction_datetime)
+        .unwrap();
+
     for transaction in block_transactions {
         let rpc_conn = rpc_connection.get().await.unwrap();
         let rpc_build_conn = rpc_connection_builder.get().await.unwrap();
@@ -148,6 +164,7 @@ pub async fn parse_block(
                 &transaction,
                 block_time,
                 block_number,
+                Some(sol_price_db),
             )
             .await;
         });
@@ -175,6 +192,7 @@ pub async fn parse_block(
         duration_rpc,
         duraction_total,
         transaction_datetime,
+        sol_price_db.to_string(),
     ))
 
     // println!("Transaction amount {:#?}", signature);
