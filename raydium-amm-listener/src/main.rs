@@ -1,4 +1,7 @@
 use anyhow::Result;
+use block_parser::rpc_pool_manager::{RpcPool, RpcPoolManager};
+use block_parser::token_db::{DbClientPoolManager, DbPool};
+use block_parser::token_parser::PoolMeta;
 use clap::Parser;
 use consumer::start_workers;
 use deadpool::managed::Pool;
@@ -10,9 +13,6 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 use tokio::time::Instant;
-use transaction_parser::rpc_pool_manager::{RpcPool, RpcPoolManager};
-use transaction_parser::token_db::{DbClientPoolManager, DbPool};
-use transaction_parser::token_parser::PoolMeta;
 
 mod consumer;
 mod helpers;
@@ -66,8 +66,6 @@ async fn main() {
 
     let worker_amount = args.worker_amount.unwrap_or(1);
 
-
-
     let sample_rate = args.sample_rate.unwrap_or(10);
 
     let mgr = RpcPoolManager {
@@ -83,14 +81,12 @@ async fn main() {
     let connect = rpc_connection_builder.clone().get().await.unwrap();
 
     let testing_block = connect.get_slot().await.unwrap_or(265757043);
-    
+
     println!("Current block height: {:?}", testing_block);
 
-    let start_at_block = args.start_at_block.unwrap_or(testing_block) + 100;
+    let start_at_block = args.start_at_block.unwrap_or(testing_block);
 
     // let start_at_block = start_at_block_param;
-
-
 
     println!(
         "Start {:?} workers, start at block: {}, speed sample rate {}",
@@ -140,7 +136,7 @@ async fn main() {
                 duration_rpc: Duration::new(0, 0),
                 duraction_total: Duration::new(0, 0),
                 transaction_datetime: "".to_string(),
-                error:Some("Uknown Error".to_string())
+                error: Some("Uknown Error".to_string()),
             });
 
             durations_total.push_back(result.duraction_total);
@@ -166,7 +162,7 @@ async fn main() {
             let avg_rpc = rolling_avg_rpc / durations_rpc.len() as u32;
 
             let completed_task = if result.block_number == 0 {
-               0
+                0
             } else {
                 result.block_number - start_at_block
             };
@@ -176,7 +172,6 @@ async fn main() {
             } else {
                 "Completed"
             };
-            
 
             println!(
                 "{} task {:?} Block number: {} timestmap: {} transaction #: {} Rolling average total: {:?}, rolling avarage get_block {:?}, rolling_duration_block {:?}, err:{}",
@@ -186,8 +181,8 @@ async fn main() {
                 result.transaction_datetime,
                 result.transaction_amount,
                 avg,
-                avg_rpc, 
-                rolling_duration_block, 
+                avg_rpc,
+                rolling_duration_block,
                 result.error.unwrap_or("".to_string())
             );
 

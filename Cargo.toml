@@ -2,7 +2,7 @@
 members = [
   "raydium_amm_saver",
   "raydium-amm-listener"
-, "transaction_parser",
+, "block_parser",
 "helpers"]
 
 resolver = "2"

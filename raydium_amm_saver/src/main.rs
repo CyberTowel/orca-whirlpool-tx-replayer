@@ -2,12 +2,10 @@ mod raydium_saver;
 use crate::pool_state::get_pool_meta;
 use crate::token_db::{DbClientPoolManager, DbPool};
 use crate::token_parser::PoolVars;
-use arl::RateLimiter;
 use clap::Parser;
 use raydium_saver::raydium::{
     batch_process_signatures, get_paginated_singatures, RpcPool, RpcPoolManager,
 };
-use std::time::Duration;
 
 pub mod pool_state;
 pub mod token_db;
@@ -86,7 +84,7 @@ async fn main() {
         // }
     ];
 
-    if (testing_mode) {
+    if testing_mode {
         println!("Testing mode enabled");
         for item in testing_singatures {
             let poolvars = PoolVars {

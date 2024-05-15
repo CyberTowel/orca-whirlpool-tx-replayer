@@ -14,7 +14,7 @@ anyhow = "1.0.79"
 clap = { workspace = true }
 deadpool = {version = "0.10.0", features = ["rt_tokio_1"]}
 
-transaction_parser = { path = "../transaction_parser" }
+block_parser = { path = "../block_parser" }
 moka = { version = "0.12.7", features = ["future", "sync"] }
 bincode.workspace = true
 serde = "1.0.197"

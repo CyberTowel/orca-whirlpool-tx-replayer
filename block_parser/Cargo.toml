@@ -1,5 +1,5 @@
 [package]
-name = "transaction_parser"
+name = "block_parser"
 version.workspace = true
 edition.workspace = true
 

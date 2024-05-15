@@ -1,8 +1,8 @@
+use block_parser::block_parser::parse_block;
 use flume::{Receiver, Sender};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use transaction_parser::block_parser::{parse_block, RpcErrorCustom};
 
 use crate::helpers::retry_blocks;
 use crate::{BlockParsedDebug, ParserConnections};
