@@ -89,7 +89,7 @@ async fn main() {
 
     let routes = warp::get().and(route);
 
-    warp::serve(routes).run(([127, 0, 0, 1], 8081)).await;
+    warp::serve(routes).run(([0, 0, 0, 0], 8081)).await;
 
     println!("Hello, world!, server running");
 }
