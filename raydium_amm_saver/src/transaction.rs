@@ -5,7 +5,6 @@ use solana_transaction_status::EncodedConfirmedTransactionWithStatusMeta;
 
 #[derive(Debug)]
 pub struct Transaction {
-    pub is_a_parrot: bool,
     // rpc_data: &'a EncodedConfirmedTransactionWithStatusMeta,
     pub signer: String,
     pub ubo: String,
@@ -53,7 +52,6 @@ impl Transaction {
         let datetime = get_transaction_datetime(rpc_transaction);
 
         let transaction = Transaction {
-            is_a_parrot: true,
             signer: signer,
             ubo: ubo.to_string(),
             block_timestamp: rpc_transaction.block_time.unwrap(),

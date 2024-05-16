@@ -1,11 +1,12 @@
+use std::clone;
+
 use chrono::DateTime;
 use serde_json::{json, Value};
 
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Transaction {
-    pub is_a_parrot: bool,
     // rpc_data: &'a EncodedConfirmedTransactionWithStatusMeta,
     pub signer: String,
     pub ubo: String,
@@ -59,7 +60,6 @@ impl Transaction {
             .to_rfc3339();
 
         let transaction = Transaction {
-            is_a_parrot: true,
             signer: signer,
             ubo: ubo.to_string(),
             block_timestamp: block_time,

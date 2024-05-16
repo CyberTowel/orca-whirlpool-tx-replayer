@@ -14,11 +14,12 @@ use crate::{
 
 #[derive(Debug)]
 pub enum RpcErrorCustom {
-    BlockNotFoundError, // {
-                        //     code: i64,
-                        //     message: String,
-                        //     data: String,
-                        // },
+    BlockNotFoundError,
+    // {
+    //     code: i64,
+    //     message: String,
+    //     data: String,
+    // },
 }
 
 pub async fn parse_block(

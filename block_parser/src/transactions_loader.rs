@@ -1,5 +1,6 @@
 use chrono::prelude::*;
 use moka::future::Cache;
+use num_bigfloat::E;
 use rust_decimal::Decimal;
 use serde_json::json;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
@@ -23,6 +24,10 @@ use crate::{
 pub fn testing_nested() {
     println!("Testing nested");
 }
+#[derive(Debug)]
+pub struct TransactionError {
+    pub message: String,
+}
 
 pub async fn get_transction(
     signature: String,
@@ -30,7 +35,7 @@ pub async fn get_transction(
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
     my_cache: Cache<String, Option<PoolMeta>>,
-) {
+) -> Result<transaction::Transaction, TransactionError> {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
         commitment: Some(CommitmentConfig::finalized()),
@@ -46,7 +51,9 @@ pub async fn get_transction(
             "Error in transaction: {:#?} {:#?}",
             signature, transaction_req
         );
-        return;
+        return Err(TransactionError {
+            message: "Error in transaction".to_string(),
+        });
     }
 
     let confirmed_tx = transaction_req.unwrap();
@@ -72,7 +79,11 @@ pub async fn get_transction(
         block_number,
         None,
     )
-    .await;
+    .await
+}
+
+pub enum Error {
+    Msg(String),
 }
 
 pub async fn init(
@@ -86,7 +97,7 @@ pub async fn init(
     block_time: i64,
     block_number: u64,
     sol_price_18: Option<Decimal>,
-) {
+) -> Result<transaction::Transaction, TransactionError> {
     // let sol_price_db =
 
     // std::thread::sleep(std::time::Duration::from_secs(10));
@@ -156,16 +167,17 @@ pub async fn init(
         }
     };
 
+    let transaction_parsed = transaction::Transaction::new(transaction, block_time, block_number);
+
     if pool_id_to_get_opt.is_none() {
         // println!("Pool id to get is none for signature: {}", signature);
-        return;
+        return Ok(transaction_parsed);
+        // return Err(Error::Msg("Error in transaction".to_string()));
     }
 
     let pool_id_to_get = pool_id_to_get_opt.unwrap();
 
     let pool_id_clone = pool_id_to_get.clone();
-
-    // let pool_meta = get_pool_meta(&pool_id_to_get, rpc_connection);
 
     let pool_info_cache = my_cache.get(&pool_id_to_get).await;
 
@@ -249,19 +261,19 @@ pub async fn init(
 
     if !pool_meta_req.is_some() {
         // println!("Error getting pool meta for pool {}", pool_id_clone);
-        return;
+        return Ok(transaction_parsed);
     }
 
     let pool_meta_opt = pool_meta_req.unwrap();
 
     if !pool_meta_opt.is_some() {
         // println!("Error getting pool meta for pool opt {}", pool_id_clone);
-        return;
+        return Ok(transaction_parsed);
     }
 
     let pool_meta = pool_meta_opt.unwrap();
 
-    let transaction_parsed = transaction::Transaction::new(transaction, block_time, block_number);
+    let transaction_parsed_meta = transaction_parsed.clone();
 
     let sol_price_db = if sol_price_18.is_some() {
         sol_price_18.unwrap()
@@ -270,14 +282,14 @@ pub async fn init(
         println!("get sol price per transaction");
 
         db_client
-            .get_usd_price_sol(transaction_parsed.datetime)
+            .get_usd_price_sol(transaction_parsed_meta.datetime)
             .unwrap()
     };
 
     let token_amounts_req = get_token_amounts(
         &transaction,
-        &transaction_parsed.account_keys,
-        &transaction_parsed.ubo,
+        &transaction_parsed_meta.account_keys,
+        &transaction_parsed_meta.ubo,
         &pool_meta.quote_mint.to_string(),
         &pool_meta.base_mint.to_string(),
         &pool_meta.quote_vault.to_string(),
@@ -289,7 +301,7 @@ pub async fn init(
 
     if token_amounts_req.is_none() {
         // println!("Error getting token amounts for pool {}", pool_id_to_get);
-        return;
+        return Ok(transaction_parsed);
     }
 
     let token_amounts = token_amounts_req.unwrap();
@@ -321,7 +333,7 @@ pub async fn init(
         .to_rfc3339();
 
     if transactions_meta.err.is_some() {
-        return;
+        return Ok(transaction_parsed);
     }
 
     let price_item_to_save = PriceItem {
@@ -374,8 +386,8 @@ pub async fn init(
     let reponse = db_client.save_token_values(price_item_to_save);
 
     let tpo_values_a = parse_token_price_oracle_values(
-        transaction_parsed.ubo.to_string(),
-        transaction_parsed.signer.to_string(),
+        transaction_parsed_meta.ubo.to_string(),
+        transaction_parsed_meta.signer.to_string(),
         pool_id_clone.to_string(),
         pool_meta.base_mint.to_string(),
         &token_amounts.token_amounts_quote,
@@ -384,8 +396,8 @@ pub async fn init(
     );
 
     let tpo_values_b = parse_token_price_oracle_values(
-        transaction_parsed.ubo.to_string(),
-        transaction_parsed.signer.to_string(),
+        transaction_parsed_meta.ubo.to_string(),
+        transaction_parsed_meta.signer.to_string(),
         pool_id_clone.to_string(),
         pool_meta.quote_mint.to_string(),
         &token_amounts.token_amounts_base,
@@ -414,6 +426,8 @@ pub async fn init(
     if reponse.is_err() {
         println!("Error saving to db: {:#?}", reponse);
     }
+
+    return Ok(transaction_parsed);
 
     // println!("done")
 
