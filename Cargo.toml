@@ -1,8 +1,8 @@
 [workspace]
 members = [
   "raydium_amm_saver",
-  "raydium-amm-listener"
-, "block_parser",
+  "raydium-amm-listener", 
+  "block_parser",
 "helpers", "warp-webserver"]
 
 resolver = "2"
