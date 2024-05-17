@@ -13,7 +13,7 @@ solana-account-decoder = "=1.16.18"
 deadpool = {version = "0.10.0"}
 async-trait = "0.1.79"
 chrono = "0.4.35"
-num-bigfloat = "1.7.1"
+num-bigfloat = {version = "1.7.1", features=["serde"]}
 serde_json = "1.0.115"
 serde = "1.0.197"
 num = "0.4.1"

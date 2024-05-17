@@ -12,7 +12,8 @@ use std::{str::FromStr, sync::Arc};
 
 use tokio_postgres::{Error as TPError, NoTls};
 
-use crate::token_parser::{PriceItem, TokenPriceOracleValues};
+use crate::interfaces::PriceItem;
+use crate::token_parser::TokenPriceOracleValues;
 
 // use crate::token_parser::TokenPriceOracleValues;
 // use tokio_postgres::types::Json;

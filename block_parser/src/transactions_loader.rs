@@ -1,4 +1,4 @@
-use crate::interfaces::Transaction;
+use crate::interfaces::{PriceItem, TransactionBase, TransactionParsed};
 use chrono::prelude::*;
 use moka::future::Cache;
 use num_bigfloat::E;
@@ -17,7 +17,7 @@ use crate::{
     token_db::TokenDbClient,
     token_parser::{
         get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
-        PoolMeta, PriceItem,
+        PoolMeta,
     },
     transaction,
 };
@@ -36,7 +36,7 @@ pub async fn get_transction(
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
     my_cache: Cache<String, Option<PoolMeta>>,
-) -> Result<Transaction, TransactionError> {
+) -> Result<TransactionParsed, TransactionError> {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
         commitment: Some(CommitmentConfig::finalized()),
@@ -68,7 +68,7 @@ pub async fn get_transction(
     let block_time = confirmed_tx.block_time.unwrap();
     let block_number = confirmed_tx.slot;
 
-    init(
+    get_parsed_transaction(
         signature,
         pool_id,
         rpc_connection,
@@ -87,7 +87,7 @@ pub enum Error {
     Msg(String),
 }
 
-pub async fn init(
+pub async fn parse_transaction_and_save_values(
     signature: String,
     pool_id: Option<String>,
     _rpc_connection: &RpcClient,
@@ -98,7 +98,33 @@ pub async fn init(
     block_time: i64,
     block_number: u64,
     sol_price_18: Option<Decimal>,
-) -> Result<Transaction, TransactionError> {
+) {
+    let transaction_parsed = get_parsed_transaction(
+        signature,
+        pool_id,
+        _rpc_connection,
+        rpc_connection_build,
+        db_client,
+        my_cache,
+        transaction,
+        block_time,
+        block_number,
+        sol_price_18,
+    );
+}
+
+pub async fn get_parsed_transaction(
+    signature: String,
+    pool_id: Option<String>,
+    _rpc_connection: &RpcClient,
+    rpc_connection_build: &RpcClient,
+    db_client: &TokenDbClient,
+    my_cache: &Cache<String, Option<PoolMeta>>,
+    transaction: &EncodedTransactionWithStatusMeta,
+    block_time: i64,
+    block_number: u64,
+    sol_price_18: Option<Decimal>,
+) -> Result<TransactionParsed, TransactionError> {
     // let sol_price_db =
 
     // std::thread::sleep(std::time::Duration::from_secs(10));
@@ -168,9 +194,10 @@ pub async fn init(
         }
     };
 
-    let transaction_parsed = Transaction::new(transaction, block_time, block_number);
+    let transaction_base = TransactionBase::new(transaction, block_time, block_number);
 
     if pool_id_to_get_opt.is_none() {
+        let transaction_parsed = parse_base_to_parsed(transaction_base, None);
         // println!("Pool id to get is none for signature: {}", signature);
         return Ok(transaction_parsed);
         // return Err(Error::Msg("Error in transaction".to_string()));
@@ -262,26 +289,24 @@ pub async fn init(
 
     if !pool_meta_req.is_some() {
         // println!("Error getting pool meta for pool {}", pool_id_clone);
-        return Ok(transaction_parsed);
+        return Ok(parse_base_to_parsed(transaction_base, None));
     }
 
     let pool_meta_opt = pool_meta_req.unwrap();
 
     if !pool_meta_opt.is_some() {
         // println!("Error getting pool meta for pool opt {}", pool_id_clone);
-        return Ok(transaction_parsed);
+        return Ok(parse_base_to_parsed(transaction_base, None));
     }
 
     let pool_meta = pool_meta_opt.unwrap();
 
-    let transaction_parsed_meta = transaction_parsed.clone();
+    let transaction_parsed_meta = transaction_base.clone();
 
     let sol_price_db = if sol_price_18.is_some() {
         sol_price_18.unwrap()
         // println!("Sol price 18: {:#?}", sol_price_18.unwrap().to_string());
     } else {
-        println!("get sol price per transaction");
-
         db_client
             .get_usd_price_sol(transaction_parsed_meta.block_datetime)
             .unwrap()
@@ -302,7 +327,7 @@ pub async fn init(
 
     if token_amounts_req.is_none() {
         // println!("Error getting token amounts for pool {}", pool_id_to_get);
-        return Ok(transaction_parsed);
+        return Ok(parse_base_to_parsed(transaction_base, None));
     }
 
     let token_amounts = token_amounts_req.unwrap();
@@ -329,12 +354,12 @@ pub async fn init(
         // pool_state.base_decimal,
     );
 
-    let datetime = DateTime::from_timestamp(transaction_parsed.block_timestamp, 0)
+    let datetime = DateTime::from_timestamp(transaction_base.block_timestamp, 0)
         .unwrap()
         .to_rfc3339();
 
     if transactions_meta.err.is_some() {
-        return Ok(transaction_parsed);
+        return Ok(parse_base_to_parsed(transaction_base, None));
     }
 
     let price_item_to_save = PriceItem {
@@ -353,11 +378,11 @@ pub async fn init(
         token_trade_price_in_token_quote_fixed: token_prices.token_trade_price_in_token_quote_fixed,
 
         datetime: datetime,
-        signer: transaction_parsed.signer.to_string(),
-        ubo: transaction_parsed.ubo.to_string(),
+        signer: transaction_base.signer.to_string(),
+        ubo: transaction_base.ubo.to_string(),
         pool_address: pool_id_clone.clone(),
         usd_total_pool: swap_token_amounts_priced.usd_total_pool_18,
-        block_number: transaction_parsed.block_number.to_string(),
+        block_number: transaction_base.block_number.to_string(),
     };
 
     // println!("item_to_save: {:#?}", item_to_save);
@@ -427,6 +452,8 @@ pub async fn init(
     if reponse.is_err() {
         println!("Error saving to db: {:#?}", reponse);
     }
+
+    let transaction_parsed = parse_base_to_parsed(transaction_base, Some(_price_item_c));
 
     return Ok(transaction_parsed);
 
@@ -499,4 +526,31 @@ fn find_raydium_inner_instruction(
     };
 
     inner_instruction_accounts
+}
+
+fn parse_base_to_parsed(
+    transaction_base: TransactionBase,
+    _price_item_c: Option<PriceItem>,
+) -> TransactionParsed {
+    let transaction_parsed = TransactionParsed {
+        signer: transaction_base.signer,
+        ubo: transaction_base.ubo,
+        block_timestamp: transaction_base.block_timestamp,
+        block_datetime: transaction_base.block_datetime,
+        hash: transaction_base.hash,
+        addresses: transaction_base.addresses,
+        block_number: transaction_base.block_number,
+        chain_id: transaction_base.chain_id,
+        from: transaction_base.from,
+        to: transaction_base.to,
+        state: transaction_base.state,
+        description: transaction_base.description,
+        spam_transaction: transaction_base.spam_transaction,
+        contract_address: transaction_base.contract_address,
+        fees: transaction_base.fees,
+        fees_total: transaction_base.fees_total,
+        token_prices: _price_item_c,
+    };
+
+    return transaction_parsed;
 }

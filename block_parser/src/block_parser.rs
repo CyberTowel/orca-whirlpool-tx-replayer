@@ -8,8 +8,10 @@ use solana_sdk::commitment_config::CommitmentConfig;
 use solana_transaction_status::UiTransactionEncoding;
 
 use crate::{
-    rpc_pool_manager::RpcPoolManager, token_db::DbClientPoolManager, token_parser::PoolMeta,
-    transactions_loader::init,
+    rpc_pool_manager::RpcPoolManager,
+    token_db::DbClientPoolManager,
+    token_parser::PoolMeta,
+    transactions_loader::{get_parsed_transaction, parse_transaction_and_save_values},
 };
 
 #[derive(Debug)]
@@ -155,7 +157,7 @@ pub async fn parse_block(
         let cache_clone = my_cache.clone();
 
         tokio::spawn(async move {
-            init(
+            parse_transaction_and_save_values(
                 signature,
                 None,
                 &rpc_conn,

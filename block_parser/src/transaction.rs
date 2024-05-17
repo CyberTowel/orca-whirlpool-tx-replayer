@@ -1,16 +1,16 @@
 use std::clone;
 
-use crate::interfaces::{Transaction, TransactionDescription};
+use crate::interfaces::{TransactionBase, TransactionDescription};
 use chrono::DateTime;
 use serde_json::{json, Value};
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
-impl Transaction {
+impl TransactionBase {
     pub fn new(
         rpc_transaction: &EncodedTransactionWithStatusMeta,
         block_time: i64,
         block_number: u64,
-    ) -> Transaction {
+    ) -> TransactionBase {
         // let token_a_address: &str = "So11111111111111111111111111111111111111112";
         // let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
 
@@ -59,7 +59,7 @@ impl Transaction {
 
         let fee = transaction_clone_fees.meta.unwrap().fee;
 
-        let transaction = Transaction {
+        let transaction = TransactionBase {
             signer: signer,
             ubo: ubo.to_string(),
             from: singer_c,

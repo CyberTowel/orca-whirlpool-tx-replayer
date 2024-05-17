@@ -74,31 +74,6 @@ pub struct UsdMultiplierResult {
     pub amount_18_rounded: BigFloat,
 }
 
-#[derive(Debug, Clone)]
-pub struct PriceItem {
-    pub signature: String,
-    pub token_quote_address: String,
-    pub token_base_address: String,
-
-    pub token_new_price_18: BigFloat,
-    pub token_new_price_in_token_quote_18: BigFloat,
-    pub token_new_price_fixed: BigFloat,
-    pub token_new_price_in_token_quote_fixed: BigFloat,
-
-    pub token_trade_price_18: BigFloat,
-    pub token_trade_price_in_token_quote_18: BigFloat,
-    pub token_trade_price_fixed: BigFloat,
-    pub token_trade_price_in_token_quote_fixed: BigFloat,
-
-    pub usd_total_pool: BigFloat,
-
-    pub datetime: String,
-    pub signer: String,
-    pub ubo: String,
-    pub pool_address: String,
-    pub block_number: String,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenPriceOracleValues {
     pub ubo: String,
@@ -743,4 +718,18 @@ pub fn parse_token_price_oracle_values(
     };
 
     return tpo_values_a;
+}
+
+pub fn get_rounded_amount(amount: BigFloat, decimals: usize) -> String {
+    let amount_rounded = amount.round(decimals, RoundingMode::ToOdd);
+
+    let amount = amount_rounded.to_f64();
+
+    // if amount.is_none() {
+    //     return amount_rounded.to_string();
+    // }
+
+    let value = amount.to_string();
+
+    return value;
 }
