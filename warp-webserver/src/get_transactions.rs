@@ -55,7 +55,5 @@ pub async fn handler(
 
     let transaction = testing.unwrap();
 
-    println!("testing {:#?}", transaction);
-    // Use the connection...
     Ok(warp::reply::json(&transaction))
 }
