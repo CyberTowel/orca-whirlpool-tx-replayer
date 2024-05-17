@@ -1,4 +1,5 @@
 pub mod block_parser;
+pub mod interfaces;
 mod pool_state;
 pub mod rpc_pool_manager;
 pub mod token_db;
@@ -12,7 +13,6 @@ pub fn add(signature: String) {
 
 #[cfg(test)]
 mod tests {
-    
 
     // #[test]
     // pub fn it_works() {

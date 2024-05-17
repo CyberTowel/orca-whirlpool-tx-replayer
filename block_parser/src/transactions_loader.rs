@@ -1,3 +1,4 @@
+use crate::interfaces::Transaction;
 use chrono::prelude::*;
 use moka::future::Cache;
 use num_bigfloat::E;
@@ -35,7 +36,7 @@ pub async fn get_transction(
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
     my_cache: Cache<String, Option<PoolMeta>>,
-) -> Result<transaction::Transaction, TransactionError> {
+) -> Result<Transaction, TransactionError> {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
         commitment: Some(CommitmentConfig::finalized()),
@@ -97,7 +98,7 @@ pub async fn init(
     block_time: i64,
     block_number: u64,
     sol_price_18: Option<Decimal>,
-) -> Result<transaction::Transaction, TransactionError> {
+) -> Result<Transaction, TransactionError> {
     // let sol_price_db =
 
     // std::thread::sleep(std::time::Duration::from_secs(10));
@@ -167,7 +168,7 @@ pub async fn init(
         }
     };
 
-    let transaction_parsed = transaction::Transaction::new(transaction, block_time, block_number);
+    let transaction_parsed = Transaction::new(transaction, block_time, block_number);
 
     if pool_id_to_get_opt.is_none() {
         // println!("Pool id to get is none for signature: {}", signature);
@@ -282,13 +283,13 @@ pub async fn init(
         println!("get sol price per transaction");
 
         db_client
-            .get_usd_price_sol(transaction_parsed_meta.datetime)
+            .get_usd_price_sol(transaction_parsed_meta.block_datetime)
             .unwrap()
     };
 
     let token_amounts_req = get_token_amounts(
         &transaction,
-        &transaction_parsed_meta.account_keys,
+        &transaction_parsed_meta.addresses,
         &transaction_parsed_meta.ubo,
         &pool_meta.quote_mint.to_string(),
         &pool_meta.base_mint.to_string(),

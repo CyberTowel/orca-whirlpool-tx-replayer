@@ -1,23 +1,9 @@
 use std::clone;
 
+use crate::interfaces::{Transaction, TransactionDescription};
 use chrono::DateTime;
 use serde_json::{json, Value};
-
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Transaction {
-    // rpc_data: &'a EncodedConfirmedTransactionWithStatusMeta,
-    pub signer: String,
-    pub ubo: String,
-    pub block_timestamp: i64,
-    pub datetime: String,
-    // pub token_amounts: TokenAmounts,
-    // pub token_a_address: String,
-    // pub token_b_address: String,
-    pub account_keys: Vec<Value>,
-    pub block_number: u64,
-}
 
 impl Transaction {
     pub fn new(
@@ -31,7 +17,15 @@ impl Transaction {
         let v = json!(rpc_transaction.transaction);
         let account_keys = v["message"]["accountKeys"].as_array().unwrap();
 
+        let transaction_clone_fees = rpc_transaction.clone();
+
         let signer = find_signer(account_keys);
+
+        let testing = account_keys
+            .to_vec()
+            .iter()
+            .map(|value| value["pubkey"].as_str().unwrap().to_string())
+            .collect::<Vec<String>>();
 
         let instructions = v["message"]["instructions"].as_array().unwrap();
 
@@ -59,15 +53,37 @@ impl Transaction {
             .unwrap()
             .to_rfc3339();
 
+        let signature = json!(rpc_transaction.transaction);
+
+        let _signature = signature["signatures"][0].as_str().unwrap().to_string();
+
+        let fee = transaction_clone_fees.meta.unwrap().fee;
+
         let transaction = Transaction {
             signer: signer,
             ubo: ubo.to_string(),
+            from: singer_c,
             block_timestamp: block_time,
-            datetime: datetime,
+            block_datetime: datetime,
+            hash: _signature,
+
             // token_a_address: token_a_address.to_string(),
             // token_b_address: token_b_address.to_string(),
-            account_keys: account_keys.clone(),
+            to: None,
+            addresses: testing.clone(),
             block_number: block_number,
+            chain_id: 10001,
+            state: "parsed".to_string(),
+            description: TransactionDescription {
+                title: "todo".to_string(),
+                subtitle: "todo".to_string(),
+                emoji: "📈".to_string(),
+                transaction_type: "todo".to_string(),
+            },
+            spam_transaction: false,
+            contract_address: Vec::new(),
+            fees: Vec::new(),
+            fees_total: fee,
             // token_amounts: token_amounts,
         };
 

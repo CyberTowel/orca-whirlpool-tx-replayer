@@ -5,10 +5,7 @@ use num_bigfloat::{BigFloat, RoundingMode};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use solana_sdk::pubkey::Pubkey;
-use solana_transaction_status::{
-    EncodedTransactionWithStatusMeta,
-    UiTransactionTokenBalance,
-};
+use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::{collections::HashMap, str::FromStr};
 
 #[derive(Debug)]
@@ -142,7 +139,7 @@ pub struct PoolMeta {
 
 pub fn get_token_amounts(
     rpc_transaction: &EncodedTransactionWithStatusMeta,
-    account_keys: &Vec<Value>,
+    account_keys: &Vec<String>,
     ubo: &str,
     quote_mint_address: &str,
     base_mint_address: &str,
@@ -243,7 +240,7 @@ pub fn get_token_amounts(
 
 pub fn parse_balance_changes(
     transaction: &EncodedTransactionWithStatusMeta,
-    account_keys: &Vec<Value>,
+    account_keys: &Vec<String>,
 ) -> (
     HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>,
     HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>,
@@ -272,13 +269,13 @@ pub fn parse_balance_changes(
 
         let index_usize = balance.account_index.to_usize().unwrap();
 
-        let pub_key_token_address = account_keys[index_usize]["pubkey"].as_str().unwrap();
+        let pub_key_token_address = account_keys[index_usize].clone();
 
         let owner_entry = changes_by_owner.entry(owner_address.clone());
         let token_entry = owner_entry.or_default().entry(mint.clone());
 
         let token_account_address_entry =
-            changes_by_token_account_address.entry(pub_key_token_address.to_string());
+            changes_by_token_account_address.entry(pub_key_token_address);
 
         let token_entry_token_account_address =
             token_account_address_entry.or_default().entry(mint.clone());
@@ -314,7 +311,7 @@ pub fn parse_balance_changes(
         let _owner_address_c = owner_address.clone();
 
         let index_usize = balance.account_index.to_usize().unwrap();
-        let pub_key_token_address = account_keys[index_usize]["pubkey"].as_str().unwrap();
+        let pub_key_token_address = account_keys[index_usize].clone();
 
         let owner_entry = changes_by_owner.entry(owner_address);
         let token_entry = owner_entry.or_default().entry(mint.clone());
@@ -339,8 +336,8 @@ pub fn parse_balance_changes(
             existing_entry_token_account.balance_post - amount_bf;
     }
 
-    for (index, account_key) in account_keys.iter().enumerate() {
-        let pubkey = account_key["pubkey"].as_str().unwrap();
+    for (index, pubkey) in account_keys.iter().enumerate() {
+        // let pubkey = account_key["pubkey"].as_str().unwrap();
 
         let pre = BigFloat::from_u64(pre_balances[index]);
         let post = BigFloat::from_u64(post_balances[index]);
