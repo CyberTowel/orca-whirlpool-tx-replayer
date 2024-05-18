@@ -8,17 +8,19 @@ use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::{collections::HashMap, str::FromStr};
 
+use crate::interfaces::{BalanceChange, TransactionBase};
+
 #[derive(Debug)]
 pub enum Error {}
 
-#[derive(Default, Debug, Clone)]
-pub struct BalanceChange {
-    pub owner: String,
-    pub mint: String,
-    pub balance_pre: BigFloat,
-    pub balance_post: BigFloat,
-    pub difference: BigFloat,
-}
+// #[derive(Default, Debug, Clone)]
+// pub struct BalanceChange {
+//     pub owner: String,
+//     pub mint: String,
+//     pub balance_pre: BigFloat,
+//     pub balance_post: BigFloat,
+//     pub difference: BigFloat,
+// }
 
 #[derive(Default, Debug, Clone)]
 pub struct TokenPriceResult {
@@ -113,7 +115,7 @@ pub struct PoolMeta {
 }
 
 pub fn get_token_amounts(
-    rpc_transaction: &EncodedTransactionWithStatusMeta,
+    transaction_base: &TransactionBase,
     account_keys: &Vec<String>,
     ubo: &str,
     quote_mint_address: &str,
@@ -123,14 +125,20 @@ pub fn get_token_amounts(
     quote_decimal: u64,
     base_decimal: u64,
 ) -> Option<TokenAmountsSwap> {
-    let (token_changes_by_wallet, changes_by_token_account_address) =
-        parse_balance_changes(rpc_transaction, account_keys);
+    // let (token_changes_by_wallet, changes_by_token_account_address) =
+    //     parse_balance_changes(rpc_transaction, account_keys);
 
-    let token_changes_ubo = token_changes_by_wallet.get(ubo).unwrap();
+    // transaction_base.changes_by_token_account_address
 
-    let token_changes_pool_new_a_req = changes_by_token_account_address.get(quote_vault_address);
+    let token_changes_ubo = transaction_base.changes_by_owner.get(ubo).unwrap();
 
-    let token_changes_pool_new_b_req = changes_by_token_account_address.get(base_vault_address);
+    let token_changes_pool_new_a_req = transaction_base
+        .changes_by_token_account_address
+        .get(quote_vault_address);
+
+    let token_changes_pool_new_b_req = transaction_base
+        .changes_by_token_account_address
+        .get(base_vault_address);
 
     if token_changes_pool_new_a_req.is_none() {
         return None;

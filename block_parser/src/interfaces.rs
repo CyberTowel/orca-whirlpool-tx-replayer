@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use num_bigfloat::BigFloat;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -12,6 +14,11 @@ pub struct TransactionDescription {
 pub struct TransactionFees {
     pub amount: String,
     pub fee_type: String,
+}
+
+pub enum ParsedTransaction {
+    Parsed(TransactionParsed),
+    ParsedResponse(TransactionParsedResponse),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -32,6 +39,8 @@ pub struct TransactionBase {
     pub contract_address: Vec<String>,
     pub fees: Vec<TransactionFees>,
     pub fees_total: u64,
+    pub changes_by_owner: HashMap<String, HashMap<String, BalanceChange>>,
+    pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChange>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -53,6 +62,9 @@ pub struct TransactionParsed {
     pub fees: Vec<TransactionFees>,
     pub fees_total: u64,
     pub token_prices: Option<PriceItem>,
+    pub changes_by_owner: HashMap<String, HashMap<String, BalanceChange>>,
+    pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChange>>,
+    pub actions: Vec<Action>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -74,6 +86,8 @@ pub struct TransactionParsedResponse {
     pub fees: Vec<TransactionFees>,
     pub fees_total: u64,
     pub token_prices: Option<Vec<PriceItemResponse>>,
+    // pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChangedFormatted>>, // pub actions: Vec<Action>,
+    pub changes_by_owner_formatted: HashMap<String, HashMap<String, BalanceChangedFormatted>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -102,6 +116,11 @@ pub struct PriceItem {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Action {
+    action_type: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PriceItemResponse {
     pub token_quote_address: String,
     pub token_base_address: String,
@@ -117,4 +136,22 @@ pub struct PriceItemResponse {
 
     pub usd_total_pool_18: String,
     pub pool_address: String,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BalanceChange {
+    pub owner: String,
+    pub mint: String,
+    pub balance_pre: BigFloat,
+    pub balance_post: BigFloat,
+    pub difference: BigFloat,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BalanceChangedFormatted {
+    pub owner: String,
+    pub mint: String,
+    pub balance_pre: String,
+    pub balance_post: String,
+    pub difference: String,
 }

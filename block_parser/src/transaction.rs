@@ -1,9 +1,18 @@
-use std::clone;
+use std::collections::HashMap;
 
-use crate::interfaces::{TransactionBase, TransactionDescription};
+use crate::{
+    interfaces::{
+        BalanceChange, TransactionBase, TransactionDescription, TransactionParsedResponse,
+    },
+    token_parser::parse_balance_changes,
+};
 use chrono::DateTime;
 use serde_json::{json, Value};
-use solana_transaction_status::EncodedTransactionWithStatusMeta;
+use solana_sdk::transaction;
+use solana_transaction_status::{
+    option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta,
+    UiTransactionTokenBalance,
+};
 
 impl TransactionBase {
     pub fn new(
@@ -18,6 +27,9 @@ impl TransactionBase {
         let account_keys = v["message"]["accountKeys"].as_array().unwrap();
 
         let transaction_clone_fees = rpc_transaction.clone();
+        let transaction_clone_meta = rpc_transaction.clone();
+
+        let transaction_meta = transaction_clone_fees.meta.unwrap();
 
         let signer = find_signer(account_keys);
 
@@ -57,7 +69,15 @@ impl TransactionBase {
 
         let _signature = signature["signatures"][0].as_str().unwrap().to_string();
 
-        let fee = transaction_clone_fees.meta.unwrap().fee;
+        let fee = transaction_meta.fee;
+
+        // let token_changes = rpc_transaction.met
+
+        // println!("{:?}", changes_by_owner);
+        // println!("{:?}", changes_by_token_account_address);
+
+        let (changes_by_owner, changes_by_token_account_address) =
+            parse_balance_changes(&transaction_clone_meta, &testing.clone());
 
         let transaction = TransactionBase {
             signer: signer,
@@ -84,40 +104,45 @@ impl TransactionBase {
             contract_address: Vec::new(),
             fees: Vec::new(),
             fees_total: fee,
+            changes_by_owner: changes_by_owner,
+            changes_by_token_account_address: changes_by_token_account_address,
             // token_amounts: token_amounts,
         };
 
         return transaction;
-    }
-}
 
-fn find_signer(account_keys: &Vec<Value>) -> String {
-    let mut signer: String = "".to_string();
+        // pub fn parse_transaction_actions(&self) {
+        //     // let actions = parse_token_changes_to_swaps(self);
+        //     // let token_a_address
+        // }
 
-    for item in account_keys {
-        let is_signer = item["signer"].as_bool().unwrap();
+        pub fn find_signer(account_keys: &Vec<Value>) -> String {
+            let mut signer: String = "".to_string();
 
-        if is_signer {
-            signer = item["pubkey"].as_str().unwrap().to_string();
-            break;
+            for item in account_keys {
+                let is_signer = item["signer"].as_bool().unwrap();
+
+                if is_signer {
+                    signer = item["pubkey"].as_str().unwrap().to_string();
+                    break;
+                }
+            }
+
+            return signer;
         }
     }
 
-    return signer;
+    // fn get_transaction_datetime(transaction: &EncodedTransactionWithStatusMeta) -> String {
+    //     let transaction_datetime = DateTime::from_timestamp(transaction.block_time.unwrap(), 0)
+    //         .unwrap()
+    //         .to_rfc3339();
+
+    //     return transaction_datetime;
+    // }
+
+    // pub fn parse_pool_create_instruction(){
+
+    //     let mut testing;
+
+    //     for item in
 }
-
-// fn get_transaction_datetime(transaction: &EncodedTransactionWithStatusMeta) -> String {
-//     let transaction_datetime = DateTime::from_timestamp(transaction.block_time.unwrap(), 0)
-//         .unwrap()
-//         .to_rfc3339();
-
-//     return transaction_datetime;
-// }
-
-// pub fn parse_pool_create_instruction(){
-
-//     let mut testing;
-
-//     for item in
-
-// }

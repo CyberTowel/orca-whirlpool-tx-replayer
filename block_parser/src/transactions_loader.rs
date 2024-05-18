@@ -196,6 +196,8 @@ pub async fn get_parsed_transaction(
 
     let transaction_base = TransactionBase::new(transaction, block_time, block_number);
 
+    // let actions = TransactionBase::parse_transaction_actions(&transaction_base);
+
     if pool_id_to_get_opt.is_none() {
         let transaction_parsed = parse_base_to_parsed(transaction_base, None);
         // println!("Pool id to get is none for signature: {}", signature);
@@ -313,7 +315,7 @@ pub async fn get_parsed_transaction(
     };
 
     let token_amounts_req = get_token_amounts(
-        &transaction,
+        &transaction_base,
         &transaction_parsed_meta.addresses,
         &transaction_parsed_meta.ubo,
         &pool_meta.quote_mint.to_string(),
@@ -550,6 +552,9 @@ fn parse_base_to_parsed(
         fees: transaction_base.fees,
         fees_total: transaction_base.fees_total,
         token_prices: _price_item_c,
+        changes_by_owner: transaction_base.changes_by_owner,
+        changes_by_token_account_address: transaction_base.changes_by_token_account_address,
+        actions: Vec::new(),
     };
 
     return transaction_parsed;
