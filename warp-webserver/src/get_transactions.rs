@@ -167,7 +167,7 @@ fn parse_parsed_to_formatted(transaction_parsed: TransactionParsed) -> Transacti
         fees: transaction_parsed.fees,
         fees_total: transaction_parsed.fees_total,
         token_prices: token_prices_response,
-        changes_by_owner_formatted: changes_by_owner_formatted,
+        token_changes_owner: changes_by_owner_formatted,
         // changes_by_token_account_address: changes_by_token_account_address_formatted,
     };
 

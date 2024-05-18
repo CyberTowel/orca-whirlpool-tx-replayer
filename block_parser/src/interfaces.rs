@@ -87,7 +87,7 @@ pub struct TransactionParsedResponse {
     pub fees_total: u64,
     pub token_prices: Option<Vec<PriceItemResponse>>,
     // pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChangedFormatted>>, // pub actions: Vec<Action>,
-    pub changes_by_owner_formatted: HashMap<String, HashMap<String, BalanceChangedFormatted>>,
+    pub token_changes_owner: HashMap<String, HashMap<String, BalanceChangedFormatted>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
