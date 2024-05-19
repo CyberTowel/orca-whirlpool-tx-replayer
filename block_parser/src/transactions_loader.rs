@@ -71,7 +71,7 @@ pub async fn get_transction(
     let block_time = confirmed_tx.block_time.unwrap();
     let block_number = confirmed_tx.slot;
 
-    let transaction_base = CtTransaction::new(&transaction, block_time, block_number);
+    let _transaction_base = CtTransaction::new(&transaction, block_time, block_number);
 
     get_parsed_transaction(
         signature,

@@ -1,14 +1,13 @@
-use std::collections::HashMap;
+
 
 use moka::future::Cache;
 use warp::Reply;
 
 use crate::User;
 use block_parser::{
-    interfaces::{BalanceChangedFormatted, PriceItemResponse},
     rpc_pool_manager::RpcPool,
     token_db::DbPool,
-    token_parser::{get_rounded_amount, PoolMeta},
+    token_parser::{PoolMeta},
     transactions_loader,
 };
 

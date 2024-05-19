@@ -7,7 +7,7 @@ use crate::{
         // TransactionParsed,
         // TransactionParsedResponse,
     },
-    token_parser::{parse_balance_changes, BalanceHolder},
+    token_parser::{BalanceHolder},
 };
 use chrono::DateTime;
 use serde_json::{json, Value};
@@ -22,7 +22,7 @@ pub mod innner_test {
     use crate::{
         interfaces::{BalanceChangedFormatted, TokenChanges, TokenChangesMapFormatted},
         token_parser::{
-            get_rounded_amount, parse_balance_changes, parse_balance_changes_new, BalanceHolder,
+            get_rounded_amount, parse_balance_changes_new, BalanceHolder,
         },
     };
 
