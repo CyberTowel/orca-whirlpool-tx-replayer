@@ -3,6 +3,18 @@ use std::collections::HashMap;
 use num_bigfloat::BigFloat;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TokenChanges {
+    pub values: TokenChangesMap,
+    // pub by_token_account: MappedTokenChanges,
+}
+
+pub type TokenChangesMap =
+    HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>;
+
+pub type TokenChangesMapFormatted =
+    HashMap<std::string::String, HashMap<std::string::String, BalanceChangedFormatted>>;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TransactionDescription {
     pub title: String,
     pub subtitle: String,
@@ -16,13 +28,8 @@ pub struct TransactionFees {
     pub fee_type: String,
 }
 
-pub enum ParsedTransaction {
-    Parsed(TransactionParsed),
-    ParsedResponse(TransactionParsedResponse),
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TransactionBase {
+pub struct CtTransaction {
     pub signer: String,
     pub ubo: String,
     pub block_timestamp: i64,
@@ -39,33 +46,16 @@ pub struct TransactionBase {
     pub contract_address: Vec<String>,
     pub fees: Vec<TransactionFees>,
     pub fees_total: u64,
-    pub changes_by_owner: HashMap<String, HashMap<String, BalanceChange>>,
-    pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChange>>,
+    // pub changes_by_owner: HashMap<String, HashMap<String, BalanceChange>>,
+    pub token_changes_token_account: TokenChanges,
+    pub token_changes_owner: TokenChanges,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TransactionParsed {
-    pub signer: String,
-    pub ubo: String,
-    pub block_timestamp: i64,
-    pub block_datetime: String,
-    pub hash: String,
-    pub addresses: Vec<String>,
-    pub block_number: u64,
-    pub chain_id: i16,
-    pub from: String,
-    pub to: Option<String>,
-    pub state: String,
-    pub description: TransactionDescription,
-    pub spam_transaction: bool,
-    pub contract_address: Vec<String>,
-    pub fees: Vec<TransactionFees>,
-    pub fees_total: u64,
-    pub token_prices: Option<PriceItem>,
-    pub changes_by_owner: HashMap<String, HashMap<String, BalanceChange>>,
-    pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChange>>,
-    pub actions: Vec<Action>,
-}
+// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// // pub struct TransactionParsed {
+// //     pub transaction: CtTransaction,
+// //     pub actions: Vec<Action>,
+// // }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TransactionParsedResponse {
@@ -85,9 +75,10 @@ pub struct TransactionParsedResponse {
     pub contract_address: Vec<String>,
     pub fees: Vec<TransactionFees>,
     pub fees_total: u64,
-    pub token_prices: Option<Vec<PriceItemResponse>>,
+    // pub token_prices: Option<Vec<PriceItemResponse>>,
     // pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChangedFormatted>>, // pub actions: Vec<Action>,
-    pub token_changes_owner: HashMap<String, HashMap<String, BalanceChangedFormatted>>,
+    pub token_changes_owner: TokenChangesMapFormatted,
+    pub token_changes_token_account: TokenChangesMapFormatted,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

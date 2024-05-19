@@ -1,7 +1,11 @@
-use crate::interfaces::{PriceItem, TransactionBase, TransactionParsed};
+use crate::interfaces::{
+    CtTransaction,
+    PriceItem,
+    // TransactionParsed
+};
 use chrono::prelude::*;
 use moka::future::Cache;
-use num_bigfloat::E;
+
 use rust_decimal::Decimal;
 use serde_json::json;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
@@ -19,7 +23,6 @@ use crate::{
         get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
         PoolMeta,
     },
-    transaction,
 };
 
 pub fn testing_nested() {
@@ -36,7 +39,7 @@ pub async fn get_transction(
     rpc_connection: &RpcClient,
     db_client: &TokenDbClient,
     my_cache: Cache<String, Option<PoolMeta>>,
-) -> Result<TransactionParsed, TransactionError> {
+) -> Result<CtTransaction, TransactionError> {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
         commitment: Some(CommitmentConfig::finalized()),
@@ -67,6 +70,8 @@ pub async fn get_transction(
 
     let block_time = confirmed_tx.block_time.unwrap();
     let block_number = confirmed_tx.slot;
+
+    let transaction_base = CtTransaction::new(&transaction, block_time, block_number);
 
     get_parsed_transaction(
         signature,
@@ -99,7 +104,7 @@ pub async fn parse_transaction_and_save_values(
     block_number: u64,
     sol_price_18: Option<Decimal>,
 ) {
-    let transaction_parsed = get_parsed_transaction(
+    let _transaction_parsed = get_parsed_transaction(
         signature,
         pool_id,
         _rpc_connection,
@@ -124,33 +129,20 @@ pub async fn get_parsed_transaction(
     block_time: i64,
     block_number: u64,
     sol_price_18: Option<Decimal>,
-) -> Result<TransactionParsed, TransactionError> {
-    // let sol_price_db =
+) -> Result<CtTransaction, TransactionError> {
+    let transaction_base = CtTransaction::new(transaction, block_time, block_number);
 
-    // std::thread::sleep(std::time::Duration::from_secs(10));
+    // println!(
+    //     "Transaction base token changes: {:#?}",
+    //     transaction_base.token_changes_new
+    // );
 
-    // println!("done sleeping start process, {}", signature);
-    // return;
-    // tokio::time::sleep(Duration::from_secs(sleep_duraction as u64)).await;
-
-    // let sol_price_db = "1400000000000000000000".to_string();
-
-    let _transaction_datetime = DateTime::from_timestamp(block_time, 0)
+    // let testing = transaction_base.token_changes_new.format();
+    let _transaction_datetime = DateTime::from_timestamp(block_time.clone(), 0)
         .unwrap()
         .to_rfc3339();
 
-    // println!(
-    //     "Init transaction: {:#?}, timestamp: {}",
-    //     signature, transaction_datetime
-    // );
-
-    // println!("Transaction: {:#?}", transaction);
-
     let v = json!(transaction.transaction);
-    // let account_keys = v["message"]["accountKeys"].as_array().unwrap();
-
-    // let signer = find_signer(account_keys);
-    // let testing_pool_id = parse_pool_create_instruction(transaction.transaction);
 
     let instructions = v["message"]["instructions"].as_array().unwrap();
 
@@ -166,24 +158,12 @@ pub async fn get_parsed_transaction(
         });
 
         if init_instruction.is_some() {
-            // println!(
-            //     "{:#?} {:#?} {:#?}",
-            //     init_instruction.unwrap().as_object().unwrap()["data"],
-            //     init_instruction.unwrap().as_object().unwrap()["data"]
-            //         .as_str()
-            //         .unwrap(),
-            //     init_instruction
-            // );
-
             let pool_id_instruction = init_instruction.unwrap().as_object().unwrap()["accounts"][1]
                 .as_str()
                 .unwrap();
             Some(pool_id_instruction.to_string())
-            // pool_id_instruction.as_str().unwrap().to_string()
         } else {
             let dolar_selit = find_raydium_inner_instruction(&transactions_meta.inner_instructions);
-
-            // println!("Inner instruction accounts: {:#?}", dolar_selit);
 
             if dolar_selit.len() > 0 {
                 // return None;
@@ -194,14 +174,12 @@ pub async fn get_parsed_transaction(
         }
     };
 
-    let transaction_base = TransactionBase::new(transaction, block_time, block_number);
-
     // let actions = TransactionBase::parse_transaction_actions(&transaction_base);
 
     if pool_id_to_get_opt.is_none() {
-        let transaction_parsed = parse_base_to_parsed(transaction_base, None);
+        // let transaction_parsed = parse_base_to_parsed(transaction_base, None);
         // println!("Pool id to get is none for signature: {}", signature);
-        return Ok(transaction_parsed);
+        return Ok(transaction_base);
         // return Err(Error::Msg("Error in transaction".to_string()));
     }
 
@@ -213,35 +191,8 @@ pub async fn get_parsed_transaction(
 
     let pool_meta_req = if pool_info_cache.is_some() {
         let info = pool_info_cache.unwrap();
-        // println!(
-        //     "=========== Pool info from cache loaded for pool {}",
-        //     pool_id_to_get
-        // );
         Some(info)
     } else {
-        // my_cache.insert(pool_id_to_get.to_string(), testing).await;
-
-        // let meta_test = PoolMeta {
-        //     base_decimal: 6,
-        //     base_lot_size: 10000000,
-        //     base_need_take_pnl: 0,
-        //     base_total_pnl: 0,
-        //     base_total_deposited: 0,
-        //     base_vault: Pubkey::from_str("HUM2zGxzxUZ5hgc3AWdXBykK35NRSUgCYhAaJcVhrp8n").unwrap(),
-        //     base_mint: Pubkey::from_str("HfHU9YS9hH5buRKDfjEyMopfP9QtuDznR1wqUpzJtWHT").unwrap(),
-        //     quote_decimal: 9,
-        //     quote_lot_size: 100,
-        //     quote_need_take_pnl: 0,
-        //     quote_total_pnl: 0,
-        //     quote_total_deposited: 1715371200,
-        //     quote_vault: Pubkey::from_str("9QVgsXhHMW6Ksky2jFHoJwJR4WRVFca8ZjuEE5cwtNi").unwrap(),
-        //     quote_mint: Pubkey::from_str("So11111111111111111111111111111111111111112").unwrap(),
-        // };
-
-        // my_cache
-        //     .insert(pool_id_to_get.to_string(), meta_test.clone())
-        //     .await;
-
         let info = my_cache
             .get_with(pool_id_to_get.clone(), async move {
                 // println!("Task {pool_id_to_get} inserting a value.");
@@ -260,45 +211,19 @@ pub async fn get_parsed_transaction(
             })
             .await;
 
-        // let info_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
-
-        // if info_req.is_none() {
-        //     // println!(
-        //     //     "Error getting pool info for pool {}",
-        //     //     pool_id_to_get.to_string()
-        //     // );
-        //     return;
-        // }
-
-        // let info = info_req.unwrap();
-
-        // println!(
-        //     "=========== Pool info loaded for pool without cache {}",
-        //     pool_id_clone
-        // );
-
-        // my_cache
-        //     .insert(pool_id_to_get.to_string(), info.clone())
-        //     .await;
-
-        // println!(
-        //     "=========== Pool info inserted to cache for pool {:#?}",
-        //     info
-        // );
-
         Some(info)
     };
 
     if !pool_meta_req.is_some() {
         // println!("Error getting pool meta for pool {}", pool_id_clone);
-        return Ok(parse_base_to_parsed(transaction_base, None));
+        return Ok(transaction_base);
     }
 
     let pool_meta_opt = pool_meta_req.unwrap();
 
     if !pool_meta_opt.is_some() {
         // println!("Error getting pool meta for pool opt {}", pool_id_clone);
-        return Ok(parse_base_to_parsed(transaction_base, None));
+        return Ok(transaction_base);
     }
 
     let pool_meta = pool_meta_opt.unwrap();
@@ -329,7 +254,7 @@ pub async fn get_parsed_transaction(
 
     if token_amounts_req.is_none() {
         // println!("Error getting token amounts for pool {}", pool_id_to_get);
-        return Ok(parse_base_to_parsed(transaction_base, None));
+        return Ok(transaction_base);
     }
 
     let token_amounts = token_amounts_req.unwrap();
@@ -361,7 +286,7 @@ pub async fn get_parsed_transaction(
         .to_rfc3339();
 
     if transactions_meta.err.is_some() {
-        return Ok(parse_base_to_parsed(transaction_base, None));
+        return Ok(transaction_base);
     }
 
     let price_item_to_save = PriceItem {
@@ -455,9 +380,9 @@ pub async fn get_parsed_transaction(
         println!("Error saving to db: {:#?}", reponse);
     }
 
-    let transaction_parsed = parse_base_to_parsed(transaction_base, Some(_price_item_c));
+    // let transaction_parsed = parse_base_to_parsed(transaction_base, Some(_price_item_c));
 
-    return Ok(transaction_parsed);
+    return Ok(transaction_base);
 
     // println!("done")
 
@@ -530,32 +455,32 @@ fn find_raydium_inner_instruction(
     inner_instruction_accounts
 }
 
-fn parse_base_to_parsed(
-    transaction_base: TransactionBase,
-    _price_item_c: Option<PriceItem>,
-) -> TransactionParsed {
-    let transaction_parsed = TransactionParsed {
-        signer: transaction_base.signer,
-        ubo: transaction_base.ubo,
-        block_timestamp: transaction_base.block_timestamp,
-        block_datetime: transaction_base.block_datetime,
-        hash: transaction_base.hash,
-        addresses: transaction_base.addresses,
-        block_number: transaction_base.block_number,
-        chain_id: transaction_base.chain_id,
-        from: transaction_base.from,
-        to: transaction_base.to,
-        state: transaction_base.state,
-        description: transaction_base.description,
-        spam_transaction: transaction_base.spam_transaction,
-        contract_address: transaction_base.contract_address,
-        fees: transaction_base.fees,
-        fees_total: transaction_base.fees_total,
-        token_prices: _price_item_c,
-        changes_by_owner: transaction_base.changes_by_owner,
-        changes_by_token_account_address: transaction_base.changes_by_token_account_address,
-        actions: Vec::new(),
-    };
+// fn parse_base_to_parsed(
+//     transaction_base: CtTransaction,
+//     _price_item_c: Option<PriceItem>,
+// ) -> TransactionParsed {
+//     let transaction_parsed = TransactionParsed {
+//         signer: transaction_base.signer,
+//         ubo: transaction_base.ubo,
+//         block_timestamp: transaction_base.block_timestamp,
+//         block_datetime: transaction_base.block_datetime,
+//         hash: transaction_base.hash,
+//         addresses: transaction_base.addresses,
+//         block_number: transaction_base.block_number,
+//         chain_id: transaction_base.chain_id,
+//         from: transaction_base.from,
+//         to: transaction_base.to,
+//         state: transaction_base.state,
+//         description: transaction_base.description,
+//         spam_transaction: transaction_base.spam_transaction,
+//         contract_address: transaction_base.contract_address,
+//         fees: transaction_base.fees,
+//         fees_total: transaction_base.fees_total,
+//         token_prices: _price_item_c,
+//         token_changes_owner: transaction_base.token_changes_owner,
+//         token_changes_token_account: transaction_base.token_changes_token_account,
+//         actions: Vec::new(),
+//     };
 
-    return transaction_parsed;
-}
+//     return transaction_parsed;
+// }

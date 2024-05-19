@@ -1,25 +1,101 @@
-use std::collections::HashMap;
-
 use crate::{
     interfaces::{
-        BalanceChange, TransactionBase, TransactionDescription, TransactionParsedResponse,
+        CtTransaction,
+        TokenChanges,
+        TransactionDescription,
+        TransactionParsedResponse,
+        // TransactionParsed,
+        // TransactionParsedResponse,
     },
-    token_parser::parse_balance_changes,
+    token_parser::{parse_balance_changes, BalanceHolder},
 };
 use chrono::DateTime;
 use serde_json::{json, Value};
-use solana_sdk::transaction;
-use solana_transaction_status::{
-    option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta,
-    UiTransactionTokenBalance,
-};
 
-impl TransactionBase {
+use solana_transaction_status::EncodedTransactionWithStatusMeta;
+
+pub mod innner_test {
+    use std::collections::HashMap;
+
+    use solana_transaction_status::EncodedTransactionWithStatusMeta;
+
+    use crate::{
+        interfaces::{BalanceChangedFormatted, TokenChanges, TokenChangesMapFormatted},
+        token_parser::{
+            get_rounded_amount, parse_balance_changes, parse_balance_changes_new, BalanceHolder,
+        },
+    };
+
+    impl TokenChanges {
+        pub fn new(
+            transaction: &EncodedTransactionWithStatusMeta,
+            account_keys: &Vec<String>,
+            balance_holder: BalanceHolder,
+        ) -> Self {
+            let token_changes =
+                parse_balance_changes_new(transaction, account_keys, balance_holder);
+
+            // let address = "test".to_string();
+
+            Self {
+                values: token_changes,
+                // by_token_account,
+            }
+        }
+
+        pub fn format(&self) -> TokenChangesMapFormatted {
+            // let values = self.token_changes
+
+            let mut changes_by_owner_formatted = HashMap::new();
+
+            for (key, value) in self.values.iter() {
+                let address = key.to_string();
+
+                let mut values = HashMap::new();
+
+                for (key, value) in value.iter() {
+                    let token_address = key.to_string();
+                    let balance_change = value;
+                    let token_values_formatted = BalanceChangedFormatted {
+                        owner: balance_change.owner.to_string(),
+                        mint: balance_change.mint.to_string(),
+                        balance_post: get_rounded_amount(balance_change.balance_post, 18),
+                        balance_pre: get_rounded_amount(balance_change.balance_pre, 18),
+                        difference: get_rounded_amount(balance_change.difference, 18),
+                    };
+
+                    values.insert(token_address, token_values_formatted);
+                    // println!("{:#?}", testing)
+                }
+
+                changes_by_owner_formatted.insert(address, values);
+            }
+
+            println!("{:#?}", changes_by_owner_formatted);
+
+            return changes_by_owner_formatted;
+
+            // let token_values_formatted = BalanceChangedFormatted {
+            //     owner: balance_change.owner.to_string(),
+            //     mint: balance_change.mint.to_string(),
+            //     balance_post: get_rounded_amount(balance_change.balance_post, 18),
+            //     balance_pre: get_rounded_amount(balance_change.balance_pre, 18),
+            //     difference: get_rounded_amount(balance_change.difference, 18),
+            // };
+        }
+    }
+}
+
+impl CtTransaction {
+    pub fn testing(&self) -> String {
+        return self.block_timestamp.to_string();
+    }
+
     pub fn new(
         rpc_transaction: &EncodedTransactionWithStatusMeta,
         block_time: i64,
         block_number: u64,
-    ) -> TransactionBase {
+    ) -> Self {
         // let token_a_address: &str = "So11111111111111111111111111111111111111112";
         // let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
 
@@ -31,7 +107,7 @@ impl TransactionBase {
 
         let transaction_meta = transaction_clone_fees.meta.unwrap();
 
-        let signer = find_signer(account_keys);
+        let signer = self::find_signer(account_keys);
 
         let testing = account_keys
             .to_vec()
@@ -71,24 +147,27 @@ impl TransactionBase {
 
         let fee = transaction_meta.fee;
 
-        // let token_changes = rpc_transaction.met
+        let token_changes_owner =
+            TokenChanges::new(&transaction_clone_meta, &testing, BalanceHolder::Owner);
 
-        // println!("{:?}", changes_by_owner);
-        // println!("{:?}", changes_by_token_account_address);
+        let token_changes_token_accounts = TokenChanges::new(
+            &transaction_clone_meta,
+            &testing,
+            BalanceHolder::TokenAccount,
+        );
 
-        let (changes_by_owner, changes_by_token_account_address) =
-            parse_balance_changes(&transaction_clone_meta, &testing.clone());
+        // let formatted = changes_by_owner_new.format();
 
-        let transaction = TransactionBase {
+        // let (changes_by_owner, changes_by_token_account_address) =
+        //     parse_balance_changes(&transaction_clone_meta, &testing.clone());
+
+        Self {
             signer: signer,
             ubo: ubo.to_string(),
             from: singer_c,
             block_timestamp: block_time,
             block_datetime: datetime,
             hash: _signature,
-
-            // token_a_address: token_a_address.to_string(),
-            // token_b_address: token_b_address.to_string(),
             to: None,
             addresses: testing.clone(),
             block_number: block_number,
@@ -104,45 +183,48 @@ impl TransactionBase {
             contract_address: Vec::new(),
             fees: Vec::new(),
             fees_total: fee,
-            changes_by_owner: changes_by_owner,
-            changes_by_token_account_address: changes_by_token_account_address,
+            token_changes_owner,
+            // token_changes_new: changes_by_owner_new,
+            token_changes_token_account: token_changes_token_accounts,
             // token_amounts: token_amounts,
-        };
-
-        return transaction;
-
-        // pub fn parse_transaction_actions(&self) {
-        //     // let actions = parse_token_changes_to_swaps(self);
-        //     // let token_a_address
-        // }
-
-        pub fn find_signer(account_keys: &Vec<Value>) -> String {
-            let mut signer: String = "".to_string();
-
-            for item in account_keys {
-                let is_signer = item["signer"].as_bool().unwrap();
-
-                if is_signer {
-                    signer = item["pubkey"].as_str().unwrap().to_string();
-                    break;
-                }
-            }
-
-            return signer;
         }
     }
 
-    // fn get_transaction_datetime(transaction: &EncodedTransactionWithStatusMeta) -> String {
-    //     let transaction_datetime = DateTime::from_timestamp(transaction.block_time.unwrap(), 0)
-    //         .unwrap()
-    //         .to_rfc3339();
+    pub fn format(&self) -> TransactionParsedResponse {
+        TransactionParsedResponse {
+            signer: self.signer.clone(),
+            ubo: self.ubo.clone(),
+            block_timestamp: self.block_timestamp,
+            block_datetime: self.block_datetime.clone(),
+            hash: self.hash.clone(),
+            addresses: self.addresses.clone(),
+            block_number: self.block_number,
+            chain_id: self.chain_id,
+            from: self.from.clone(),
+            to: self.to.clone(),
+            state: self.state.clone(),
+            description: self.description.clone(),
+            spam_transaction: self.spam_transaction,
+            contract_address: self.contract_address.clone(),
+            fees: self.fees.clone(),
+            fees_total: self.fees_total,
+            token_changes_owner: self.token_changes_owner.format(),
+            token_changes_token_account: self.token_changes_token_account.format(),
+        }
+    }
+}
 
-    //     return transaction_datetime;
-    // }
+fn find_signer(account_keys: &Vec<Value>) -> String {
+    let mut signer: String = "".to_string();
 
-    // pub fn parse_pool_create_instruction(){
+    for item in account_keys {
+        let is_signer = item["signer"].as_bool().unwrap();
 
-    //     let mut testing;
+        if is_signer {
+            signer = item["pubkey"].as_str().unwrap().to_string();
+            break;
+        }
+    }
 
-    //     for item in
+    return signer;
 }

@@ -3,12 +3,12 @@
 use num::ToPrimitive;
 use num_bigfloat::{BigFloat, RoundingMode};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+
 use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::interfaces::{BalanceChange, TransactionBase};
+use crate::interfaces::{BalanceChange, CtTransaction};
 
 #[derive(Debug)]
 pub enum Error {}
@@ -115,8 +115,8 @@ pub struct PoolMeta {
 }
 
 pub fn get_token_amounts(
-    transaction_base: &TransactionBase,
-    account_keys: &Vec<String>,
+    transaction_base: &CtTransaction,
+    _account_keys: &Vec<String>,
     ubo: &str,
     quote_mint_address: &str,
     base_mint_address: &str,
@@ -130,14 +130,20 @@ pub fn get_token_amounts(
 
     // transaction_base.changes_by_token_account_address
 
-    let token_changes_ubo = transaction_base.changes_by_owner.get(ubo).unwrap();
+    let token_changes_ubo = transaction_base
+        .token_changes_owner
+        .values
+        .get(ubo)
+        .unwrap();
 
     let token_changes_pool_new_a_req = transaction_base
-        .changes_by_token_account_address
+        .token_changes_token_account
+        .values
         .get(quote_vault_address);
 
     let token_changes_pool_new_b_req = transaction_base
-        .changes_by_token_account_address
+        .token_changes_token_account
+        .values
         .get(base_vault_address);
 
     if token_changes_pool_new_a_req.is_none() {
@@ -397,24 +403,6 @@ fn parse_token_amounts(
         };
 
         amount_diff_ubo += amount_diff;
-
-        //
-        //
-
-        // let native_sol_amount_pool = token_changes_pool.get("sol");
-        // let amount_pool = match native_sol_amount_pool {
-        //     Some(x) => x.balance_post,
-        //     None => 0,
-        // };
-
-        // token_amount_pool += amount_pool;
-
-        // let amount_diff_pool_ne = match native_sol_amount_pool {
-        //     Some(x) => x.difference,
-        //     None => 0,
-        // };
-
-        // amount_diff_pool += amount_diff_pool_ne;
     }
 
     let _token_perc_ubo = parse_token_amount_rounded(token_amount_ubo, token_amount_pool);
@@ -740,4 +728,157 @@ pub fn get_rounded_amount(amount: BigFloat, decimals: usize) -> String {
     let value = amount.to_string();
 
     return value;
+}
+
+pub enum BalanceHolder {
+    Owner,
+    TokenAccount,
+}
+
+pub fn parse_balance_changes_new(
+    transaction: &EncodedTransactionWithStatusMeta,
+    account_keys: &Vec<String>,
+    balance_holder: BalanceHolder,
+) -> HashMap<std::string::String, HashMap<std::string::String, BalanceChange>> {
+    let post_balances = transaction.clone().meta.unwrap().post_balances;
+    let pre_balances = transaction.clone().meta.unwrap().pre_balances;
+
+    let post_token_balances: Option<Vec<UiTransactionTokenBalance>> =
+        transaction.clone().meta.unwrap().post_token_balances.into();
+
+    let pre_token_balances: Option<Vec<UiTransactionTokenBalance>> =
+        transaction.clone().meta.unwrap().pre_token_balances.into();
+
+    let mut changes_by_owner: HashMap<String, HashMap<String, BalanceChange>> = HashMap::new();
+
+    // let mut changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChange>> =
+    //     HashMap::new();
+
+    for balance in post_token_balances.unwrap() {
+        let owner: Option<String> = balance.owner.clone().into();
+        let mint = balance.mint.clone();
+        let amount = balance.ui_token_amount.amount;
+        let owner_address = owner.unwrap();
+
+        // print!("\n amount post: {:#?}", amount);
+
+        let index_usize = balance.account_index.to_usize().unwrap();
+
+        let pub_key_token_address = account_keys[index_usize].clone();
+
+        // let owner_entry = changes_by_owner.entry(owner_address.clone());
+        // let token_entry = owner_entry.or_default().entry(mint.clone());
+
+        let owner_entry = match balance_holder {
+            BalanceHolder::Owner => changes_by_owner.entry(owner_address.clone()),
+            BalanceHolder::TokenAccount => changes_by_owner.entry(pub_key_token_address.clone()),
+        };
+
+        let token_entry = owner_entry.or_default().entry(mint.clone());
+
+        // changes_by_owner.entry(owner_address.clone());
+
+        // let token_account_address_entry =
+        //     changes_by_token_account_address.entry(pub_key_token_address);
+
+        // let token_entry_token_account_address =
+        //     token_account_address_entry.or_default().entry(mint.clone());
+
+        let amount_bf = BigFloat::from_str(&amount).unwrap();
+
+        *token_entry.or_default() = BalanceChange {
+            balance_pre: BigFloat::from_f64(0.0),
+            balance_post: amount_bf,
+            difference: amount_bf,
+            mint: mint.clone(),
+            owner: owner_address.clone(),
+        };
+
+        // *token_entry_token_account_address.or_default() = BalanceChange {
+        //     balance_pre: BigFloat::from_f64(0.0),
+        //     balance_post: amount_bf,
+        //     difference: amount_bf,
+        //     mint: mint.clone(),
+        //     owner: owner_address.clone(),
+        // };
+    }
+
+    for balance in pre_token_balances.unwrap() {
+        let owner: Option<String> = balance.owner.clone().into();
+        let mint = balance.mint.clone();
+        let amount = balance.ui_token_amount.amount;
+
+        // print!("\n amount pre: {:#?}", amount);
+
+        let owner_address = owner.unwrap();
+
+        let _owner_address_c = owner_address.clone();
+
+        let index_usize = balance.account_index.to_usize().unwrap();
+        let pub_key_token_address = account_keys[index_usize].clone();
+
+        let owner_entry = match balance_holder {
+            BalanceHolder::Owner => changes_by_owner.entry(owner_address.clone()),
+            BalanceHolder::TokenAccount => changes_by_owner.entry(pub_key_token_address.clone()),
+        };
+
+        let token_entry = owner_entry.or_default().entry(mint.clone());
+
+        // let token_account_address_entry =
+        //     changes_by_token_account_address.entry(pub_key_token_address.to_string());
+
+        // let token_entry_token_account_address =
+        //     token_account_address_entry.or_default().entry(mint.clone());
+
+        let amount_bf = BigFloat::from_str(&amount).unwrap();
+
+        let existing_entry = token_entry.or_default();
+
+        // let existing_entry_token_account = token_entry_token_account_address.or_default();
+
+        existing_entry.balance_pre = amount_bf;
+        existing_entry.difference = existing_entry.balance_post - amount_bf;
+
+        // existing_entry_token_account.balance_pre = amount_bf;
+        // existing_entry_token_account.difference =
+        //     existing_entry_token_account.balance_post - amount_bf;
+    }
+
+    for (index, pubkey) in account_keys.iter().enumerate() {
+        // let pubkey = account_key["pubkey"].as_str().unwrap();
+
+        let pre = BigFloat::from_u64(pre_balances[index]);
+        let post = BigFloat::from_u64(post_balances[index]);
+
+        let item = BalanceChange {
+            balance_pre: pre,
+            balance_post: post,
+            difference: post - pre,
+            mint: "sol".to_string(),
+            owner: pubkey.to_string(),
+        };
+
+        // let owner_entry = changes_by_owner.entry(pubkey.to_string());
+
+        let owner_entry = changes_by_owner.entry(pubkey.to_string());
+
+        // match balance_holder {
+        //     BalanceHolder::Owner => changes_by_owner.entry(pubkey.to_string()),
+        //     BalanceHolder::TokenAddress => changes_by_owner.entry(pubkey.to_string()),
+        // };
+
+        let token_entry = owner_entry.or_default().entry("sol".to_string());
+        // let token_account_address_entry =
+        //     changes_by_token_account_address.entry(pubkey.to_string());
+
+        // let token_entry_token_account_address = token_account_address_entry
+        //     .or_default()
+        //     .entry("sol".to_string());
+
+        *token_entry.or_default() = item.clone();
+
+        // *token_entry_token_account_address.or_default() = item.clone();
+    }
+
+    return changes_by_owner;
 }

@@ -22,20 +22,15 @@ struct CtSwap {
 //     testing: bool,
 // }
 
-pub struct AddressTokenChange {
-    owner: Option<String>,
-    // tokens_changed: Vec<TokenChange>,
-}
-
 pub fn parse_token_changes_to_swaps(
     address_token_changes: Option<Vec<String>>,
     // transaction_from: Option<String>,
 ) {
-    let mut other: Vec<AddressTokenChange> = Vec::new();
-    let mut actions: Vec<CtSwap> = Vec::new();
+    // let _other: Vec<AddressTokenChange> = Vec::new();
+    let _actions: Vec<CtSwap> = Vec::new();
 
     if let Some(changes) = address_token_changes {
-        for item in changes {
+        for _item in changes {
             //     let tokens_from: Vec<TokenChange> = item
             //         .tokens_changed
             //         .iter()

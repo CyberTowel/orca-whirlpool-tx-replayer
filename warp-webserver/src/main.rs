@@ -1,13 +1,12 @@
-use get_transactions::{get_user, handler};
+use get_transactions::handler;
 use moka::future::Cache;
 use serde::Serialize;
-use warp::{reply, Filter, Reply};
+use warp::Filter;
 mod get_transactions;
 use block_parser::{
     rpc_pool_manager::{RpcPool, RpcPoolManager},
     token_db::{DbClientPoolManager, DbPool},
     token_parser::PoolMeta,
-    transaction,
 };
 
 fn with_rpc_pool(
@@ -40,22 +39,6 @@ pub struct User {
     name: String,
     age: u32,
     signature: String,
-}
-
-fn get_users() -> impl Reply {
-    let users = vec![
-        User {
-            name: "Alice".to_string(),
-            age: 30,
-            signature: "".to_string(),
-        },
-        User {
-            name: "Bob".to_string(),
-            age: 25,
-            signature: "".to_string(),
-        },
-    ];
-    reply::json(&users)
 }
 
 #[tokio::main]
