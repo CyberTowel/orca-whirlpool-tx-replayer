@@ -8,7 +8,7 @@ use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::interfaces::{BalanceChange, CtTransaction};
+use crate::interfaces::{BalanceChange, CtTransaction, TokenChanges};
 
 #[derive(Debug)]
 pub enum Error {}
@@ -173,6 +173,7 @@ pub fn get_token_amounts(
 
     let token_changes_pool_new_a = token_changes_pool_new_a_req.unwrap();
     let token_changes_pool_new_b = token_changes_pool_new_b_req.unwrap();
+
     let token_changes_pool = merge_hashmap(
         token_changes_pool_new_a.clone(),
         token_changes_pool_new_b.clone(),
@@ -252,6 +253,7 @@ pub fn parse_balance_changes(
         let owner: Option<String> = balance.owner.clone().into();
         let mint = balance.mint.clone();
         let amount = balance.ui_token_amount.amount;
+        let decimals = balance.ui_token_amount.decimals;
         let owner_address = owner.unwrap();
 
         // print!("\n amount post: {:#?}", amount);
@@ -262,6 +264,7 @@ pub fn parse_balance_changes(
 
         let owner_entry = changes_by_owner.entry(owner_address.clone());
         let token_entry = owner_entry.or_default().entry(mint.clone());
+        let decimals = balance.ui_token_amount.decimals;
 
         let token_account_address_entry =
             changes_by_token_account_address.entry(pub_key_token_address);
@@ -273,16 +276,24 @@ pub fn parse_balance_changes(
 
         *token_entry.or_default() = BalanceChange {
             balance_pre: BigFloat::from_f64(0.0),
+            balance_pre_usd: None,
+            balance_post_usd: None,
             balance_post: amount_bf,
             difference: amount_bf,
+            difference_usd: None,
+            decimals: decimals,
             mint: mint.clone(),
             owner: owner_address.clone(),
         };
 
         *token_entry_token_account_address.or_default() = BalanceChange {
             balance_pre: BigFloat::from_f64(0.0),
+            decimals,
+            balance_pre_usd: None,
+            balance_post_usd: None,
             balance_post: amount_bf,
             difference: amount_bf,
+            difference_usd: None,
             mint: mint.clone(),
             owner: owner_address.clone(),
         };
@@ -333,6 +344,10 @@ pub fn parse_balance_changes(
 
         let item = BalanceChange {
             balance_pre: pre,
+            balance_pre_usd: None,
+            balance_post_usd: None,
+            difference_usd: None,
+            decimals: 9,
             balance_post: post,
             difference: post - pre,
             mint: "sol".to_string(),
@@ -460,6 +475,11 @@ fn merge_hashmap(
 
             let new_change = BalanceChange {
                 balance_pre: existing.balance_pre,
+                decimals: existing.decimals,
+                balance_pre_usd: None,
+                balance_post_usd: None,
+                difference_usd: None,
+
                 balance_post: new_balance_post,
                 difference: new_diff_post,
                 mint: existing.mint.clone(),
@@ -758,6 +778,7 @@ pub fn parse_balance_changes_new(
         let owner: Option<String> = balance.owner.clone().into();
         let mint = balance.mint.clone();
         let amount = balance.ui_token_amount.amount;
+        let decimals = balance.ui_token_amount.decimals;
         let owner_address = owner.unwrap();
 
         // print!("\n amount post: {:#?}", amount);
@@ -788,8 +809,12 @@ pub fn parse_balance_changes_new(
 
         *token_entry.or_default() = BalanceChange {
             balance_pre: BigFloat::from_f64(0.0),
+            balance_pre_usd: None,
+            balance_post_usd: None,
+            difference_usd: None,
             balance_post: amount_bf,
             difference: amount_bf,
+            decimals: decimals,
             mint: mint.clone(),
             owner: owner_address.clone(),
         };
@@ -852,8 +877,12 @@ pub fn parse_balance_changes_new(
 
         let item = BalanceChange {
             balance_pre: pre,
+            balance_pre_usd: None,
+            difference_usd: None,
+            balance_post_usd: None,
             balance_post: post,
             difference: post - pre,
+            decimals: 9,
             mint: "sol".to_string(),
             owner: pubkey.to_string(),
         };
@@ -881,4 +910,34 @@ pub fn parse_balance_changes_new(
     }
 
     return changes_by_owner;
+}
+
+// fn map_prices_to_tokens_changed(
+//     token_changes: TokenChanges,
+//     token_prices: HashMap<String, String>,
+// ) {
+//     println!("{:#?}", token_changes);
+// }
+
+pub fn calc_token_usd_total(
+    value: BigFloat,
+    token_price: Option<&String>,
+    decimals: u8,
+) -> Option<BigFloat> {
+    // let token_price_o = prices.get(&key.to_string());
+
+    let balance_pre_priced = match token_price {
+        Some(x) => {
+            let price = BigFloat::from_str(x).unwrap();
+
+            Some(
+                value
+                    .mul(&price)
+                    .mul(&BigFloat::from_i64(10).pow(&BigFloat::from_i8(-(decimals as i8 + 18)))), // .round(0, num_bigfloat::RoundingMode::ToZero),
+            )
+        }
+        None => None,
+    };
+
+    balance_pre_priced
 }

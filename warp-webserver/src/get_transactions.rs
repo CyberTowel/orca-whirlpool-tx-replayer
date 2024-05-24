@@ -1,13 +1,14 @@
-
+use std::collections::HashMap;
 
 use moka::future::Cache;
+use tokio::task::JoinSet;
 use warp::Reply;
 
 use crate::User;
 use block_parser::{
     rpc_pool_manager::RpcPool,
-    token_db::DbPool,
-    token_parser::{PoolMeta},
+    token_db::{get_token_prices_from_token_changes, DbPool},
+    token_parser::PoolMeta,
     transactions_loader,
 };
 
@@ -40,7 +41,18 @@ pub async fn handler(
         return Ok(warp::reply::json(&{}));
     }
 
-    let transaction = testing.unwrap();
+    let mut transaction = testing.unwrap();
+    let transaction_values_c = transaction.clone();
+
+    let token_prices = get_token_prices_from_token_changes(
+        transaction_values_c.block_datetime,
+        transaction_values_c.tokens,
+        db_pool,
+    )
+    .await;
+
+    // transaction.set_token_prices(token_prices);
+    transaction.set_prices_to_token_changes(token_prices);
 
     // let transaction_formatted = parse_parsed_to_formatted(transaction);
 

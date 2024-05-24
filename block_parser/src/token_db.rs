@@ -7,7 +7,9 @@ use num::FromPrimitive;
 use num_bigfloat::BigFloat;
 use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
+use tokio::task::JoinSet;
 
+use std::collections::HashMap;
 use std::{str::FromStr, sync::Arc};
 
 use tokio_postgres::{Error as TPError, NoTls};
@@ -195,13 +197,17 @@ impl TokenDbClient {
         }
     }
 
-    pub fn get_usd_price_sol(&self, transaction_datetime: String) -> Result<Decimal, TPError> {
+    pub fn get_token_price_usd(
+        &self,
+        transaction_datetime: &String,
+        token_address: String,
+    ) -> Result<String, TPError> {
         // let result = self.invoke(self.test_db_inn(testing));
         // let result = self.invoke(self.db_pool.clone())(self.test_db(testing));
 
         // let db_connect = self.db_pool.clone();
 
-        let result = self.invoke(self.get_usd_price_sol_inn(transaction_datetime));
+        let result = self.invoke(self.get_token_price_usd_inn(transaction_datetime, token_address));
 
         return result;
     }
@@ -548,10 +554,22 @@ impl TokenDbClient {
         tokio::task::block_in_place(move || self.runtime.as_ref().expect("runtime").block_on(f))
     }
 
-    pub async fn get_usd_price_sol_inn(&self, transaction_datetime: String) -> DbResult<Decimal> {
+    pub async fn get_token_price_usd_inn(
+        &self,
+        transaction_datetime: &String,
+        token_address: String,
+    ) -> DbResult<String> {
+        let token_address_to_use = if (token_address == "sol") {
+            "So11111111111111111111111111111111111111112".to_string()
+        } else {
+            token_address
+        };
+
         let statement =
             "SELECT * FROM token_prices WHERE token_address = $1 AND conversion_ref = 'USD'
                     order by abs(extract(epoch from (datetime - $2))) limit 1";
+
+        // let token_to_get = token_address.to_string();
 
         let rolar: DateTime<Utc> = chrono::DateTime::from_str(&transaction_datetime).unwrap();
 
@@ -567,10 +585,7 @@ impl TokenDbClient {
 
         let client = db_connect.get().await.unwrap();
         let testing = client
-            .query(
-                statement,
-                &[&"So11111111111111111111111111111111111111112", &timestamp],
-            )
+            .query(statement, &[&token_address_to_use, &timestamp])
             .await;
         // .unwrap();
 
@@ -579,12 +594,14 @@ impl TokenDbClient {
         let row = lipsum.get(0);
 
         if row.is_none() {
-            return Ok(Decimal::from_str("145385220916953680615").unwrap());
+            return Ok("".to_string());
         }
 
         let dolar2: Decimal = row.unwrap().get("price");
 
-        return Ok(dolar2);
+        let selit = dolar2.to_string();
+
+        return Ok(selit);
     }
 
     // pub async fn test_sender_inn(&self, testing: bool) -> DbResult<bool> {
@@ -686,4 +703,52 @@ pub fn create_db_pool() -> Pool<Manager> {
     let mgr = Manager::from_config(pg_config, NoTls, mgr_config);
     let pool = Pool::builder(mgr).max_size(16).build().unwrap();
     return pool;
+}
+
+pub async fn get_token_prices_from_token_changes(
+    datetime: String,
+    tokens: Vec<String>,
+    db_pool: Pool<DbClientPoolManager>,
+) -> HashMap<std::string::String, std::string::String> {
+    let mut token_prices_reqs = JoinSet::new();
+
+    for token in tokens.iter() {
+        let client = db_pool.get().await.unwrap();
+        let dolar = datetime.clone();
+        let token_address = token.clone();
+        token_prices_reqs.spawn(async move {
+            //     // let tesitng = &transaction.block_datetime;
+
+            let token_prices = client.get_token_price_usd(&dolar, token_address.to_string());
+            if !token_prices.is_err() {
+                return Some((token_address, token_prices.unwrap()));
+            }
+            return None;
+            // return token_prices;
+        });
+    }
+
+    let mut crawled_signatures: Vec<Option<(String, String)>> = Vec::new();
+
+    while let Some(res) = token_prices_reqs.join_next().await {
+        let result_i = match res {
+            Ok(_) => res.unwrap(),
+            Err(_) => continue,
+        };
+        crawled_signatures.push(result_i);
+    }
+
+    let mut token_prices = HashMap::new();
+
+    for item in crawled_signatures.iter() {
+        if item.is_none() {
+            continue;
+        }
+
+        let (token_address, token_price) = item.clone().unwrap();
+
+        token_prices.insert(token_address, token_price);
+    }
+
+    token_prices
 }

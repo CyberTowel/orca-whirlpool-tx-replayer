@@ -11,7 +11,8 @@ use crate::{
     rpc_pool_manager::RpcPoolManager,
     token_db::DbClientPoolManager,
     token_parser::PoolMeta,
-    transactions_loader::{parse_transaction_and_save_values},
+    transactions_loader::parse_transaction_and_save_values,
+    // transactions_loader::{parse_transaction_and_save_values},
 };
 
 #[derive(Debug)]
@@ -136,10 +137,14 @@ pub async fn parse_block(
     let db_client_sol_price = db_client.get().await.unwrap();
     let sol_price_transaction_datetime = transaction_datetime.clone();
     let sol_price_db = db_client_sol_price
-        .get_usd_price_sol(sol_price_transaction_datetime)
+        .get_token_price_usd(
+            &sol_price_transaction_datetime,
+            "So11111111111111111111111111111111111111112".to_string(),
+        )
         .unwrap();
 
     for transaction in block_transactions {
+        let sol_price_db_c = sol_price_db.clone();
         let rpc_conn = rpc_connection.get().await.unwrap();
         let rpc_build_conn = rpc_connection_builder.get().await.unwrap();
         let db_conn = db_client.get().await.unwrap();
@@ -167,7 +172,7 @@ pub async fn parse_block(
                 &transaction,
                 block_time,
                 block_number,
-                Some(sol_price_db),
+                Some(sol_price_db_c),
             )
             .await;
         });

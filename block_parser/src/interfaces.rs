@@ -11,6 +11,9 @@ pub struct TokenChanges {
 pub type TokenChangesMap =
     HashMap<std::string::String, HashMap<std::string::String, BalanceChange>>;
 
+// pub type TokenChangesMapPriced =
+//     HashMap<std::string::String, HashMap<std::string::String, BalanceChangePriced>>;
+
 pub type TokenChangesMapFormatted =
     HashMap<std::string::String, HashMap<std::string::String, BalanceChangedFormatted>>;
 
@@ -49,6 +52,8 @@ pub struct CtTransaction {
     // pub changes_by_owner: HashMap<String, HashMap<String, BalanceChange>>,
     pub token_changes_token_account: TokenChanges,
     pub token_changes_owner: TokenChanges,
+    pub tokens: Vec<String>,
+    pub token_prices: Option<HashMap<String, String>>,
 }
 
 // #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -79,6 +84,7 @@ pub struct TransactionParsedResponse {
     // pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChangedFormatted>>, // pub actions: Vec<Action>,
     pub token_changes_owner: TokenChangesMapFormatted,
     pub token_changes_token_account: TokenChangesMapFormatted,
+    pub tokens: Vec<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -134,15 +140,32 @@ pub struct BalanceChange {
     pub owner: String,
     pub mint: String,
     pub balance_pre: BigFloat,
+    pub balance_pre_usd: Option<BigFloat>,
+    pub balance_post_usd: Option<BigFloat>,
     pub balance_post: BigFloat,
     pub difference: BigFloat,
+    pub difference_usd: Option<BigFloat>,
+    pub decimals: u8,
 }
+
+// #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+// pub struct BalanceChangePriced {
+//     pub owner: String,
+//     pub mint: String,
+//     pub balance_pre: BigFloat,
+//     pub balance_pre_priced: Option<BigFloat>,
+//     pub balance_post: BigFloat,
+//     pub difference: BigFloat,
+// }
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BalanceChangedFormatted {
     pub owner: String,
     pub mint: String,
     pub balance_pre: String,
+    pub balance_pre_usd: Option<String>,
     pub balance_post: String,
+    pub balance_post_usd: Option<String>,
     pub difference: String,
+    pub difference_usd: Option<String>,
 }

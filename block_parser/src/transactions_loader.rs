@@ -73,19 +73,21 @@ pub async fn get_transction(
 
     let _transaction_base = CtTransaction::new(&transaction, block_time, block_number);
 
-    get_parsed_transaction(
-        signature,
-        pool_id,
-        rpc_connection,
-        rpc_connection,
-        db_client,
-        &my_cache,
-        &transaction,
-        block_time,
-        block_number,
-        None,
-    )
-    .await
+    return Ok(_transaction_base);
+
+    // get_parsed_transaction(
+    //     signature,
+    //     pool_id,
+    //     rpc_connection,
+    //     rpc_connection,
+    //     db_client,
+    //     &my_cache,
+    //     &transaction,
+    //     block_time,
+    //     block_number,
+    //     None,
+    // )
+    // .await
 }
 
 pub enum Error {
@@ -102,7 +104,7 @@ pub async fn parse_transaction_and_save_values(
     transaction: &EncodedTransactionWithStatusMeta,
     block_time: i64,
     block_number: u64,
-    sol_price_18: Option<Decimal>,
+    sol_price_18: Option<String>,
 ) {
     let _transaction_parsed = get_parsed_transaction(
         signature,
@@ -118,6 +120,18 @@ pub async fn parse_transaction_and_save_values(
     );
 }
 
+// pub async fn get_transaction_base(
+//     transaction: &EncodedTransactionWithStatusMeta,
+//     block_time: i64,
+//     block_number: u64,
+// ) -> Result<CtTransaction, TransactionError> {
+//     let transaction_base = CtTransaction::new(transaction, block_time, block_number);
+
+//     return Ok(transaction_base);
+// }
+
+// pub async fn get_token_pricing();
+
 pub async fn get_parsed_transaction(
     signature: String,
     pool_id: Option<String>,
@@ -128,9 +142,12 @@ pub async fn get_parsed_transaction(
     transaction: &EncodedTransactionWithStatusMeta,
     block_time: i64,
     block_number: u64,
-    sol_price_18: Option<Decimal>,
+    sol_price_18: Option<String>,
+    // transaction_base: CtTransaction,
 ) -> Result<CtTransaction, TransactionError> {
     let transaction_base = CtTransaction::new(transaction, block_time, block_number);
+
+    return Ok(transaction_base);
 
     // println!(
     //     "Transaction base token changes: {:#?}",
@@ -235,7 +252,10 @@ pub async fn get_parsed_transaction(
         // println!("Sol price 18: {:#?}", sol_price_18.unwrap().to_string());
     } else {
         db_client
-            .get_usd_price_sol(transaction_parsed_meta.block_datetime)
+            .get_token_price_usd(
+                &transaction_parsed_meta.block_datetime,
+                "So11111111111111111111111111111111111111112".to_string(),
+            )
             .unwrap()
     };
 
