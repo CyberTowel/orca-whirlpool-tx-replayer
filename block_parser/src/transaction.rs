@@ -337,6 +337,8 @@ impl CtTransaction {
     pub fn set_prices_to_token_changes(&mut self, token_prices: HashMap<String, String>) {
         self.token_prices = Some(token_prices.clone());
         self.token_changes_owner.set_prices(token_prices.clone());
+        self.token_changes_token_account
+            .set_prices(token_prices.clone());
 
         // self.token_changes_token_account.set_prices(token_prices);
     }
