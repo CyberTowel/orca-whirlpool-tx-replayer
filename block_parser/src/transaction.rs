@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
+    actions::parse_token_changes_to_swaps,
     interfaces::{
         CtTransaction,
         TokenChanges,
@@ -17,21 +18,91 @@ use serde_json::{json, Value};
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
 pub mod innner_test {
-    use std::{collections::HashMap, str::FromStr};
-
-    use num_bigfloat::BigFloat;
+    use std::collections::HashMap;
 
     use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
     use crate::{
+        actions::{CtAction, CtActionFormatted, SwapFieldsFormatted},
         interfaces::{
-            BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMap,
-            TokenChangesMapFormatted,
+            BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMapFormatted,
         },
         token_parser::{
             calc_token_usd_total, get_rounded_amount, parse_balance_changes_new, BalanceHolder,
         },
     };
+
+    impl BalanceChange {
+        pub fn format(&self) -> BalanceChangedFormatted {
+            // let formatted_test = self.balance_post_usd.
+
+            let token_values_formatted = BalanceChangedFormatted {
+                owner: self.owner.to_string(),
+                mint: self.mint.to_string(),
+                balance_post: get_rounded_amount(self.balance_post, 18),
+                balance_pre_usd: match self.balance_pre_usd {
+                    Some(x) => Some(get_rounded_amount(x, 18)),
+                    None => None,
+                },
+                difference_usd: match self.difference_usd {
+                    Some(x) => Some(get_rounded_amount(x, 18)),
+                    None => None,
+                },
+                balance_post_usd: match self.balance_post_usd {
+                    Some(x) => Some(get_rounded_amount(x, 18)),
+                    None => None,
+                },
+                balance_pre: get_rounded_amount(self.balance_pre, 18),
+                difference: get_rounded_amount(self.difference, 18),
+            };
+
+            return token_values_formatted;
+        }
+    }
+
+    impl CtAction {
+        pub fn format(&self) -> CtActionFormatted {
+            let tokens_from_formatted: Vec<BalanceChangedFormatted> = self
+                .fields
+                .tokens_from
+                .iter()
+                .map(|value| {
+                    let formatted = value.format();
+                    return formatted;
+                })
+                .collect();
+
+            let tokens_to_formatted: Vec<BalanceChangedFormatted> = self
+                .fields
+                .tokens_to
+                .iter()
+                .map(|value| {
+                    let formatted = value.format();
+                    return formatted;
+                })
+                .collect();
+
+            let action_formatted = CtActionFormatted {
+                action_type: self.action_type.to_string(),
+                protocol_name: self.protocol_name.clone(),
+                protocol_id: self.protocol_id.clone(),
+                protocol: self.protocol.clone(),
+                addresses: self.addresses.clone(),
+                event_ids: self.event_ids.clone(),
+                u_bwallet_address: self.u_bwallet_address.clone(),
+                fields: SwapFieldsFormatted {
+                    tokens_from: tokens_from_formatted,
+                    tokens_to: tokens_to_formatted,
+                    swap_hops: self.fields.swap_hops.clone(),
+                    router_events: self.fields.router_events.clone(),
+                    testing: self.fields.testing,
+                },
+            };
+            return action_formatted;
+        }
+
+        // return self.clone();
+    }
 
     impl TokenChanges {
         pub fn new(
@@ -50,8 +121,6 @@ pub mod innner_test {
         }
 
         pub fn set_prices(&mut self, prices: HashMap<String, String>) {
-            let testing = self.values.clone();
-
             let balance_changes_priced: HashMap<
                 std::string::String,
                 HashMap<std::string::String, BalanceChange>,
@@ -148,25 +217,26 @@ pub mod innner_test {
                 for (key, value) in value.iter() {
                     let token_address = key.to_string();
                     let balance_change = value;
-                    let token_values_formatted = BalanceChangedFormatted {
-                        owner: balance_change.owner.to_string(),
-                        mint: balance_change.mint.to_string(),
-                        balance_post: get_rounded_amount(balance_change.balance_post, 18),
-                        balance_pre_usd: match balance_change.balance_pre_usd {
-                            Some(x) => Some(get_rounded_amount(x, 18)),
-                            None => None,
-                        },
-                        difference_usd: match balance_change.difference_usd {
-                            Some(x) => Some(get_rounded_amount(x, 18)),
-                            None => None,
-                        },
-                        balance_post_usd: match balance_change.balance_post_usd {
-                            Some(x) => Some(get_rounded_amount(x, 18)),
-                            None => None,
-                        },
-                        balance_pre: get_rounded_amount(balance_change.balance_pre, 18),
-                        difference: get_rounded_amount(balance_change.difference, 18),
-                    };
+                    let token_values_formatted = balance_change.format();
+                    // let token_values_formatted = BalanceChangedFormatted {
+                    //     owner: balance_change.owner.to_string(),
+                    //     mint: balance_change.mint.to_string(),
+                    //     balance_post: get_rounded_amount(balance_change.balance_post, 18),
+                    //     balance_pre_usd: match balance_change.balance_pre_usd {
+                    //         Some(x) => Some(get_rounded_amount(x, 18)),
+                    //         None => None,
+                    //     },
+                    //     difference_usd: match balance_change.difference_usd {
+                    //         Some(x) => Some(get_rounded_amount(x, 18)),
+                    //         None => None,
+                    //     },
+                    //     balance_post_usd: match balance_change.balance_post_usd {
+                    //         Some(x) => Some(get_rounded_amount(x, 18)),
+                    //         None => None,
+                    //     },
+                    //     balance_pre: get_rounded_amount(balance_change.balance_pre, 18),
+                    //     difference: get_rounded_amount(balance_change.difference, 18),
+                    // };
 
                     values.insert(token_address, token_values_formatted);
                     // println!("{:#?}", testing)
@@ -301,6 +371,7 @@ impl CtTransaction {
             token_changes_token_account: token_changes_token_accounts,
             tokens,
             token_prices: None,
+            actions: Vec::new(),
             // token_amounts: token_amounts,
         }
     }
@@ -330,6 +401,7 @@ impl CtTransaction {
             token_changes_owner: self.token_changes_owner.format(),
             token_changes_token_account: self.token_changes_token_account.format(),
             tokens: self.tokens.clone(),
+            actions: self.actions.iter().map(|value| value.format()).collect(),
             // token_prices: self.token_prices.clone(),
         }
     }
@@ -341,6 +413,16 @@ impl CtTransaction {
             .set_prices(token_prices.clone());
 
         // self.token_changes_token_account.set_prices(token_prices);
+    }
+
+    pub fn create_actions(&mut self) {
+        // let mut actions = Vec::new();
+
+        let swaps = parse_token_changes_to_swaps(self.token_changes_owner.values.clone());
+
+        self.actions = swaps;
+        // self.set_actions(swaps)
+        // return actions;
     }
 }
 

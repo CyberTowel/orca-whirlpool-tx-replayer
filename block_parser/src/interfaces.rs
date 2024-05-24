@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use num_bigfloat::BigFloat;
 
+use crate::actions::{CtAction, CtActionFormatted};
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TokenChanges {
     pub values: TokenChangesMap,
@@ -54,6 +56,7 @@ pub struct CtTransaction {
     pub token_changes_owner: TokenChanges,
     pub tokens: Vec<String>,
     pub token_prices: Option<HashMap<String, String>>,
+    pub actions: Vec<CtAction>,
 }
 
 // #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -85,7 +88,11 @@ pub struct TransactionParsedResponse {
     pub token_changes_owner: TokenChangesMapFormatted,
     pub token_changes_token_account: TokenChangesMapFormatted,
     pub tokens: Vec<String>,
+    pub actions: ActionsFormatted,
 }
+
+pub type Actions = Vec<CtAction>;
+pub type ActionsFormatted = Vec<CtActionFormatted>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PriceItem {
@@ -112,10 +119,10 @@ pub struct PriceItem {
     pub block_number: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Action {
-    action_type: String,
-}
+// #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+// pub struct Action {
+//     action_type: String,
+// }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PriceItemResponse {

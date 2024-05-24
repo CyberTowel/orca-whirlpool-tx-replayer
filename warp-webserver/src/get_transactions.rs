@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use moka::future::Cache;
-use tokio::task::JoinSet;
+
 use warp::Reply;
 
 use crate::User;
@@ -53,7 +51,7 @@ pub async fn handler(
 
     // transaction.set_token_prices(token_prices);
     transaction.set_prices_to_token_changes(token_prices);
-
+    transaction.create_actions();
     // let transaction_formatted = parse_parsed_to_formatted(transaction);
 
     Ok(warp::reply::json(&transaction.format()))

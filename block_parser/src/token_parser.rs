@@ -8,7 +8,7 @@ use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::interfaces::{BalanceChange, CtTransaction, TokenChanges};
+use crate::interfaces::{BalanceChange, CtTransaction};
 
 #[derive(Debug)]
 pub enum Error {}
@@ -253,7 +253,7 @@ pub fn parse_balance_changes(
         let owner: Option<String> = balance.owner.clone().into();
         let mint = balance.mint.clone();
         let amount = balance.ui_token_amount.amount;
-        let decimals = balance.ui_token_amount.decimals;
+
         let owner_address = owner.unwrap();
 
         // print!("\n amount post: {:#?}", amount);

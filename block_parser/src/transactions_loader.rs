@@ -6,7 +6,6 @@ use crate::interfaces::{
 use chrono::prelude::*;
 use moka::future::Cache;
 
-use rust_decimal::Decimal;
 use serde_json::json;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signature};

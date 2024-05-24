@@ -559,7 +559,7 @@ impl TokenDbClient {
         transaction_datetime: &String,
         token_address: String,
     ) -> DbResult<String> {
-        let token_address_to_use = if (token_address == "sol") {
+        let token_address_to_use = if token_address == "sol" {
             "So11111111111111111111111111111111111111112".to_string()
         } else {
             token_address
