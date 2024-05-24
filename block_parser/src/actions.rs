@@ -11,7 +11,16 @@ pub struct CtAction {
     pub addresses: Vec<String>,
     pub event_ids: Vec<String>,
     pub u_bwallet_address: Option<String>,
-    pub fields: SwapFields,
+    pub fields: ActionFields,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub enum ActionFields {
+    SwapFields(SwapFields),
+}
+
+pub enum ActionFieldsFormatted {
+    SwapFields(SwapFieldsFormatted),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -80,6 +89,14 @@ pub fn parse_token_changes_to_swaps(
             continue;
         }
 
+        let fields = ActionFields::SwapFields(SwapFields {
+            tokens_from,
+            tokens_to,
+            swap_hops: Vec::new(),
+            router_events: Vec::new(),
+            testing: true,
+        });
+
         actions.push(CtAction {
             action_type: "ctswap".to_string(),
             protocol_name: None,
@@ -88,14 +105,7 @@ pub fn parse_token_changes_to_swaps(
             addresses: vec![key.to_lowercase()],
             event_ids: Vec::new(),
             u_bwallet_address: None,
-            fields: SwapFields {
-                // tokens_fee: Vec::new(),
-                tokens_from,
-                tokens_to,
-                swap_hops: Vec::new(),
-                router_events: Vec::new(),
-                testing: true,
-            },
+            fields: fields,
         });
 
         // println!(

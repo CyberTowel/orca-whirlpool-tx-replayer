@@ -23,7 +23,7 @@ pub mod innner_test {
     use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
     use crate::{
-        actions::{CtAction, CtActionFormatted, SwapFieldsFormatted},
+        actions::{ActionFields, CtAction, CtActionFormatted, SwapFieldsFormatted},
         interfaces::{
             BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMapFormatted,
         },
@@ -62,25 +62,73 @@ pub mod innner_test {
 
     impl CtAction {
         pub fn format(&self) -> CtActionFormatted {
-            let tokens_from_formatted: Vec<BalanceChangedFormatted> = self
-                .fields
-                .tokens_from
-                .iter()
-                .map(|value| {
-                    let formatted = value.format();
-                    return formatted;
-                })
-                .collect();
+            let fields = match &self.fields {
+                ActionFields::SwapFields(fields) => {
+                    let tokens_from_formatted: Vec<BalanceChangedFormatted> = fields
+                        .tokens_from
+                        .iter()
+                        .map(|value| {
+                            let formatted = value.format();
+                            return formatted;
+                        })
+                        .collect();
 
-            let tokens_to_formatted: Vec<BalanceChangedFormatted> = self
-                .fields
-                .tokens_to
-                .iter()
-                .map(|value| {
-                    let formatted = value.format();
-                    return formatted;
-                })
-                .collect();
+                    let tokens_to_formatted: Vec<BalanceChangedFormatted> = fields
+                        .tokens_to
+                        .iter()
+                        .map(|value| {
+                            let formatted = value.format();
+                            return formatted;
+                        })
+                        .collect();
+
+                    // let action_formatted = CtActionFormatted {
+                    //     action_type: self.action_type.to_string(),
+                    //     protocol_name: self.protocol_name.clone(),
+                    //     protocol_id: self.protocol_id.clone(),
+                    //     protocol: self.protocol.clone(),
+                    //     addresses: self.addresses.clone(),
+                    //     event_ids: self.event_ids.clone(),
+                    //     u_bwallet_address: self.u_bwallet_address.clone(),
+                    //     fields: SwapFieldsFormatted {
+                    //         tokens_from: tokens_from_formatted,
+                    //         tokens_to: tokens_to_formatted,
+                    //         swap_hops: fields.swap_hops,
+                    //         router_events: fields.router_events.clone(),
+                    //         testing: fields.testing,
+                    //     },
+                    // };
+                    let fields_formatted = SwapFieldsFormatted {
+                        tokens_from: tokens_from_formatted,
+                        tokens_to: tokens_to_formatted,
+                        swap_hops: fields.swap_hops.clone(),
+                        router_events: fields.router_events.clone(),
+                        testing: fields.testing,
+                    };
+
+                    fields_formatted
+                }
+            };
+
+            // let tokens_from_formatted: Vec<BalanceChangedFormatted> = self
+            //     .fields
+            //     .tokens_from
+            //     .iter()
+            //     .map(|value| {
+            //         let formatted = value.format();
+            //         return formatted;
+            //     })
+            //     .collect();
+
+            // let tokens_to_formatted: Vec<BalanceChangedFormatted> = self
+            //     .fields
+            //     .tokens_to
+            //     .iter()
+            //     .map(|value| {
+            //         let formatted = value.format();
+            //         return formatted;
+            //     })
+            //     .collect();
 
             let action_formatted = CtActionFormatted {
                 action_type: self.action_type.to_string(),
@@ -90,13 +138,7 @@ pub mod innner_test {
                 addresses: self.addresses.clone(),
                 event_ids: self.event_ids.clone(),
                 u_bwallet_address: self.u_bwallet_address.clone(),
-                fields: SwapFieldsFormatted {
-                    tokens_from: tokens_from_formatted,
-                    tokens_to: tokens_to_formatted,
-                    swap_hops: self.fields.swap_hops.clone(),
-                    router_events: self.fields.router_events.clone(),
-                    testing: self.fields.testing,
-                },
+                fields,
             };
             return action_formatted;
         }
