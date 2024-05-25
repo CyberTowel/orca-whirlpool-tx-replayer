@@ -195,44 +195,8 @@ pub fn parse_token_changes_to_swaps(
     address_token_changes: TokenChangesMap,
     // transaction_from: Option<String>,
 ) -> (Vec<CtAction>, TokenChangesMap) {
-    // let _other: Vec<AddressTokenChange> = Vec::new();
-
     let mut used_ref = address_token_changes.clone();
     let mut actions: Vec<CtAction> = Vec::new();
-
-    // // Filter the nested HashMap and collect the removed entries
-    // let mut removed_entries: Vec<(String, HashMap<String, i32>)> = Vec::new();
-
-    // let filter_condition = |_key: &String, inner_map: &HashMap<String, BalanceChange>| {
-    //     let tokens_from: Vec<BalanceChange> = inner_map
-    //         .iter()
-    //         .filter(|(_token_address, balance_change)| {
-    //             balance_change.difference.is_positive() && !balance_change.difference.is_zero()
-    //         })
-    //         .map(|(_token_address, balance_change)| balance_change.clone())
-    //         .collect();
-
-    //     let tokens_to: Vec<BalanceChange> = inner_map
-    //         .iter()
-    //         .filter(|(_, balance_change)| balance_change.difference.is_negative())
-    //         .map(|(_token_address, balance_change)| balance_change.clone())
-    //         .collect();
-
-    //     (tokens_from.is_empty() || tokens_to.is_empty())
-    //     // inner_map.values().any(|value| *value >= 30)
-    // };
-
-    // let mut filtered_maps = Vec::new();
-    // let mut keys_to_remove = Vec::new();
-
-    // for (key, inner_map) in used_ref.iter_mut() {
-    //     if filter_condition(key, inner_map) {
-    //         filtered_maps.push(inner_map.clone());
-    //         keys_to_remove.push(key.clone());
-    //     }
-    // }
-
-    // println!("filtered maps: {:#?}", filtered_maps);
 
     for (key, value) in address_token_changes {
         let tokens_from: Vec<BalanceChange> = value
@@ -249,21 +213,12 @@ pub fn parse_token_changes_to_swaps(
             .map(|(_token_address, balance_change)| balance_change.clone())
             .collect();
 
-        // let testing: Vec<_> = value
-        //     .iter()
-        //     .filter(|(_, balance_change)| balance_change.difference.is_negative())
-        //     .collect()
-        //     .len();
-        // .map(|(_token_address, balance_change)| balance_change.clone())
-        // .collect();
-
         if (tokens_from.is_empty() || tokens_to.is_empty()) {
             // used_ref.get_mut(&key).unwrap().set
             continue;
         }
 
         used_ref.retain(|key, inner_map| {
-            // let mut filtered_inner_map = HashMap::new();
             inner_map.retain(|inner_key, _value| {
                 if (tokens_from
                     .iter()
@@ -272,33 +227,14 @@ pub fn parse_token_changes_to_swaps(
                         .iter()
                         .any(|t| t.mint == inner_key.to_string() && t.owner == key.to_string()))
                 {
-                    // filtered_inner_map.insert(inner_key.clone(), value);
-                    // println!("inner key to remove: {:#?}", inner_key);
                     false
                 } else {
                     true
                 }
-
-                // if tokens_from(&value) {
-                //     // filtered_inner_map.insert(inner_key.clone(), value);
-                //     true
-                // } else {
-                //     false
-                // }
             });
 
             return true;
-
-            // if filtered_inner_map.is_empty() {
-            //     removed_entries.push((key.clone(), inner_map.clone()));
-            //     false
-            // } else {
-            //     *inner_map = filtered_inner_map;
-            //     true
-            // }
         });
-
-        // println!("from{:#?}\nto: {:#?}", tokens_from, tokens_to);
 
         let fields = ActionFields::CtSwap(SwapFields {
             tokens_from,
@@ -318,72 +254,7 @@ pub fn parse_token_changes_to_swaps(
             u_bwallet_address: None,
             fields: fields,
         });
-
-        // println!(
-        //     "token_from amount {:#?}, tokens to amount: {}",
-        //     tokens_from.len(),
-        //     tokens_to.len()
-        // );
     }
 
     return (actions, used_ref);
-
-    // if  address_token_changes {
-    // for _item in changes {
-    //     let tokens_from: Vec<TokenChange> = item
-    //         .tokens_changed
-    //         .iter()
-    //         .filter(|t| t.difference < BigDecimal::from(0))
-    //         .map(|t| TokenChange {
-    //             token: t.token.clone(),
-    //             difference: t.difference.clone(),
-    //             differnceUi: t.differnceUi.clone(),
-    //             priceUSDUi: t.priceUSDUi.clone(),
-    //         })
-    //         .collect();
-
-    //     let tokens_to: Vec<TokenChange> = item
-    //         .tokens_changed
-    //         .iter()
-    //         .filter(|t| t.difference > BigDecimal::from(0))
-    //         .map(|t| TokenChange {
-    //             token: t.token.clone(),
-    //             difference: t.difference.clone(),
-    //             differnceUi: t.differnceUi.clone(),
-    //             priceUSDUi: t.priceUSDUi.clone(),
-    //         })
-    //         .collect();
-
-    //     if tokens_from.is_empty() || tokens_to.is_empty() {
-    //         other.push(item);
-    //         continue;
-    //     }
-
-    //     let swap_action = CtSwap {
-    //         action_type: "ctswap".to_string(),
-    //         protocol_name: None,
-    //         protocol_id: None,
-    //         protocol: None,
-    //         addresses: vec![item
-    //             .owner
-    //             .as_ref()
-    //             .map(|o| o.to_lowercase())
-    //             .unwrap_or_default()],
-    //         event_ids: Vec::new(),
-    //         u_bwallet_address: transaction_from.clone(),
-    //         fields: SwapFields {
-    //             tokens_fee: Vec::new(),
-    //             tokens_from,
-    //             tokens_to,
-    //             swap_hops: Vec::new(),
-    //             router_events: Vec::new(),
-    //             testing: false,
-    //         },
-    //     };
-
-    //     actions.push(swap_action);
-    // }
-    // }
-
-    // (actions, other)
 }
