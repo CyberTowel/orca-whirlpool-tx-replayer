@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use chrono::format;
 use serde::{Deserialize, Serialize};
 
 use crate::interfaces::{BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMap};
@@ -11,28 +14,35 @@ pub struct CtAction {
     pub addresses: Vec<String>,
     pub event_ids: Vec<String>,
     pub u_bwallet_address: Option<String>,
+    // pub fields: ActionFields,
     pub fields: ActionFields,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub enum ActionFields {
-    SwapFields(SwapFields),
+    CtSwap(SwapFields),
+    CtTransfer(TransferFields),
 }
 
+#[derive(Clone, Deserialize, Serialize, Debug)]
+#[serde(tag = "action_type", content = "fields", rename_all = "lowercase")]
 pub enum ActionFieldsFormatted {
-    SwapFields(SwapFieldsFormatted),
+    CtSwap(SwapFieldsFormatted),
+
+    CtTransfer(TransferFieldsFormatted),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CtActionFormatted {
-    pub action_type: String,
     pub protocol_name: Option<String>,
     pub protocol_id: Option<String>,
     pub protocol: Option<String>,
     pub addresses: Vec<String>,
     pub event_ids: Vec<String>,
     pub u_bwallet_address: Option<String>,
-    pub fields: SwapFieldsFormatted,
+    #[serde(flatten)]
+    pub action: ActionFieldsFormatted,
+    // pub fields: String,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -55,18 +65,98 @@ pub struct SwapFields {
     pub testing: bool,
 }
 
-pub fn parse_token_changes_to_swaps(
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct TransferFields {
+    // tokens_fee: Vec<TokenChanges>,
+    pub tokens_transferred: Vec<BalanceChange>,
+    pub router_events: Vec<String>,
+    pub testing: bool,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct TransferFieldsFormatted {
+    // tokens_fee: Vec<TokenChanges>,
+    pub tokens_transferred: Vec<BalanceChangedFormatted>,
+    pub router_events: Vec<String>,
+    pub testing: bool,
+}
+
+impl ActionFields {
+    fn format(&self) -> ActionFieldsFormatted {
+        let values = match self {
+            ActionFields::CtSwap(fields) => ActionFieldsFormatted::CtSwap(fields.format()),
+            ActionFields::CtTransfer(fields) => ActionFieldsFormatted::CtTransfer(fields.format()),
+        };
+
+        values
+    }
+}
+
+impl SwapFields {
+    fn format(&self) -> SwapFieldsFormatted {
+        let tokens_from: Vec<BalanceChangedFormatted> = self
+            .tokens_from
+            .iter()
+            .map(|balance_change| balance_change.format())
+            .collect();
+
+        let tokens_to: Vec<BalanceChangedFormatted> = self
+            .tokens_to
+            .iter()
+            .map(|balance_change| balance_change.format())
+            .collect();
+
+        SwapFieldsFormatted {
+            tokens_from,
+            tokens_to,
+            swap_hops: self.swap_hops.clone(),
+            router_events: self.router_events.clone(),
+            testing: self.testing,
+        }
+    }
+}
+
+impl TransferFields {
+    fn format(&self) -> TransferFieldsFormatted {
+        let tokens_transferred: Vec<BalanceChangedFormatted> = self
+            .tokens_transferred
+            .iter()
+            .map(|balance_change| balance_change.format())
+            .collect();
+
+        TransferFieldsFormatted {
+            tokens_transferred,
+            router_events: self.router_events.clone(),
+            testing: self.testing,
+        }
+    }
+}
+
+impl CtAction {
+    pub fn format(&self) -> CtActionFormatted {
+        CtActionFormatted {
+            protocol_name: self.protocol_name.clone(),
+            protocol_id: self.protocol_id.clone(),
+            protocol: self.protocol.clone(),
+            addresses: self.addresses.clone(),
+            event_ids: self.event_ids.clone(),
+            u_bwallet_address: self.u_bwallet_address.clone(),
+            action: self.fields.format(),
+        }
+    }
+}
+
+pub fn parse_token_changes_to_transfers(
     address_token_changes: TokenChangesMap,
     // transaction_from: Option<String>,
-) -> (Vec<CtAction>) {
-    // let _other: Vec<AddressTokenChange> = Vec::new();
+) -> Vec<CtAction> {
     let mut actions: Vec<CtAction> = Vec::new();
 
     for (key, value) in address_token_changes {
-        let tokens_from: Vec<BalanceChange> = value
+        let with_values: Vec<BalanceChange> = value
             .iter()
             .filter(|(_token_address, balance_change)| {
-                if balance_change.difference.is_positive() && !balance_change.difference.is_zero() {
+                if !balance_change.difference.is_zero() {
                     return true;
                 }
                 return false;
@@ -74,22 +164,143 @@ pub fn parse_token_changes_to_swaps(
             .map(|(_token_address, balance_change)| balance_change.clone())
             .collect();
 
-        let tokens_to: Vec<BalanceChange> = value
-            .iter()
-            .filter(|(token_address, balance_change)| {
-                if balance_change.difference.is_negative() {
-                    return true;
-                }
-                return false;
-            })
-            .map(|(token_address, balance_change)| balance_change.clone())
-            .collect();
+        // println!("with values: {:#?}", with_values);
 
-        if (tokens_from.is_empty() || tokens_to.is_empty()) {
+        if (with_values.is_empty()) {
             continue;
         }
 
-        let fields = ActionFields::SwapFields(SwapFields {
+        let fields = ActionFields::CtTransfer(TransferFields {
+            tokens_transferred: with_values,
+            router_events: Vec::new(),
+            testing: true,
+        });
+
+        actions.push(CtAction {
+            action_type: "cttransfer".to_string(),
+            protocol_name: None,
+            protocol_id: None,
+            protocol: None,
+            addresses: vec![key.to_lowercase()],
+            event_ids: Vec::new(),
+            u_bwallet_address: None,
+            fields: fields,
+        });
+    }
+
+    return actions;
+}
+
+pub fn parse_token_changes_to_swaps(
+    address_token_changes: TokenChangesMap,
+    // transaction_from: Option<String>,
+) -> (Vec<CtAction>, TokenChangesMap) {
+    // let _other: Vec<AddressTokenChange> = Vec::new();
+
+    let mut used_ref = address_token_changes.clone();
+    let mut actions: Vec<CtAction> = Vec::new();
+
+    // // Filter the nested HashMap and collect the removed entries
+    // let mut removed_entries: Vec<(String, HashMap<String, i32>)> = Vec::new();
+
+    // let filter_condition = |_key: &String, inner_map: &HashMap<String, BalanceChange>| {
+    //     let tokens_from: Vec<BalanceChange> = inner_map
+    //         .iter()
+    //         .filter(|(_token_address, balance_change)| {
+    //             balance_change.difference.is_positive() && !balance_change.difference.is_zero()
+    //         })
+    //         .map(|(_token_address, balance_change)| balance_change.clone())
+    //         .collect();
+
+    //     let tokens_to: Vec<BalanceChange> = inner_map
+    //         .iter()
+    //         .filter(|(_, balance_change)| balance_change.difference.is_negative())
+    //         .map(|(_token_address, balance_change)| balance_change.clone())
+    //         .collect();
+
+    //     (tokens_from.is_empty() || tokens_to.is_empty())
+    //     // inner_map.values().any(|value| *value >= 30)
+    // };
+
+    // let mut filtered_maps = Vec::new();
+    // let mut keys_to_remove = Vec::new();
+
+    // for (key, inner_map) in used_ref.iter_mut() {
+    //     if filter_condition(key, inner_map) {
+    //         filtered_maps.push(inner_map.clone());
+    //         keys_to_remove.push(key.clone());
+    //     }
+    // }
+
+    // println!("filtered maps: {:#?}", filtered_maps);
+
+    for (key, value) in address_token_changes {
+        let tokens_from: Vec<BalanceChange> = value
+            .iter()
+            .filter(|(_token_address, balance_change)| {
+                balance_change.difference.is_positive() && !balance_change.difference.is_zero()
+            })
+            .map(|(_token_address, balance_change)| balance_change.clone())
+            .collect();
+
+        let tokens_to: Vec<BalanceChange> = value
+            .iter()
+            .filter(|(_, balance_change)| balance_change.difference.is_negative())
+            .map(|(_token_address, balance_change)| balance_change.clone())
+            .collect();
+
+        // let testing: Vec<_> = value
+        //     .iter()
+        //     .filter(|(_, balance_change)| balance_change.difference.is_negative())
+        //     .collect()
+        //     .len();
+        // .map(|(_token_address, balance_change)| balance_change.clone())
+        // .collect();
+
+        if (tokens_from.is_empty() || tokens_to.is_empty()) {
+            // used_ref.get_mut(&key).unwrap().set
+            continue;
+        }
+
+        used_ref.retain(|key, inner_map| {
+            // let mut filtered_inner_map = HashMap::new();
+            inner_map.retain(|inner_key, _value| {
+                if (tokens_from
+                    .iter()
+                    .any(|t| t.mint == inner_key.to_string() && t.owner == key.to_string())
+                    || tokens_to
+                        .iter()
+                        .any(|t| t.mint == inner_key.to_string() && t.owner == key.to_string()))
+                {
+                    // filtered_inner_map.insert(inner_key.clone(), value);
+                    // println!("inner key to remove: {:#?}", inner_key);
+                    false
+                } else {
+                    true
+                }
+
+                // if tokens_from(&value) {
+                //     // filtered_inner_map.insert(inner_key.clone(), value);
+                //     true
+                // } else {
+                //     false
+                // }
+            });
+
+            return true;
+
+            // if filtered_inner_map.is_empty() {
+            //     removed_entries.push((key.clone(), inner_map.clone()));
+            //     false
+            // } else {
+            //     *inner_map = filtered_inner_map;
+            //     true
+            // }
+        });
+
+        // println!("from{:#?}\nto: {:#?}", tokens_from, tokens_to);
+
+        let fields = ActionFields::CtSwap(SwapFields {
             tokens_from,
             tokens_to,
             swap_hops: Vec::new(),
@@ -115,7 +326,7 @@ pub fn parse_token_changes_to_swaps(
         // );
     }
 
-    return (actions);
+    return (actions, used_ref);
 
     // if  address_token_changes {
     // for _item in changes {
