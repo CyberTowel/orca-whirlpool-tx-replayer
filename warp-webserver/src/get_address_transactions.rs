@@ -11,7 +11,7 @@ use deadpool::managed;
 use moka::future::Cache;
 use serde::Serialize;
 use std::collections::VecDeque;
-use tokio::task::JoinSet;
+use tokio::task::{JoinHandle, JoinSet};
 use warp::{reply::Reply, Filter};
 
 // use crate::ArrayMapRequest;
@@ -33,6 +33,10 @@ pub async fn get_address_transactions_handler(
     params: ArrayMapRequest,
 ) -> Result<impl Reply, warp::Rejection> {
     // println!("testing: {:#?}", expand.clone());
+
+    let mut tasks = VecDeque::new();
+
+    // let mut task_handles = VecDeque::new();
 
     let expand = params.expand.clone();
 
@@ -71,20 +75,43 @@ pub async fn get_address_transactions_handler(
         let db_connect = db_pool.clone();
         let cache_connect = cache.clone();
 
-        signatures_to_process.spawn(async move {
+        let handle = tokio::spawn(async move {
             // wait for ratelimiting
             // tester.wait().await;
             let results =
                 get_transaction_priced(rpc_connect, db_connect, cache_connect, signature).await;
             return results;
         });
+
+        tasks.push_back(handle);
     }
 
     let mut crawled_signatures: Vec<String> = Vec::new();
     let mut transactions = Vec::<TransactionParsedResponse>::new();
 
-    while let Some(res) = signatures_to_process.join_next().await {
-        crawled_signatures.push("tesitng".to_string());
+    // while let Some(res) = signatures_to_process.join_next().await {
+    //     crawled_signatures.push("tesitng".to_string());
+
+    //     if (res.is_err()) {
+    //         println!("Error processing signature: {:#?}", res.err());
+    //         continue;
+    //     }
+
+    //     let tesitng = res.unwrap();
+
+    //     let result = tesitng.unwrap().format(expand.clone());
+
+    //     // println!("Processing signature: {:#?}", result.actions);
+    //     // let testing = res.unwrap();
+
+    //     transactions.push(result);
+    // }
+
+    while let Some(handle) = tasks.pop_front() {
+        let res: Result<CtTransaction, TransactionError> = handle.await.unwrap();
+
+        // let res = result.unwrap();
+        // results.push(result);
 
         if (res.is_err()) {
             println!("Error processing signature: {:#?}", res.err());
@@ -93,13 +120,18 @@ pub async fn get_address_transactions_handler(
 
         let tesitng = res.unwrap();
 
-        let result = tesitng.unwrap().format(expand.clone());
+        let result = tesitng.format(expand.clone());
 
         // println!("Processing signature: {:#?}", result.actions);
         // let testing = res.unwrap();
 
         transactions.push(result);
     }
+
+    // while let Some(handle) = tasks.pop_front() {
+    //     let result = handle.await.unwrap();
+    //     println!("Result: {}", result);
+    // }
 
     Ok(warp::reply::json(&&Response {
         adddress: address.to_string(),
