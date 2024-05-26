@@ -42,11 +42,6 @@ pub fn start_workers(
                 })
                 .await;
 
-                // match result {
-                //     Ok(contents) => println!("File contents: {}", contents),
-                //     Err(err) => println!("Error: {}", err),
-                // }
-
                 // // tokio::time::sleep(Duration::from_millis(300)).await;
                 // let result = parse_block(
                 //     counter_value as u64,
@@ -56,25 +51,6 @@ pub fn start_workers(
                 //     &my_cache_c,
                 // )
                 // .await;
-
-                // if result.is_err() {
-                //     match result.err().unwrap() {
-                //         RpcErrorCustom::BlockNotFoundError {
-                //             code,
-                //             message,
-                //             data,
-                //         } => {
-                //             println!(
-                //                 "Block number: {} has error: {} message: {} data: {}",
-                //                 counter_value, code, message, data
-                //             );
-                //         }
-                //     }
-                //     // println!("has error from rpc {:#?}", result.err().unwrap());
-
-                //     // println!()
-                //     continue;
-                // };
 
                 if result.is_ok() {
                     let (
@@ -97,7 +73,6 @@ pub fn start_workers(
                     };
                     dolar.send(Some(block_parsed_debug)).unwrap();
                 } else {
-                    // println!("failed to parse block: {:?}", counter_value);
                     dolar
                         .send(Some(BlockParsedDebug {
                             block_number: counter_value as u64,

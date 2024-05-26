@@ -154,7 +154,6 @@ async fn main() {
                 let duration = end_time - start_time.unwrap();
 
                 rolling_duration_block = Some(duration / sample_rate as u32);
-                // println!("Duration: {:?}", duration);
             }
 
             rolling_avg_total += result.duraction_total;

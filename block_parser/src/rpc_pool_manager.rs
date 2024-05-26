@@ -23,8 +23,6 @@ impl managed::Manager for RpcPoolManager {
     type Error = Error;
 
     async fn create(&self) -> Result<Self::Type, Self::Error> {
-        // println!("Creating new connection {:#?}", self.rpc_type);
-
         let mut rpc_url: &str =
             "https://din-lb.solanarpc.dev/KsnzZimk2FZ7c4AHPd3EjGLuXjVnRZ5v3X3mgkq";
 
@@ -48,7 +46,6 @@ impl managed::Manager for RpcPoolManager {
             }
         }
 
-        // println!("testing:");
         Ok(RpcClient::new_with_commitment(
             // cluster,
             // "https://solana-mainnet.g.alchemy.com/v2/0uuM5dFqqhu79XiFtEa4dZkfLZDlNOGZ",

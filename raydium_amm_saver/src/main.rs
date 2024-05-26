@@ -44,8 +44,6 @@ async fn main() {
 
     // let limit_to_set = args.rate_limit.unwrap_or(1000);
 
-    println!("Args set: {:?}", args);
-
     let mgr = RpcPoolManager {
         rpc_type: args.rpc_type,
     };
@@ -85,7 +83,6 @@ async fn main() {
     ];
 
     if testing_mode {
-        println!("Testing mode enabled");
         for item in testing_singatures {
             let poolvars = PoolVars {
                 pool_id: item.pool_id.to_string(),

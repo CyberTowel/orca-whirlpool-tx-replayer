@@ -28,7 +28,6 @@ pub enum ActionFields {
 #[serde(tag = "action_type", content = "fields", rename_all = "lowercase")]
 pub enum ActionFieldsFormatted {
     CtSwap(SwapFieldsFormatted),
-
     CtTransfer(TransferFieldsFormatted),
 }
 
@@ -163,8 +162,6 @@ pub fn parse_token_changes_to_transfers(
             })
             .map(|(_token_address, balance_change)| balance_change.clone())
             .collect();
-
-        // println!("with values: {:#?}", with_values);
 
         if (with_values.is_empty()) {
             continue;

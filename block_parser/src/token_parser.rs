@@ -912,13 +912,6 @@ pub fn parse_balance_changes_new(
     return changes_by_owner;
 }
 
-// fn map_prices_to_tokens_changed(
-//     token_changes: TokenChanges,
-//     token_prices: HashMap<String, String>,
-// ) {
-//     println!("{:#?}", token_changes);
-// }
-
 pub fn calc_token_usd_total(
     value: BigFloat,
     token_price: Option<&String>,

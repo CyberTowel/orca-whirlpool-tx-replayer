@@ -11,7 +11,7 @@ use crate::{
     rpc_pool_manager::RpcPoolManager,
     token_db::DbClientPoolManager,
     token_parser::PoolMeta,
-    transactions_loader::parse_transaction_and_save_values,
+    transactions_loader::to_replace_parse_transaction_and_save_values,
     // transactions_loader::{parse_transaction_and_save_values},
 };
 
@@ -59,61 +59,14 @@ pub async fn parse_block(
         .await;
 
     let duration_rpc = start.elapsed();
-    // println!(
-    //     "Time elapsed to get block {} is: {:?}",
-    //     block_number, duration_rpc
-    // );
 
     if block_req.is_err() {
         let error = block_req.as_ref().err().unwrap();
 
         let _tesitng = error.kind();
 
-        // let error_code: &i64 = match tesitng {
-        //     ClientErrorKind::RpcError(RpcResponseError {
-        //         code,
-        //         message: _,
-        //         data: _,
-        //     }) => {
-        //         // println!("Error getting block test: {:#?}", code);
-        //         // return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
-        //         code
-        //     }
-        //     _ => &0,
-        // };
-
-        // println!("will return error");
-
         // return Err({ error_code.clone() });
         return Err(RpcErrorCustom::BlockNotFoundError);
-
-        // println!("Error getting block: {:#?}", error_code);
-
-        // println!("Error getting block: {:#?}", tesitng);
-
-        // if (tesitng. == RpcError::RpcResponseError) {
-        //     println!("Error getting block: {:#?}", error);
-        //     return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
-        // }
-
-        // match error {
-        //     _ => {}
-        //     RpcResponseError {
-        //         code,
-        //         message,
-        //         data,
-        //     } => {
-        //         println!("Error getting block: {:#?}", error);
-        //         return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
-        //     }
-        // }
-        // if (error.kind == -32009) {
-        //     println!("Block not found: {:#?}", block_number);
-        //     // return (block_number, 0, duration_rpc, duration_rpc, "".to_string());
-        // }
-
-        // println!("Error getting block: {:#?}", block_req.as_ref().err());
-        // return Ok((block_number, 0, duration_rpc, duration_rpc, "".to_string()));
     }
 
     let block = block_req.unwrap();
@@ -122,17 +75,12 @@ pub async fn parse_block(
 
     let transaction_amount = block_transactions.len();
 
-    // println!("transaction amount: {:#?}", block_transactions.len());
-
-    // println!("{:#?}", tesitng.unwrap());
-
     // let block_time = block.block_time.unwrap();
 
     let block_time = block.block_time.unwrap();
     let transaction_datetime = DateTime::from_timestamp(block_time, 0)
         .unwrap()
         .to_rfc3339();
-    // println!("Block time: {:#?}", transaction_datetime);
 
     let db_client_sol_price = db_client.get().await.unwrap();
     let sol_price_transaction_datetime = transaction_datetime.clone();
@@ -162,7 +110,7 @@ pub async fn parse_block(
         let cache_clone = my_cache.clone();
 
         tokio::spawn(async move {
-            parse_transaction_and_save_values(
+            to_replace_parse_transaction_and_save_values(
                 signature,
                 None,
                 &rpc_conn,
@@ -202,6 +150,4 @@ pub async fn parse_block(
         transaction_datetime,
         sol_price_db.to_string(),
     ))
-
-    // println!("Transaction amount {:#?}", signature);
 }

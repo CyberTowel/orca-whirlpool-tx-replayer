@@ -1,7 +1,11 @@
-use crate::interfaces::{
-    CtTransaction,
-    PriceItem,
-    // TransactionParsed
+use crate::{
+    interfaces::{
+        CtTransaction,
+        PriceItem,
+        // TransactionParsed
+    },
+    rpc_pool_manager::RpcPool,
+    token_db::{get_token_prices_from_token_changes, DbPool},
 };
 use chrono::prelude::*;
 use moka::future::Cache;
@@ -24,9 +28,7 @@ use crate::{
     },
 };
 
-pub fn testing_nested() {
-    println!("Testing nested");
-}
+pub fn testing_nested() {}
 #[derive(Debug)]
 pub struct TransactionError {
     pub message: String,
@@ -34,10 +36,10 @@ pub struct TransactionError {
 
 pub async fn get_transction(
     signature: String,
-    pool_id: Option<String>,
+    // pool_id: Option<String>,
     rpc_connection: &RpcClient,
-    db_client: &TokenDbClient,
-    my_cache: Cache<String, Option<PoolMeta>>,
+    // db_client: &TokenDbClient,
+    // my_cache: Cache<String, Option<PoolMeta>>,
 ) -> Result<CtTransaction, TransactionError> {
     let rpc_config: RpcTransactionConfig = RpcTransactionConfig {
         encoding: Some(UiTransactionEncoding::JsonParsed),
@@ -70,30 +72,18 @@ pub async fn get_transction(
     let block_time = confirmed_tx.block_time.unwrap();
     let block_number = confirmed_tx.slot;
 
-    let _transaction_base = CtTransaction::new(&transaction, block_time, block_number);
+    let mut _transaction_base = CtTransaction::new(&transaction, block_time, block_number);
+
+    _transaction_base.create_actions();
 
     return Ok(_transaction_base);
-
-    // get_parsed_transaction(
-    //     signature,
-    //     pool_id,
-    //     rpc_connection,
-    //     rpc_connection,
-    //     db_client,
-    //     &my_cache,
-    //     &transaction,
-    //     block_time,
-    //     block_number,
-    //     None,
-    // )
-    // .await
 }
 
 pub enum Error {
     Msg(String),
 }
 
-pub async fn parse_transaction_and_save_values(
+pub async fn to_replace_parse_transaction_and_save_values(
     signature: String,
     pool_id: Option<String>,
     _rpc_connection: &RpcClient,
@@ -105,7 +95,7 @@ pub async fn parse_transaction_and_save_values(
     block_number: u64,
     sol_price_18: Option<String>,
 ) {
-    let _transaction_parsed = get_parsed_transaction(
+    let _transaction_parsed = to_archive_get_parsed_transaction(
         signature,
         pool_id,
         _rpc_connection,
@@ -131,7 +121,7 @@ pub async fn parse_transaction_and_save_values(
 
 // pub async fn get_token_pricing();
 
-pub async fn get_parsed_transaction(
+pub async fn to_archive_get_parsed_transaction(
     signature: String,
     pool_id: Option<String>,
     _rpc_connection: &RpcClient,
@@ -147,11 +137,6 @@ pub async fn get_parsed_transaction(
     let transaction_base = CtTransaction::new(transaction, block_time, block_number);
 
     return Ok(transaction_base);
-
-    // println!(
-    //     "Transaction base token changes: {:#?}",
-    //     transaction_base.token_changes_new
-    // );
 
     // let testing = transaction_base.token_changes_new.format();
     let _transaction_datetime = DateTime::from_timestamp(block_time.clone(), 0)
@@ -194,7 +179,7 @@ pub async fn get_parsed_transaction(
 
     if pool_id_to_get_opt.is_none() {
         // let transaction_parsed = parse_base_to_parsed(transaction_base, None);
-        // println!("Pool id to get is none for signature: {}", signature);
+
         return Ok(transaction_base);
         // return Err(Error::Msg("Error in transaction".to_string()));
     }
@@ -211,15 +196,10 @@ pub async fn get_parsed_transaction(
     } else {
         let info = my_cache
             .get_with(pool_id_to_get.clone(), async move {
-                // println!("Task {pool_id_to_get} inserting a value.");
                 let inf_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
                 // Arc::new(vec![0u8; TEN_MIB])
 
                 if inf_req.is_none() {
-                    // println!(
-                    //     "Error getting pool info for pool {}",
-                    //     pool_id_to_get.to_string()
-                    // );
                     return None;
                 }
 
@@ -231,14 +211,12 @@ pub async fn get_parsed_transaction(
     };
 
     if !pool_meta_req.is_some() {
-        // println!("Error getting pool meta for pool {}", pool_id_clone);
         return Ok(transaction_base);
     }
 
     let pool_meta_opt = pool_meta_req.unwrap();
 
     if !pool_meta_opt.is_some() {
-        // println!("Error getting pool meta for pool opt {}", pool_id_clone);
         return Ok(transaction_base);
     }
 
@@ -248,7 +226,6 @@ pub async fn get_parsed_transaction(
 
     let sol_price_db = if sol_price_18.is_some() {
         sol_price_18.unwrap()
-        // println!("Sol price 18: {:#?}", sol_price_18.unwrap().to_string());
     } else {
         db_client
             .get_token_price_usd(
@@ -272,13 +249,10 @@ pub async fn get_parsed_transaction(
     );
 
     if token_amounts_req.is_none() {
-        // println!("Error getting token amounts for pool {}", pool_id_to_get);
         return Ok(transaction_base);
     }
 
     let token_amounts = token_amounts_req.unwrap();
-
-    // println!("Sol price: {:#?}", sol_price_db.to_string());
 
     let token_prices = get_price(
         token_amounts.token_new_price_in_token_quote_18,
@@ -403,15 +377,11 @@ pub async fn get_parsed_transaction(
 
     return Ok(transaction_base);
 
-    // println!("done")
-
     // return (
     //     signature.to_string(),
     //     price_item_c.datetime,
     //     "success".to_string(),
     // );
-
-    // println!("Token amounts: {:#?}", swap_token_amounts_priced);
 }
 
 fn find_raydium_inner_instruction(
@@ -424,21 +394,12 @@ fn find_raydium_inner_instruction(
             ixs.iter().for_each(|x| {
                 x.instructions.iter().for_each(|i| match i {
                     UiInstruction::Compiled(_ix) => {
-                        println!("testing 5");
                         panic!("inplement this UiParsedInstruction Compiled")
-                        // println!("Data test: {:#?}", ix);
-                        // let maybe_market = parse_market_from_data(ix.data.clone(), block_time);
-                        // match maybe_market {
-                        //     Some(market) => {}
-                        //     None => {}
-                        // }
                     }
                     UiInstruction::Parsed(ix) => match ix {
                         UiParsedInstruction::Parsed(x) => match x.parsed.get("data") {
                             Some(d) => match d {
                                 serde_json::Value::String(_data) => {
-                                    // println!("Data test: {:#?}", d);
-
                                     panic!("inplement this UiParsedInstruction")
                                     // let maybe_market =
                                     //     parse_market_from_data(data.to_string(), block_time);
@@ -503,3 +464,43 @@ fn find_raydium_inner_instruction(
 
 //     return transaction_parsed;
 // }
+
+pub async fn get_transaction_priced(
+    pool: RpcPool,
+    db_pool: DbPool,
+    cache: Cache<String, Option<PoolMeta>>,
+    signature: String,
+) -> Result<CtTransaction, TransactionError> {
+    let rpc_connect = pool.get().await.unwrap(); // Get a connection from the pool
+
+    let rpc_response = get_transction(
+        signature.clone(),
+        // None,
+        &rpc_connect,
+        // &token_db_connect,
+        // cache,
+    )
+    .await;
+
+    if rpc_response.is_err() {
+        return Err(TransactionError {
+            message: "Error in transaction".to_string(),
+        });
+        // return Ok(warp::reply::json(&{}));
+    }
+
+    let mut transaction = rpc_response.unwrap();
+    let transaction_values_c = transaction.clone();
+
+    let token_prices = get_token_prices_from_token_changes(
+        transaction_values_c.block_datetime,
+        transaction_values_c.tokens,
+        db_pool,
+    )
+    .await;
+
+    // transaction.set_token_prices(token_prices);
+    transaction.set_prices_to_token_changes(token_prices);
+    transaction.create_actions();
+    Ok(transaction)
+}

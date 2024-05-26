@@ -1,13 +1,19 @@
 use get_transactions::handler;
 use moka::future::Cache;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
+use std::collections::HashMap;
 use warp::Filter;
+mod get_address_transactions;
 mod get_transactions;
 use block_parser::{
+    interfaces::ArrayMapRequest,
     rpc_pool_manager::{RpcPool, RpcPoolManager},
     token_db::{DbClientPoolManager, DbPool},
     token_parser::PoolMeta,
 };
+
+use crate::get_address_transactions::get_address_transactions_handler;
 
 fn with_rpc_pool(
     pool: RpcPool,
@@ -41,6 +47,12 @@ pub struct User {
     signature: String,
 }
 
+use serde_qs::Config;
+
+fn custom_config() -> Config {
+    let mut config = Config::new(5, true);
+    config
+}
 #[tokio::main]
 async fn main() {
     let mgr_info = RpcPoolManager {
@@ -60,11 +72,23 @@ async fn main() {
     //     .map(|signature| get_user(signature));
 
     let route = warp::path("path")
-        .and(with_rpc_pool(rpc_connection_builder))
-        .and(with_token_db_pool(db_pool_connection))
-        .and(with_testing(cache))
+        .and(with_rpc_pool(rpc_connection_builder.clone()))
+        .and(with_token_db_pool(db_pool_connection.clone()))
+        .and(with_testing(cache.clone()))
         .and(warp::path::param::<String>())
         .and_then(handler);
+
+    let route = warp::path("address")
+        .and(with_rpc_pool(rpc_connection_builder.clone()))
+        .and(with_token_db_pool(db_pool_connection.clone()))
+        .and(with_testing(cache.clone()))
+        .and(warp::path::param::<String>())
+        .and(warp::path("tx"))
+        .and(warp::get())
+        .and(serde_qs::warp::query::<ArrayMapRequest>(custom_config()))
+        // .and(warp::query::<ArrayMapRequest>())
+        .and_then(get_address_transactions_handler);
+    // .with(log);
 
     // let users_route = warp::path("users").map(|| get_users());
 

@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     actions::{parse_token_changes_to_swaps, parse_token_changes_to_transfers},
     interfaces::{
+        ArrayMapRequest,
         CtTransaction,
         TokenChanges,
         TransactionDescription,
-        TransactionParsedResponse,
-        // TransactionParsed,
-        // TransactionParsedResponse,
+        TransactionParsedResponse, // TransactionParsed,
+                                   // TransactionParsedResponse,
     },
     token_parser::BalanceHolder,
 };
@@ -207,8 +207,6 @@ pub mod innner_test {
 
             self.values = balance_changes_priced;
 
-            // println!("{:#?}", balance_changes_priced);
-
             // let changes_prices = self.values.clone();
 
             // for (key, value) in changes_prices.iter() {
@@ -231,8 +229,6 @@ pub mod innner_test {
             //         // }
             //     }
             // }
-
-            // println!("Testing, {:#?}, prices: {:#?}", self.values, prices);
         }
 
         pub fn format(&self) -> TokenChangesMapFormatted {
@@ -270,7 +266,6 @@ pub mod innner_test {
                     // };
 
                     values.insert(token_address, token_values_formatted);
-                    // println!("{:#?}", testing)
                 }
 
                 changes_by_owner_formatted.insert(address, values);
@@ -411,14 +406,35 @@ impl CtTransaction {
         self.token_prices = Some(token_prices);
     }
 
-    pub fn format(&self) -> TransactionParsedResponse {
+    pub fn format(&self, expand: Option<Vec<String>>) -> TransactionParsedResponse {
+        let expands = expand.clone().unwrap_or_default();
+
+        let token_changes_owner = if expands.contains(&"token_changes_owner".to_string()) {
+            Some(self.token_changes_owner.format())
+        } else {
+            None
+        };
+
+        let token_changes_token_account =
+            if expands.contains(&"token_changes_token_account".to_string()) {
+                Some(self.token_changes_token_account.format())
+            } else {
+                None
+            };
+
+        let addresses = if expands.contains(&"addresses".to_string()) {
+            Some(self.addresses.clone())
+        } else {
+            None
+        };
+
         TransactionParsedResponse {
             signer: self.signer.clone(),
             ubo: self.ubo.clone(),
             block_timestamp: self.block_timestamp,
             block_datetime: self.block_datetime.clone(),
             hash: self.hash.clone(),
-            addresses: self.addresses.clone(),
+            addresses: addresses,
             block_number: self.block_number,
             chain_id: self.chain_id,
             from: self.from.clone(),
@@ -429,8 +445,8 @@ impl CtTransaction {
             contract_address: self.contract_address.clone(),
             fees: self.fees.clone(),
             fees_total: self.fees_total,
-            token_changes_owner: self.token_changes_owner.format(),
-            token_changes_token_account: self.token_changes_token_account.format(),
+            token_changes_owner: token_changes_owner,
+            token_changes_token_account: token_changes_token_account,
             tokens: self.tokens.clone(),
             // actions: self.actions.clone(),
             actions: self.actions.iter().map(|value| value.format()).collect(),

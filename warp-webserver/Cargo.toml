@@ -12,3 +12,4 @@ serde.workspace = true
 block_parser = { path = "../block_parser" }
 deadpool.workspace = true
 moka.workspace = true
+serde_qs = { version = "0.13.0", features = ["warp"] }

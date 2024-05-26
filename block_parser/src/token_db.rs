@@ -440,9 +440,6 @@ impl TokenDbClient {
     }
 
     pub async fn insert_token_price_inn(&self, input: PriceItemDb) -> Result<(), TPError> {
-        // println!("Inserting token price");
-        //  conversion_ref, token_address, price_usd, datetime, transaction_hash, price_usd_formatted, oracle_id, blocknumber
-
         let dolar = self.db_pool.clone();
 
         let datetime_input: DateTime<Utc> = chrono::DateTime::from_str(&input.datetime).unwrap();
@@ -535,8 +532,6 @@ impl TokenDbClient {
         });
 
         let _values_saved_db: Vec<_> = dolar_selit.collect();
-
-        // println!("values_saved_db {:?}", values_saved_db);
 
         return Ok(());
     }

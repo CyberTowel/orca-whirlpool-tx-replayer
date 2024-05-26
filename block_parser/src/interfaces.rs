@@ -1,8 +1,16 @@
-use std::collections::HashMap;
+use std::{clone, collections::HashMap};
 
 use num_bigfloat::BigFloat;
 
 use crate::actions::{CtAction, CtActionFormatted};
+
+#[derive(serde::Deserialize, Debug, clone::Clone)]
+pub struct ArrayMapRequest {
+    // an_array: Vec<String>,
+    pub expand: Option<Vec<String>>,
+    // testing: bool,
+    // a_map: HashMap<String, String>,
+}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TokenChanges {
@@ -72,7 +80,8 @@ pub struct TransactionParsedResponse {
     pub block_timestamp: i64,
     pub block_datetime: String,
     pub hash: String,
-    pub addresses: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addresses: Option<Vec<String>>,
     pub block_number: u64,
     pub chain_id: i16,
     pub from: String,
@@ -85,8 +94,10 @@ pub struct TransactionParsedResponse {
     pub fees_total: u64,
     // pub token_prices: Option<Vec<PriceItemResponse>>,
     // pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChangedFormatted>>, // pub actions: Vec<Action>,
-    pub token_changes_owner: TokenChangesMapFormatted,
-    pub token_changes_token_account: TokenChangesMapFormatted,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_changes_owner: Option<TokenChangesMapFormatted>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token_changes_token_account: Option<TokenChangesMapFormatted>,
     pub tokens: Vec<String>,
     pub actions: ActionsFormatted,
 }

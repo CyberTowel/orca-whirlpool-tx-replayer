@@ -78,8 +78,6 @@ pub struct LiquidityStateLayoutV4 {
 // pub fn pool_meta_token()
 
 pub async fn get_pool_meta(pool_id: &String, rpc_connection: &RpcClient) -> Option<PoolMeta> {
-    // println!("start request: {:?}", pool_id);
-
     let pubkey = Pubkey::from_str(pool_id).unwrap();
 
     let state_req = rpc_connection.get_account_data(&pubkey).await;
