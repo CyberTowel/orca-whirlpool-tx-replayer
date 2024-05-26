@@ -4,6 +4,7 @@ use warp::{filters::query, Reply};
 
 use crate::User;
 use block_parser::{
+    interfaces::ArrayMapRequest,
     rpc_pool_manager::RpcPool,
     token_db::{get_token_prices_from_token_changes, DbPool},
     token_parser::PoolMeta,
@@ -15,7 +16,10 @@ pub async fn handler(
     db_pool: DbPool,
     cache: Cache<String, Option<PoolMeta>>,
     signature: String,
+    params: ArrayMapRequest,
 ) -> Result<impl Reply, warp::Rejection> {
+    let expand = params.expand.clone();
+
     let transaction_req = get_transaction_priced(pool, db_pool, cache, signature).await;
 
     if transaction_req.is_err() {
@@ -24,7 +28,7 @@ pub async fn handler(
 
     let transaction = transaction_req.unwrap();
 
-    Ok(warp::reply::json(&transaction.format(None)))
+    Ok(warp::reply::json(&transaction.format(expand)))
 }
 
 // fn parse_parsed_to_formatted(transaction_parsed: TransactionParsed) -> TransactionParsedResponse {

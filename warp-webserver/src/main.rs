@@ -76,9 +76,10 @@ async fn main() {
         .and(with_token_db_pool(db_pool_connection.clone()))
         .and(with_testing(cache.clone()))
         .and(warp::path::param::<String>())
+        .and(serde_qs::warp::query::<ArrayMapRequest>(custom_config()))
         .and_then(handler);
 
-    let route = warp::path("address")
+    let route_addresses = warp::path("address")
         .and(with_rpc_pool(rpc_connection_builder.clone()))
         .and(with_token_db_pool(db_pool_connection.clone()))
         .and(with_testing(cache.clone()))
@@ -86,7 +87,6 @@ async fn main() {
         .and(warp::path("tx"))
         .and(warp::get())
         .and(serde_qs::warp::query::<ArrayMapRequest>(custom_config()))
-        // .and(warp::query::<ArrayMapRequest>())
         .and_then(get_address_transactions_handler);
     // .with(log);
 
@@ -94,7 +94,7 @@ async fn main() {
 
     // let routes = warp::get().and(user_route.or(users_route));
 
-    let routes = warp::get().and(route);
+    let routes = warp::get().and(route).or(route_addresses);
 
     warp::serve(routes).run(([0, 0, 0, 0], 8081)).await;
 
