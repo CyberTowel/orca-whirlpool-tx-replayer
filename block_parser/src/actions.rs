@@ -1,10 +1,6 @@
-use std::collections::HashMap;
-
-use chrono::format;
-use num_bigfloat::BigFloat;
 use serde::{Deserialize, Serialize};
 
-use crate::interfaces::{BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMap};
+use crate::interfaces::{BalanceChange, BalanceChangedFormatted, TokenChangesMap};
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct CtAction {
@@ -162,7 +158,7 @@ pub fn parse_token_changes_to_transfers(
                 return false;
             })
             .map(|(_token_address, balance_change)| {
-                let mut balance_change_r = balance_change.clone();
+                let balance_change_r = balance_change.clone();
 
                 // if (balance_change_r.fee.is_some()) {
                 // println!(
@@ -190,7 +186,7 @@ pub fn parse_token_changes_to_transfers(
             })
             .collect();
 
-        if (with_values.is_empty()) {
+        if with_values.is_empty() {
             continue;
         }
 
@@ -237,19 +233,19 @@ pub fn parse_token_changes_to_swaps(
             .map(|(_token_address, balance_change)| balance_change.clone())
             .collect();
 
-        if (tokens_from.is_empty() || tokens_to.is_empty()) {
+        if tokens_from.is_empty() || tokens_to.is_empty() {
             // used_ref.get_mut(&key).unwrap().set
             continue;
         }
 
         used_ref.retain(|key, inner_map| {
             inner_map.retain(|inner_key, _value| {
-                if (tokens_from
+                if tokens_from
                     .iter()
                     .any(|t| t.mint == inner_key.to_string() && t.owner == key.to_string())
                     || tokens_to
                         .iter()
-                        .any(|t| t.mint == inner_key.to_string() && t.owner == key.to_string()))
+                        .any(|t| t.mint == inner_key.to_string() && t.owner == key.to_string())
                 {
                     false
                 } else {

@@ -92,7 +92,7 @@ pub async fn get_paginated_singatures(
 
         all_signatures.extend(dolar.clone());
 
-        let duration = start.elapsed();
+        // let duration = start.elapsed();
 
         // dbgtest!([dolar.len(), all_signatures.len()]);
 

@@ -1,5 +1,5 @@
 use chrono::DateTime;
-use serde::Deserialize;
+
 use serde_json::{json, Value};
 
 use solana_transaction_status::EncodedConfirmedTransactionWithStatusMeta;
