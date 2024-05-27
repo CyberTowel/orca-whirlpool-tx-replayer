@@ -96,8 +96,8 @@ pub mod innner_test {
                 balance_pre: get_rounded_amount(self.balance_pre, 18),
                 difference: get_rounded_amount(self.difference, 18),
                 fee: solar_selit,
-                value_change: get_rounded_amount(self.value_change, 18),
-                value_change_usd: match self.value_change_usd {
+                value_transferred: get_rounded_amount(self.value_transferred, 18),
+                value_transferred_usd: match self.value_transferred_usd {
                     Some(x) => Some(get_rounded_amount(x, 18)),
                     None => None,
                 },
@@ -230,7 +230,7 @@ pub mod innner_test {
                                 );
 
                                 let value_changed_price = calc_token_usd_total(
-                                    value.value_change,
+                                    value.value_transferred,
                                     token_price_o,
                                     value.decimals,
                                 );
@@ -249,8 +249,8 @@ pub mod innner_test {
                                         decimals: value.decimals,
                                         balance_post_usd: balance_post_priced,
                                         fee: value.fee.clone(),
-                                        value_change: value.value_change,
-                                        value_change_usd: value_changed_price,
+                                        value_transferred: value.value_transferred,
+                                        value_transferred_usd: value_changed_price,
                                     },
                                 )
                             })

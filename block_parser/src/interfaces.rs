@@ -205,8 +205,8 @@ pub struct BalanceChange {
     pub difference_usd: Option<BigFloat>,
     pub decimals: u8,
     pub fee: Option<Vec<TransactionFees>>,
-    pub value_change: BigFloat,
-    pub value_change_usd: Option<BigFloat>,
+    pub value_transferred: BigFloat,
+    pub value_transferred_usd: Option<BigFloat>,
 }
 
 // #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -228,8 +228,8 @@ pub struct BalanceChangedFormatted {
     pub balance_post: String,
     pub balance_post_usd: Option<String>,
     pub difference: String,
-    pub value_change: String,
-    pub value_change_usd: Option<String>,
+    pub value_transferred: String,
+    pub value_transferred_usd: Option<String>,
     pub difference_usd: Option<String>,
     pub fee: Option<Vec<TransactionFeesFormatted>>,
 }
