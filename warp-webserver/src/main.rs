@@ -1,8 +1,8 @@
 use get_transactions::handler;
 use moka::future::Cache;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize};
 
-use std::collections::HashMap;
+
 use warp::Filter;
 mod get_address_transactions;
 mod get_transactions;
@@ -50,7 +50,7 @@ pub struct User {
 use serde_qs::Config;
 
 fn custom_config() -> Config {
-    let mut config = Config::new(5, true);
+    let config = Config::new(5, true);
     config
 }
 #[tokio::main]

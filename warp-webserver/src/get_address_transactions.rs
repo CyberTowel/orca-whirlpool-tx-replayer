@@ -1,18 +1,18 @@
 use block_parser::{
     get_signatures::get_paginated_singatures,
     interfaces::{ArrayMapRequest, CtTransaction, TransactionParsedResponse},
-    rpc_pool_manager::{RpcPool, RpcPoolManager},
-    token_db::{DbClientPoolManager, DbPool},
+    rpc_pool_manager::{RpcPool},
+    token_db::{DbPool},
     token_parser::PoolMeta,
     transactions_loader::{get_transaction_priced, TransactionError},
 };
-use deadpool::managed;
+
 // use futures::stream::{FuturesUnordered, StreamExt};
 use moka::future::Cache;
 use serde::Serialize;
 use std::collections::VecDeque;
-use tokio::task::{JoinHandle, JoinSet};
-use warp::{reply::Reply, Filter};
+use tokio::task::{JoinSet};
+use warp::{reply::Reply};
 
 // use crate::ArrayMapRequest;
 
@@ -67,7 +67,7 @@ pub async fn get_address_transactions_handler(
     //     results.push_back(result);
     // }
 
-    let mut signatures_to_process: JoinSet<Result<CtTransaction, TransactionError>> =
+    let _signatures_to_process: JoinSet<Result<CtTransaction, TransactionError>> =
         JoinSet::new();
 
     for signature in signatures {
@@ -86,7 +86,7 @@ pub async fn get_address_transactions_handler(
         tasks.push_back(handle);
     }
 
-    let mut crawled_signatures: Vec<String> = Vec::new();
+    let _crawled_signatures: Vec<String> = Vec::new();
     let mut transactions = Vec::<TransactionParsedResponse>::new();
 
     // while let Some(res) = signatures_to_process.join_next().await {
@@ -113,7 +113,7 @@ pub async fn get_address_transactions_handler(
         // let res = result.unwrap();
         // results.push(result);
 
-        if (res.is_err()) {
+        if res.is_err() {
             println!("Error processing signature: {:#?}", res.err());
             continue;
         }

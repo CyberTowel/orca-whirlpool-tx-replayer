@@ -1,14 +1,14 @@
 use moka::future::Cache;
 
-use warp::{filters::query, Reply};
+use warp::{Reply};
 
-use crate::User;
+
 use block_parser::{
     interfaces::ArrayMapRequest,
     rpc_pool_manager::RpcPool,
-    token_db::{get_token_prices_from_token_changes, DbPool},
+    token_db::{DbPool},
     token_parser::PoolMeta,
-    transactions_loader::{self, get_transaction_priced},
+    transactions_loader::{get_transaction_priced},
 };
 
 pub async fn handler(
