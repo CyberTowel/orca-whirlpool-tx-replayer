@@ -204,7 +204,7 @@ pub struct BalanceChange {
     pub difference: BigFloat,
     pub difference_usd: Option<BigFloat>,
     pub decimals: u8,
-    pub fee: Option<Vec<TransactionFees>>,
+    pub fees: Option<Vec<TransactionFees>>,
     pub value_transferred: BigFloat,
     pub value_transferred_usd: Option<BigFloat>,
 }
@@ -231,5 +231,5 @@ pub struct BalanceChangedFormatted {
     pub value_transferred: String,
     pub value_transferred_usd: Option<String>,
     pub difference_usd: Option<String>,
-    pub fee: Option<Vec<TransactionFeesFormatted>>,
+    pub fees: Option<Vec<TransactionFeesFormatted>>,
 }

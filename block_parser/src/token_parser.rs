@@ -286,7 +286,7 @@ pub fn parse_balance_changes(
             decimals: decimals,
             mint: mint.clone(),
             owner: owner_address.clone(),
-            fee: None,
+            fees: None,
         };
 
         *token_entry_token_account_address.or_default() = BalanceChange {
@@ -301,7 +301,7 @@ pub fn parse_balance_changes(
             difference_usd: None,
             mint: mint.clone(),
             owner: owner_address.clone(),
-            fee: None,
+            fees: None,
         };
     }
 
@@ -360,7 +360,7 @@ pub fn parse_balance_changes(
             value_transferred_usd: None,
             mint: "sol".to_string(),
             owner: pubkey.to_string(),
-            fee: None,
+            fees: None,
         };
 
         let owner_entry = changes_by_owner.entry(pubkey.to_string());
@@ -495,7 +495,7 @@ fn merge_hashmap(
                 mint: existing.mint.clone(),
                 owner: existing.owner.clone(),
                 value_transferred_usd: None,
-                fee: None,
+                fees: None,
             };
 
             map1.insert(item, new_change);
@@ -835,7 +835,7 @@ pub fn parse_balance_changes_new(
             mint: mint.clone(),
             owner: owner_address.clone(),
             value_transferred_usd: None,
-            fee: None,
+            fees: None,
         };
 
         // *token_entry_token_account_address.or_default() = BalanceChange {
@@ -937,7 +937,7 @@ pub fn parse_balance_changes_new(
             difference: post - pre,
             value_transferred: value_change,
             value_transferred_usd: None,
-            fee: fee, //Some(fee_item),
+            fees: fee, //Some(fee_item),
             decimals: 9,
             mint: "sol".to_string(),
             owner: pubkey.to_string(),

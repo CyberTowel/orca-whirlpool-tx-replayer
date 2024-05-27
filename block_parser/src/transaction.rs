@@ -63,9 +63,9 @@ pub mod innner_test {
             //     .map(|value| value.format())
             //     .collect();
 
-            let solar_selit = if (self.fee.is_some()) {
+            let solar_selit = if (self.fees.is_some()) {
                 let testingsdf = self
-                    .fee
+                    .fees
                     .clone()
                     .unwrap()
                     .iter()
@@ -95,7 +95,7 @@ pub mod innner_test {
                 },
                 balance_pre: get_rounded_amount(self.balance_pre, 18),
                 difference: get_rounded_amount(self.difference, 18),
-                fee: solar_selit,
+                fees: solar_selit,
                 value_transferred: get_rounded_amount(self.value_transferred, 18),
                 value_transferred_usd: match self.value_transferred_usd {
                     Some(x) => Some(get_rounded_amount(x, 18)),
@@ -248,7 +248,7 @@ pub mod innner_test {
                                         difference_usd: differnce_priced,
                                         decimals: value.decimals,
                                         balance_post_usd: balance_post_priced,
-                                        fee: value.fee.clone(),
+                                        fees: value.fees.clone(),
                                         value_transferred: value.value_transferred,
                                         value_transferred_usd: value_changed_price,
                                     },
