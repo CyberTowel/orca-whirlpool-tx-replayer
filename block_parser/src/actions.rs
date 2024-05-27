@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::format;
+use num_bigfloat::BigFloat;
 use serde::{Deserialize, Serialize};
 
 use crate::interfaces::{BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMap};
@@ -160,7 +161,33 @@ pub fn parse_token_changes_to_transfers(
                 }
                 return false;
             })
-            .map(|(_token_address, balance_change)| balance_change.clone())
+            .map(|(_token_address, balance_change)| {
+                let mut balance_change_r = balance_change.clone();
+
+                // if (balance_change_r.fee.is_some()) {
+                // println!(
+                //     "Balance change before: {:#?}",
+                //     balance_change_r.difference.to_string()
+                // );
+
+                // println!(
+                //     "Balance change fee: {:#?}",
+                //     balance_change_r.fee.clone().unwrap().to_string()
+                // );
+
+                //balance_change_r.fee.unwrap();
+
+                // println!(
+                //     "Balance change after: {:#?}",
+                //     balance_change_r.difference.to_string()
+                // );
+                // }
+
+                // balance_change_r.difference -= BigFloat::from_f64(2500.0);
+
+                balance_change_r
+                // balance_change.clone()
+            })
             .collect();
 
         if (with_values.is_empty()) {

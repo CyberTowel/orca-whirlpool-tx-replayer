@@ -7,14 +7,17 @@ use crate::{
         CtTransaction,
         TokenChanges,
         TransactionDescription,
+        TransactionFees,
         TransactionParsedResponse, // TransactionParsed,
                                    // TransactionParsedResponse,
     },
     token_parser::BalanceHolder,
 };
 use chrono::DateTime;
-use serde_json::{json, Value};
-
+use num_bigfloat::BigFloat;
+use serde::Serialize;
+use serde_json::json;
+use serde_json::value::{Serializer, Value};
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
 pub mod innner_test {
@@ -30,6 +33,7 @@ pub mod innner_test {
         },
         interfaces::{
             BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMapFormatted,
+            TransactionFees, TransactionFeesFormatted,
         },
         token_parser::{
             calc_token_usd_total, get_rounded_amount, parse_balance_changes_new, BalanceHolder,
@@ -38,11 +42,44 @@ pub mod innner_test {
 
     impl BalanceChange {
         pub fn format(&self) -> BalanceChangedFormatted {
-            // let formatted_test = self.balance_post_usd.
+            // println!(
+            //     "fee is some for {} - {} - {:#?}",
+            //     self.owner.to_string(),
+            //     self.mint.to_string(),
+            //     self.fee
+            // );
+            // // let formatted_test = self.balance_post_usd.
+
+            let value = serde_json::to_string(self);
+
+            // if (self.fee.is_some()) {
+            //     println!("fee is some for {}", self.owner.to_string());
+            // }
+
+            // let doalr_slet: Vec<TransactionFeesFormatted> = self
+            //     .fee
+            //     .clone()
+            //     .iter()
+            //     .map(|value| value.format())
+            //     .collect();
+
+            let solar_selit = if (self.fee.is_some()) {
+                let testingsdf = self
+                    .fee
+                    .clone()
+                    .unwrap()
+                    .iter()
+                    .map(|value| value.format())
+                    .collect();
+
+                Some(testingsdf)
+            } else {
+                None
+            };
 
             let token_values_formatted = BalanceChangedFormatted {
                 owner: self.owner.to_string(),
-                mint: self.mint.to_string(),
+                mint: self.mint.to_string() + "2",
                 balance_post: get_rounded_amount(self.balance_post, 18),
                 balance_pre_usd: match self.balance_pre_usd {
                     Some(x) => Some(get_rounded_amount(x, 18)),
@@ -58,6 +95,12 @@ pub mod innner_test {
                 },
                 balance_pre: get_rounded_amount(self.balance_pre, 18),
                 difference: get_rounded_amount(self.difference, 18),
+                fee: solar_selit,
+                value_change: get_rounded_amount(self.value_change, 18),
+                value_change_usd: match self.value_change_usd {
+                    Some(x) => Some(get_rounded_amount(x, 18)),
+                    None => None,
+                },
             };
 
             return token_values_formatted;
@@ -140,9 +183,11 @@ pub mod innner_test {
             transaction: &EncodedTransactionWithStatusMeta,
             account_keys: &Vec<String>,
             balance_holder: BalanceHolder,
+            fees: HashMap<String, TransactionFees>,
+            ubo: &str,
         ) -> Self {
             let token_changes =
-                parse_balance_changes_new(transaction, account_keys, balance_holder);
+                parse_balance_changes_new(transaction, account_keys, balance_holder, fees, ubo);
 
             // let address = "test".to_string();
 
@@ -184,6 +229,12 @@ pub mod innner_test {
                                     value.decimals,
                                 );
 
+                                let value_changed_price = calc_token_usd_total(
+                                    value.value_change,
+                                    token_price_o,
+                                    value.decimals,
+                                );
+
                                 // let value = BigFloat::from_str(&value.balance_post).unwrap();
                                 (
                                     key,
@@ -197,6 +248,9 @@ pub mod innner_test {
                                         difference_usd: differnce_priced,
                                         decimals: value.decimals,
                                         balance_post_usd: balance_post_priced,
+                                        fee: value.fee.clone(),
+                                        value_change: value.value_change,
+                                        value_change_usd: value_changed_price,
                                     },
                                 )
                             })
@@ -345,13 +399,43 @@ impl CtTransaction {
 
         let fee = transaction_meta.fee;
 
-        let token_changes_owner =
-            TokenChanges::new(&transaction_clone_meta, &testing, BalanceHolder::Owner);
+        let fee_big_float = BigFloat::from_u64(fee); //.mul(&BigFloat::from(10).pow(&BigFloat::from(9)));
+
+        let transactie_fee = TransactionFees::new(
+            fee.to_string(),
+            fee_big_float,
+            "Transaction fee".to_string(),
+            "sol".to_string(),
+            signer.clone(),
+        );
+
+        let fees = vec![transactie_fee];
+
+        let fees_map = fees
+            .iter()
+            .map(|value| {
+                (
+                    value.payer.clone() + "##" + &value.token.clone(),
+                    value.clone(),
+                )
+            })
+            .collect::<HashMap<String, TransactionFees>>();
+
+        let token_changes_owner = TokenChanges::new(
+            &transaction_clone_meta,
+            &testing,
+            BalanceHolder::Owner,
+            fees_map.clone(),
+            ubo,
+        );
+        // let mut serializer = Serializer::new();
 
         let token_changes_token_accounts = TokenChanges::new(
             &transaction_clone_meta,
             &testing,
             BalanceHolder::TokenAccount,
+            fees_map.clone(),
+            &ubo,
         );
 
         // let unique_tokens =
@@ -390,7 +474,7 @@ impl CtTransaction {
             },
             spam_transaction: false,
             contract_address: Vec::new(),
-            fees: Vec::new(),
+            fees: fees,
             fees_total: fee,
             token_changes_owner,
             // token_changes_new: changes_by_owner_new,
@@ -443,7 +527,7 @@ impl CtTransaction {
             description: self.description.clone(),
             spam_transaction: self.spam_transaction,
             contract_address: self.contract_address.clone(),
-            fees: self.fees.clone(),
+            fees: self.fees.clone().iter().map(|fees| fees.format()).collect(),
             fees_total: self.fees_total,
             token_changes_owner: token_changes_owner,
             token_changes_token_account: token_changes_token_account,

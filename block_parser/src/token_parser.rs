@@ -2,13 +2,13 @@
 // use num::ToPrimitive;
 use num::ToPrimitive;
 use num_bigfloat::{BigFloat, RoundingMode};
-use serde::{Deserialize, Serialize};
+use serde::{de::value, Deserialize, Serialize};
 
 use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::{collections::HashMap, str::FromStr};
 
-use crate::interfaces::{BalanceChange, CtTransaction};
+use crate::interfaces::{BalanceChange, CtTransaction, TransactionFees};
 
 #[derive(Debug)]
 pub enum Error {}
@@ -280,10 +280,13 @@ pub fn parse_balance_changes(
             balance_post_usd: None,
             balance_post: amount_bf,
             difference: amount_bf,
+            value_change: amount_bf,
             difference_usd: None,
+            value_change_usd: None,
             decimals: decimals,
             mint: mint.clone(),
             owner: owner_address.clone(),
+            fee: None,
         };
 
         *token_entry_token_account_address.or_default() = BalanceChange {
@@ -293,9 +296,12 @@ pub fn parse_balance_changes(
             balance_post_usd: None,
             balance_post: amount_bf,
             difference: amount_bf,
+            value_change: amount_bf,
+            value_change_usd: None,
             difference_usd: None,
             mint: mint.clone(),
             owner: owner_address.clone(),
+            fee: None,
         };
     }
 
@@ -350,8 +356,11 @@ pub fn parse_balance_changes(
             decimals: 9,
             balance_post: post,
             difference: post - pre,
+            value_change: post - pre,
+            value_change_usd: None,
             mint: "sol".to_string(),
             owner: pubkey.to_string(),
+            fee: None,
         };
 
         let owner_entry = changes_by_owner.entry(pubkey.to_string());
@@ -482,8 +491,11 @@ fn merge_hashmap(
 
                 balance_post: new_balance_post,
                 difference: new_diff_post,
+                value_change: new_diff_post,
                 mint: existing.mint.clone(),
                 owner: existing.owner.clone(),
+                value_change_usd: None,
+                fee: None,
             };
 
             map1.insert(item, new_change);
@@ -759,7 +771,11 @@ pub fn parse_balance_changes_new(
     transaction: &EncodedTransactionWithStatusMeta,
     account_keys: &Vec<String>,
     balance_holder: BalanceHolder,
+    fees: HashMap<String, TransactionFees>,
+    ubo: &str,
 ) -> HashMap<std::string::String, HashMap<std::string::String, BalanceChange>> {
+    // println!("Fee {:#?} to substract from: {:#?}", fees, ubo);
+
     let post_balances = transaction.clone().meta.unwrap().post_balances;
     let pre_balances = transaction.clone().meta.unwrap().pre_balances;
 
@@ -813,10 +829,13 @@ pub fn parse_balance_changes_new(
             balance_post_usd: None,
             difference_usd: None,
             balance_post: amount_bf,
+            value_change: amount_bf,
             difference: amount_bf,
             decimals: decimals,
             mint: mint.clone(),
             owner: owner_address.clone(),
+            value_change_usd: None,
+            fee: None,
         };
 
         // *token_entry_token_account_address.or_default() = BalanceChange {
@@ -875,6 +894,40 @@ pub fn parse_balance_changes_new(
         let pre = BigFloat::from_u64(pre_balances[index]);
         let post = BigFloat::from_u64(post_balances[index]);
 
+        // let post_test = post
+        // let fee_item = BigFloat::from_u64(fee); //.mul(&BigFloat::from_u64(10).pow(&BigFloat::from_i8(9)));
+        // .pow(&BigFloat::from_i8(9));
+
+        // println!(
+        //     "fee = {} Fee item: {:#?}",
+        //     fee,
+        //     fee_item.to_f64().to_string()
+        // );
+
+        let key = pubkey.clone() + "##" + "sol";
+
+        let fee_for_address = fees.get(key.as_str());
+
+        let mut fee: Option<Vec<TransactionFees>> = None;
+
+        let mut value_change = post - pre;
+
+        if (fee_for_address.is_some()) {
+            let fee_amount = fee_for_address.unwrap();
+
+            // let fee = fee_for_address.unwrap().fee;
+            // let fee_item = BigFloat::from_u64(fee);
+            // let post = post - fee_item;
+
+            if (value_change.is_positive()) {
+                value_change = value_change - fee_amount.amount_bf;
+            } else {
+                value_change = value_change + fee_amount.amount_bf;
+            }
+            fee = Some(vec![fee_amount.clone()]);
+        }
+
+        // println!("Fee found: {:#?}", fee);
         let item = BalanceChange {
             balance_pre: pre,
             balance_pre_usd: None,
@@ -882,6 +935,9 @@ pub fn parse_balance_changes_new(
             balance_post_usd: None,
             balance_post: post,
             difference: post - pre,
+            value_change: value_change,
+            value_change_usd: None,
+            fee: fee, //Some(fee_item),
             decimals: 9,
             mint: "sol".to_string(),
             owner: pubkey.to_string(),
@@ -903,6 +959,10 @@ pub fn parse_balance_changes_new(
         // let token_entry_token_account_address = token_account_address_entry
         //     .or_default()
         //     .entry("sol".to_string());
+
+        // if (fee.is_some()) {
+        //     println!("Fee found: {:#?}", item);
+        // }
 
         *token_entry.or_default() = item.clone();
 

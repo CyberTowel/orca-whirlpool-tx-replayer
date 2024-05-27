@@ -1,5 +1,6 @@
 use std::{clone, collections::HashMap};
 
+use deadpool_postgres::Transaction;
 use num_bigfloat::BigFloat;
 
 use crate::actions::{CtAction, CtActionFormatted};
@@ -38,7 +39,46 @@ pub struct TransactionDescription {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TransactionFees {
     pub amount: String,
-    pub fee_type: String,
+    pub amount_bf: BigFloat,
+    pub description: String,
+    pub token: String,
+    pub payer: String,
+}
+
+#[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct TransactionFeesFormatted {
+    pub amount: String,
+    pub description: String,
+    pub token: String,
+    pub payer: String,
+}
+
+impl TransactionFees {
+    pub fn new(
+        amount: String,
+        amount_18: BigFloat,
+        description: String,
+        token: String,
+        payer: String,
+    ) -> Self {
+        Self {
+            amount,
+            amount_bf: amount_18,
+            description,
+            token,
+            payer,
+        }
+    }
+
+    pub fn format(&self) -> TransactionFeesFormatted {
+        TransactionFeesFormatted {
+            amount: self.amount.clone(),
+            // amount_18: self.amount_bf.to_f64().to_string(),
+            description: self.description.clone(),
+            token: self.token.clone(),
+            payer: self.payer.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -90,7 +130,7 @@ pub struct TransactionParsedResponse {
     pub description: TransactionDescription,
     pub spam_transaction: bool,
     pub contract_address: Vec<String>,
-    pub fees: Vec<TransactionFees>,
+    pub fees: Vec<TransactionFeesFormatted>,
     pub fees_total: u64,
     // pub token_prices: Option<Vec<PriceItemResponse>>,
     // pub changes_by_token_account_address: HashMap<String, HashMap<String, BalanceChangedFormatted>>, // pub actions: Vec<Action>,
@@ -164,6 +204,9 @@ pub struct BalanceChange {
     pub difference: BigFloat,
     pub difference_usd: Option<BigFloat>,
     pub decimals: u8,
+    pub fee: Option<Vec<TransactionFees>>,
+    pub value_change: BigFloat,
+    pub value_change_usd: Option<BigFloat>,
 }
 
 // #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -185,5 +228,8 @@ pub struct BalanceChangedFormatted {
     pub balance_post: String,
     pub balance_post_usd: Option<String>,
     pub difference: String,
+    pub value_change: String,
+    pub value_change_usd: Option<String>,
     pub difference_usd: Option<String>,
+    pub fee: Option<Vec<TransactionFeesFormatted>>,
 }

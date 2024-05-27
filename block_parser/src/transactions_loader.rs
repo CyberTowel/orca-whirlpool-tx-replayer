@@ -471,7 +471,6 @@ pub async fn get_transaction_priced(
     cache: Cache<String, Option<PoolMeta>>,
     signature: String,
 ) -> Result<CtTransaction, TransactionError> {
-    println!("starting get_transaction_priced, {}", signature.clone());
     let rpc_connect = pool.get().await.unwrap(); // Get a connection from the pool
 
     let rpc_response = get_transction(
