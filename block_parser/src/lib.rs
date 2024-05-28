@@ -9,8 +9,6 @@ pub mod token_parser;
 pub mod transaction;
 pub mod transactions_loader;
 
-pub fn add(signature: String) {}
-
 #[cfg(test)]
 mod tests {
 

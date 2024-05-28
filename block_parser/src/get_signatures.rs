@@ -39,7 +39,6 @@ pub async fn get_paginated_singatures(
     let mut all_signatures: Vec<String> = Vec::new();
 
     while has_more == true {
-        let start = std::time::Instant::now();
         let signature_pagination_config: GetConfirmedSignaturesForAddress2Config =
             GetConfirmedSignaturesForAddress2Config {
                 commitment: None,

@@ -3,7 +3,6 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     actions::{parse_token_changes_to_swaps, parse_token_changes_to_transfers},
     interfaces::{
-        ArrayMapRequest,
         CtTransaction,
         TokenChanges,
         TransactionDescription,
@@ -15,25 +14,18 @@ use crate::{
 };
 use chrono::DateTime;
 use num_bigfloat::BigFloat;
-use serde::Serialize;
 use serde_json::json;
-use serde_json::value::{Serializer, Value};
+use serde_json::value::Value;
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
 pub mod innner_test {
+    use solana_transaction_status::EncodedTransactionWithStatusMeta;
     use std::collections::HashMap;
 
-    use solana_client::client_error::reqwest::redirect::Action;
-    use solana_transaction_status::EncodedTransactionWithStatusMeta;
-
     use crate::{
-        actions::{
-            ActionFields, ActionFieldsFormatted, CtAction, CtActionFormatted, SwapFieldsFormatted,
-            TransferFields, TransferFieldsFormatted,
-        },
         interfaces::{
             BalanceChange, BalanceChangedFormatted, TokenChanges, TokenChangesMapFormatted,
-            TransactionFees, TransactionFeesFormatted,
+            TransactionFees,
         },
         token_parser::{
             calc_token_usd_total, get_rounded_amount, parse_balance_changes_new, BalanceHolder,
@@ -42,28 +34,7 @@ pub mod innner_test {
 
     impl BalanceChange {
         pub fn format(&self) -> BalanceChangedFormatted {
-            // println!(
-            //     "fee is some for {} - {} - {:#?}",
-            //     self.owner.to_string(),
-            //     self.mint.to_string(),
-            //     self.fee
-            // );
-            // // let formatted_test = self.balance_post_usd.
-
-            let value = serde_json::to_string(self);
-
-            // if (self.fee.is_some()) {
-            //     println!("fee is some for {}", self.owner.to_string());
-            // }
-
-            // let doalr_slet: Vec<TransactionFeesFormatted> = self
-            //     .fee
-            //     .clone()
-            //     .iter()
-            //     .map(|value| value.format())
-            //     .collect();
-
-            let solar_selit = if (self.fees.is_some()) {
+            let solar_selit = if self.fees.is_some() {
                 let testingsdf = self
                     .fees
                     .clone()

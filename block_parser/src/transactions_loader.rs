@@ -1,16 +1,14 @@
 use crate::{
     interfaces::{
         CtTransaction,
-        PriceItem,
         // TransactionParsed
     },
     rpc_pool_manager::RpcPool,
     token_db::{get_token_prices_from_token_changes, DbPool},
 };
-use chrono::prelude::*;
+
 use moka::future::Cache;
 
-use serde_json::json;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signature};
 use solana_transaction_status::{
@@ -20,12 +18,9 @@ use solana_transaction_status::{
 use std::str::FromStr;
 
 use crate::{
-    pool_state::get_pool_meta,
+    // pool_state::get_pool_meta,
     token_db::TokenDbClient,
-    token_parser::{
-        get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
-        PoolMeta,
-    },
+    token_parser::PoolMeta,
 };
 
 pub fn testing_nested() {}
@@ -122,260 +117,260 @@ pub async fn to_replace_parse_transaction_and_save_values(
 // pub async fn get_token_pricing();
 
 pub async fn to_archive_get_parsed_transaction(
-    signature: String,
-    pool_id: Option<String>,
+    _signature: String,
+    _pool_id: Option<String>,
     _rpc_connection: &RpcClient,
-    rpc_connection_build: &RpcClient,
-    db_client: &TokenDbClient,
-    my_cache: &Cache<String, Option<PoolMeta>>,
+    _rpc_connection_build: &RpcClient,
+    _db_client: &TokenDbClient,
+    _my_cache: &Cache<String, Option<PoolMeta>>,
     transaction: &EncodedTransactionWithStatusMeta,
     block_time: i64,
     block_number: u64,
-    sol_price_18: Option<String>,
+    _sol_price_18: Option<String>,
     // transaction_base: CtTransaction,
 ) -> Result<CtTransaction, TransactionError> {
     let transaction_base = CtTransaction::new(transaction, block_time, block_number);
 
     return Ok(transaction_base);
 
-    // let testing = transaction_base.token_changes_new.format();
-    let _transaction_datetime = DateTime::from_timestamp(block_time.clone(), 0)
-        .unwrap()
-        .to_rfc3339();
+    // // let testing = transaction_base.token_changes_new.format();
+    // let _transaction_datetime = DateTime::from_timestamp(block_time.clone(), 0)
+    //     .unwrap()
+    //     .to_rfc3339();
 
-    let v = json!(transaction.transaction);
+    // let v = json!(transaction.transaction);
 
-    let instructions = v["message"]["instructions"].as_array().unwrap();
+    // let instructions = v["message"]["instructions"].as_array().unwrap();
 
-    let transactions_meta = transaction.clone().meta.unwrap(); // v["message"].as_array().unwrap();
+    // let transactions_meta = transaction.clone().meta.unwrap(); // v["message"].as_array().unwrap();
 
-    let pool_id_to_get_opt: Option<String> = if pool_id.is_some() {
-        pool_id.clone() //.unwrap()
-    } else {
-        let init_instruction = instructions.iter().find(|&x| {
-            let program_id = x["programId"].as_str().unwrap();
+    // let pool_id_to_get_opt: Option<String> = if pool_id.is_some() {
+    //     pool_id.clone() //.unwrap()
+    // } else {
+    //     let init_instruction = instructions.iter().find(|&x| {
+    //         let program_id = x["programId"].as_str().unwrap();
 
-            program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
-        });
+    //         program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8"
+    //     });
 
-        if init_instruction.is_some() {
-            let pool_id_instruction = init_instruction.unwrap().as_object().unwrap()["accounts"][1]
-                .as_str()
-                .unwrap();
-            Some(pool_id_instruction.to_string())
-        } else {
-            let dolar_selit = find_raydium_inner_instruction(&transactions_meta.inner_instructions);
+    //     if init_instruction.is_some() {
+    //         let pool_id_instruction = init_instruction.unwrap().as_object().unwrap()["accounts"][1]
+    //             .as_str()
+    //             .unwrap();
+    //         Some(pool_id_instruction.to_string())
+    //     } else {
+    //         let dolar_selit = find_raydium_inner_instruction(&transactions_meta.inner_instructions);
 
-            if dolar_selit.len() > 0 {
-                // return None;
-                Some(dolar_selit[1].to_string())
-            } else {
-                None
-            }
-        }
-    };
+    //         if dolar_selit.len() > 0 {
+    //             // return None;
+    //             Some(dolar_selit[1].to_string())
+    //         } else {
+    //             None
+    //         }
+    //     }
+    // };
 
-    // let actions = TransactionBase::parse_transaction_actions(&transaction_base);
+    // // let actions = TransactionBase::parse_transaction_actions(&transaction_base);
 
-    if pool_id_to_get_opt.is_none() {
-        // let transaction_parsed = parse_base_to_parsed(transaction_base, None);
+    // if pool_id_to_get_opt.is_none() {
+    //     // let transaction_parsed = parse_base_to_parsed(transaction_base, None);
 
-        return Ok(transaction_base);
-        // return Err(Error::Msg("Error in transaction".to_string()));
-    }
+    //     return Ok(transaction_base);
+    //     // return Err(Error::Msg("Error in transaction".to_string()));
+    // }
 
-    let pool_id_to_get = pool_id_to_get_opt.unwrap();
+    // let pool_id_to_get = pool_id_to_get_opt.unwrap();
 
-    let pool_id_clone = pool_id_to_get.clone();
+    // let pool_id_clone = pool_id_to_get.clone();
 
-    let pool_info_cache = my_cache.get(&pool_id_to_get).await;
+    // let pool_info_cache = my_cache.get(&pool_id_to_get).await;
 
-    let pool_meta_req = if pool_info_cache.is_some() {
-        let info = pool_info_cache.unwrap();
-        Some(info)
-    } else {
-        let info = my_cache
-            .get_with(pool_id_to_get.clone(), async move {
-                let inf_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
-                // Arc::new(vec![0u8; TEN_MIB])
+    // let pool_meta_req = if pool_info_cache.is_some() {
+    //     let info = pool_info_cache.unwrap();
+    //     Some(info)
+    // } else {
+    //     let info = my_cache
+    //         .get_with(pool_id_to_get.clone(), async move {
+    //             let inf_req = get_pool_meta(&pool_id_to_get, rpc_connection_build).await;
+    //             // Arc::new(vec![0u8; TEN_MIB])
 
-                if inf_req.is_none() {
-                    return None;
-                }
+    //             if inf_req.is_none() {
+    //                 return None;
+    //             }
 
-                Some(inf_req.unwrap())
-            })
-            .await;
+    //             Some(inf_req.unwrap())
+    //         })
+    //         .await;
 
-        Some(info)
-    };
+    //     Some(info)
+    // };
 
-    if !pool_meta_req.is_some() {
-        return Ok(transaction_base);
-    }
+    // if !pool_meta_req.is_some() {
+    //     return Ok(transaction_base);
+    // }
 
-    let pool_meta_opt = pool_meta_req.unwrap();
+    // let pool_meta_opt = pool_meta_req.unwrap();
 
-    if !pool_meta_opt.is_some() {
-        return Ok(transaction_base);
-    }
+    // if !pool_meta_opt.is_some() {
+    //     return Ok(transaction_base);
+    // }
 
-    let pool_meta = pool_meta_opt.unwrap();
+    // let pool_meta = pool_meta_opt.unwrap();
 
-    let transaction_parsed_meta = transaction_base.clone();
+    // let transaction_parsed_meta = transaction_base.clone();
 
-    let sol_price_db = if sol_price_18.is_some() {
-        sol_price_18.unwrap()
-    } else {
-        db_client
-            .get_token_price_usd(
-                &transaction_parsed_meta.block_datetime,
-                "So11111111111111111111111111111111111111112".to_string(),
-            )
-            .unwrap()
-    };
+    // let sol_price_db = if sol_price_18.is_some() {
+    //     sol_price_18.unwrap()
+    // } else {
+    //     db_client
+    //         .get_token_price_usd(
+    //             &transaction_parsed_meta.block_datetime,
+    //             "So11111111111111111111111111111111111111112".to_string(),
+    //         )
+    //         .unwrap()
+    // };
 
-    let token_amounts_req = get_token_amounts(
-        &transaction_base,
-        &transaction_parsed_meta.addresses,
-        &transaction_parsed_meta.ubo,
-        &pool_meta.quote_mint.to_string(),
-        &pool_meta.base_mint.to_string(),
-        &pool_meta.quote_vault.to_string(),
-        &pool_meta.base_vault.to_string(),
-        pool_meta.quote_decimal,
-        pool_meta.base_decimal,
-        // decimals_correct, // pool_state,
-    );
+    // let token_amounts_req = get_token_amounts(
+    //     &transaction_base,
+    //     &transaction_parsed_meta.addresses,
+    //     &transaction_parsed_meta.ubo,
+    //     &pool_meta.quote_mint.to_string(),
+    //     &pool_meta.base_mint.to_string(),
+    //     &pool_meta.quote_vault.to_string(),
+    //     &pool_meta.base_vault.to_string(),
+    //     pool_meta.quote_decimal,
+    //     pool_meta.base_decimal,
+    //     // decimals_correct, // pool_state,
+    // );
 
-    if token_amounts_req.is_none() {
-        return Ok(transaction_base);
-    }
+    // if token_amounts_req.is_none() {
+    //     return Ok(transaction_base);
+    // }
 
-    let token_amounts = token_amounts_req.unwrap();
+    // let token_amounts = token_amounts_req.unwrap();
 
-    let token_prices = get_price(
-        token_amounts.token_new_price_in_token_quote_18,
-        token_amounts.token_trade_price_in_token_quote_18,
-        &pool_meta.quote_mint.to_string(),
-        &sol_price_db.to_string(),
-        // decimals_correct,
-        pool_meta.quote_decimal,
-        pool_meta.base_decimal,
-    )
-    .unwrap();
+    // let token_prices = get_price(
+    //     token_amounts.token_new_price_in_token_quote_18,
+    //     token_amounts.token_trade_price_in_token_quote_18,
+    //     &pool_meta.quote_mint.to_string(),
+    //     &sol_price_db.to_string(),
+    //     // decimals_correct,
+    //     pool_meta.quote_decimal,
+    //     pool_meta.base_decimal,
+    // )
+    // .unwrap();
 
-    let swap_token_amounts_priced = parse_token_amounts_new(
-        &token_amounts,
-        &token_prices,
-        // price.token_price_usd_18,
-        // price.token_ref_price_usd_18,
-        // pool_state.quote_decimal,
-        // pool_state.base_decimal,
-    );
+    // let swap_token_amounts_priced = parse_token_amounts_new(
+    //     &token_amounts,
+    //     &token_prices,
+    //     // price.token_price_usd_18,
+    //     // price.token_ref_price_usd_18,
+    //     // pool_state.quote_decimal,
+    //     // pool_state.base_decimal,
+    // );
 
-    let datetime = DateTime::from_timestamp(transaction_base.block_timestamp, 0)
-        .unwrap()
-        .to_rfc3339();
+    // let datetime = DateTime::from_timestamp(transaction_base.block_timestamp, 0)
+    //     .unwrap()
+    //     .to_rfc3339();
 
-    if transactions_meta.err.is_some() {
-        return Ok(transaction_base);
-    }
+    // if transactions_meta.err.is_some() {
+    //     return Ok(transaction_base);
+    // }
 
-    let price_item_to_save = PriceItem {
-        signature: signature.to_string(),
-        token_quote_address: pool_meta.quote_mint.to_string(),
-        token_base_address: pool_meta.base_mint.to_string(),
+    // let price_item_to_save = PriceItem {
+    //     signature: signature.to_string(),
+    //     token_quote_address: pool_meta.quote_mint.to_string(),
+    //     token_base_address: pool_meta.base_mint.to_string(),
 
-        token_new_price_18: token_prices.token_new_price_18,
-        token_new_price_fixed: token_prices.token_new_price_fixed,
-        token_new_price_in_token_quote_18: token_prices.token_new_price_in_token_quote_18,
-        token_new_price_in_token_quote_fixed: token_prices.token_new_price_in_token_quote_fixed,
+    //     token_new_price_18: token_prices.token_new_price_18,
+    //     token_new_price_fixed: token_prices.token_new_price_fixed,
+    //     token_new_price_in_token_quote_18: token_prices.token_new_price_in_token_quote_18,
+    //     token_new_price_in_token_quote_fixed: token_prices.token_new_price_in_token_quote_fixed,
 
-        token_trade_price_18: token_prices.token_trade_price_18,
-        token_trade_price_fixed: token_prices.token_trade_price_fixed,
-        token_trade_price_in_token_quote_18: token_prices.token_trade_price_in_token_quote_18,
-        token_trade_price_in_token_quote_fixed: token_prices.token_trade_price_in_token_quote_fixed,
+    //     token_trade_price_18: token_prices.token_trade_price_18,
+    //     token_trade_price_fixed: token_prices.token_trade_price_fixed,
+    //     token_trade_price_in_token_quote_18: token_prices.token_trade_price_in_token_quote_18,
+    //     token_trade_price_in_token_quote_fixed: token_prices.token_trade_price_in_token_quote_fixed,
 
-        datetime: datetime,
-        signer: transaction_base.signer.to_string(),
-        ubo: transaction_base.ubo.to_string(),
-        pool_address: pool_id_clone.clone(),
-        usd_total_pool: swap_token_amounts_priced.usd_total_pool_18,
-        block_number: transaction_base.block_number.to_string(),
-    };
+    //     datetime: datetime,
+    //     signer: transaction_base.signer.to_string(),
+    //     ubo: transaction_base.ubo.to_string(),
+    //     pool_address: pool_id_clone.clone(),
+    //     usd_total_pool: swap_token_amounts_priced.usd_total_pool_18,
+    //     block_number: transaction_base.block_number.to_string(),
+    // };
 
-    // println!("item_to_save: {:#?}", item_to_save);
+    // // println!("item_to_save: {:#?}", item_to_save);
+    // //     println!(
+    // //         "price update for token {:#?} ->  {:#?}
+    // // signature: {}
+    // // ====================", // token_new_price_18: {:#?}
+    // //         // token_new_price_fixed: {:#?}
+    // //         // token_new_price_in_token_quote_18: {:#?}
+    // //         // token_new_price_in_token_quote_fixed: {:#?}
+    // //         item_to_save.token_base_address.to_string(),
+    // //         // item_to_save.token_new_price_18.to_f64().to_string(),
+    // //         item_to_save.token_new_price_fixed.to_f64().to_string(),
+    // //         item_to_save.signature,
+    // //         // item_to_save
+    // //         //     .token_new_price_in_token_quote_18
+    // //         //     .to_f64()
+    // //         //     .to_string(),
+    // //         // item_to_save
+    // //         //     .token_new_price_in_token_quote_fixed
+    // //         //     .to_f64()
+    // //         //     .to_string(),
+    // //     );
+
+    // let _price_item_c = price_item_to_save.clone();
+
+    // let reponse = db_client.save_token_values(price_item_to_save);
+
+    // let tpo_values_a = parse_token_price_oracle_values(
+    //     transaction_parsed_meta.ubo.to_string(),
+    //     transaction_parsed_meta.signer.to_string(),
+    //     pool_id_clone.to_string(),
+    //     pool_meta.base_mint.to_string(),
+    //     &token_amounts.token_amounts_quote,
+    //     &swap_token_amounts_priced.token_amounts_priced_a,
+    //     &signature,
+    // );
+
+    // let tpo_values_b = parse_token_price_oracle_values(
+    //     transaction_parsed_meta.ubo.to_string(),
+    //     transaction_parsed_meta.signer.to_string(),
+    //     pool_id_clone.to_string(),
+    //     pool_meta.quote_mint.to_string(),
+    //     &token_amounts.token_amounts_base,
+    //     &swap_token_amounts_priced.token_amounts_priced_b,
+    //     &signature,
+    // );
+
+    // let response_token_usd_a = db_client.insert_token_usd_values(&signature, &tpo_values_a);
+
+    // if response_token_usd_a.is_err() {
     //     println!(
-    //         "price update for token {:#?} ->  {:#?}
-    // signature: {}
-    // ====================", // token_new_price_18: {:#?}
-    //         // token_new_price_fixed: {:#?}
-    //         // token_new_price_in_token_quote_18: {:#?}
-    //         // token_new_price_in_token_quote_fixed: {:#?}
-    //         item_to_save.token_base_address.to_string(),
-    //         // item_to_save.token_new_price_18.to_f64().to_string(),
-    //         item_to_save.token_new_price_fixed.to_f64().to_string(),
-    //         item_to_save.signature,
-    //         // item_to_save
-    //         //     .token_new_price_in_token_quote_18
-    //         //     .to_f64()
-    //         //     .to_string(),
-    //         // item_to_save
-    //         //     .token_new_price_in_token_quote_fixed
-    //         //     .to_f64()
-    //         //     .to_string(),
+    //         "Error saving token usd values to db: {:#?}",
+    //         response_token_usd_a
     //     );
+    // }
 
-    let _price_item_c = price_item_to_save.clone();
+    // let response_token_usd_b = db_client.insert_token_usd_values(&signature, &tpo_values_b);
 
-    let reponse = db_client.save_token_values(price_item_to_save);
+    // if response_token_usd_b.is_err() {
+    //     println!(
+    //         "Error saving token usd values to db: {:#?}",
+    //         response_token_usd_b
+    //     );
+    // }
 
-    let tpo_values_a = parse_token_price_oracle_values(
-        transaction_parsed_meta.ubo.to_string(),
-        transaction_parsed_meta.signer.to_string(),
-        pool_id_clone.to_string(),
-        pool_meta.base_mint.to_string(),
-        &token_amounts.token_amounts_quote,
-        &swap_token_amounts_priced.token_amounts_priced_a,
-        &signature,
-    );
+    // if reponse.is_err() {
+    //     println!("Error saving to db: {:#?}", reponse);
+    // }
 
-    let tpo_values_b = parse_token_price_oracle_values(
-        transaction_parsed_meta.ubo.to_string(),
-        transaction_parsed_meta.signer.to_string(),
-        pool_id_clone.to_string(),
-        pool_meta.quote_mint.to_string(),
-        &token_amounts.token_amounts_base,
-        &swap_token_amounts_priced.token_amounts_priced_b,
-        &signature,
-    );
+    // // let transaction_parsed = parse_base_to_parsed(transaction_base, Some(_price_item_c));
 
-    let response_token_usd_a = db_client.insert_token_usd_values(&signature, &tpo_values_a);
-
-    if response_token_usd_a.is_err() {
-        println!(
-            "Error saving token usd values to db: {:#?}",
-            response_token_usd_a
-        );
-    }
-
-    let response_token_usd_b = db_client.insert_token_usd_values(&signature, &tpo_values_b);
-
-    if response_token_usd_b.is_err() {
-        println!(
-            "Error saving token usd values to db: {:#?}",
-            response_token_usd_b
-        );
-    }
-
-    if reponse.is_err() {
-        println!("Error saving to db: {:#?}", reponse);
-    }
-
-    // let transaction_parsed = parse_base_to_parsed(transaction_base, Some(_price_item_c));
-
-    return Ok(transaction_base);
+    // return Ok(transaction_base);
 
     // return (
     //     signature.to_string(),
@@ -384,7 +379,7 @@ pub async fn to_archive_get_parsed_transaction(
     // );
 }
 
-fn find_raydium_inner_instruction(
+fn _find_raydium_inner_instruction(
     inner_instructions: &OptionSerializer<Vec<UiInnerInstructions>>,
 ) -> Vec<std::string::String> {
     let mut inner_instruction_accounts: Vec<String> = Vec::new();
@@ -468,7 +463,7 @@ fn find_raydium_inner_instruction(
 pub async fn get_transaction_priced(
     pool: RpcPool,
     db_pool: DbPool,
-    cache: Cache<String, Option<PoolMeta>>,
+    _cache: Cache<String, Option<PoolMeta>>,
     signature: String,
 ) -> Result<CtTransaction, TransactionError> {
     let rpc_connect = pool.get().await.unwrap(); // Get a connection from the pool

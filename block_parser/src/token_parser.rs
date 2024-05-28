@@ -2,7 +2,7 @@
 // use num::ToPrimitive;
 use num::ToPrimitive;
 use num_bigfloat::{BigFloat, RoundingMode};
-use serde::{de::value, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use solana_sdk::pubkey::Pubkey;
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
@@ -772,7 +772,7 @@ pub fn parse_balance_changes_new(
     account_keys: &Vec<String>,
     balance_holder: BalanceHolder,
     fees: HashMap<String, TransactionFees>,
-    ubo: &str,
+    _ubo: &str,
 ) -> HashMap<std::string::String, HashMap<std::string::String, BalanceChange>> {
     // println!("Fee {:#?} to substract from: {:#?}", fees, ubo);
 
@@ -912,14 +912,14 @@ pub fn parse_balance_changes_new(
 
         let mut value_change = post - pre;
 
-        if (fee_for_address.is_some()) {
+        if fee_for_address.is_some() {
             let fee_amount = fee_for_address.unwrap();
 
             // let fee = fee_for_address.unwrap().fee;
             // let fee_item = BigFloat::from_u64(fee);
             // let post = post - fee_item;
 
-            if (value_change.is_positive()) {
+            if value_change.is_positive() {
                 value_change = value_change - fee_amount.amount_bf;
             } else {
                 value_change = value_change + fee_amount.amount_bf;

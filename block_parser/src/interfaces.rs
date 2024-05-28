@@ -1,6 +1,5 @@
 use std::{clone, collections::HashMap};
 
-use deadpool_postgres::Transaction;
 use num_bigfloat::BigFloat;
 
 use crate::actions::{CtAction, CtActionFormatted};
