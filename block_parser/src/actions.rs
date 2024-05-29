@@ -58,11 +58,15 @@ pub struct SwapFieldsFormatted {
     pub swap_hops: Vec<String>,
     pub router_events: Vec<String>,
     pub testing: bool,
+    pub to: Option<String>,
+    pub from: Option<String>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct SwapFields {
     // tokens_fee: Vec<TokenChanges>,
+    pub from: Option<String>,
+    pub to: Option<String>,
     pub tokens_from: Vec<ValueChange>,
     pub tokens_to: Vec<ValueChange>,
     pub swap_hops: Vec<String>,
@@ -73,6 +77,8 @@ pub struct SwapFields {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct TransferFields {
     // tokens_fee: Vec<TokenChanges>,
+    pub from: Option<String>,
+    pub to: Option<String>,
     pub tokens_transferred: Vec<BalanceChange>,
     pub router_events: Vec<String>,
     pub testing: bool,
@@ -84,6 +90,8 @@ pub struct TransferFieldsFormatted {
     pub tokens_transferred: Vec<BalanceChangedFormatted>,
     pub router_events: Vec<String>,
     pub testing: bool,
+    pub from: Option<String>,
+    pub to: Option<String>,
 }
 
 impl ActionFields {
@@ -114,7 +122,12 @@ impl ValueChange {
                 Some(x) => Some(get_rounded_amount(x, 18)),
                 None => None,
             },
-            balance_changes: self.balance_changes.clone(),
+            balance_changes: self
+                .balance_changes
+                .clone()
+                .iter()
+                .map(|bc| bc.format())
+                .collect(),
             amount_diff: amount_diff,
         }
     }
@@ -140,6 +153,8 @@ impl SwapFields {
             swap_hops: self.swap_hops.clone(),
             router_events: self.router_events.clone(),
             testing: self.testing,
+            to: self.to.clone(),
+            from: self.from.clone(),
         }
     }
 }
@@ -156,6 +171,8 @@ impl TransferFields {
             tokens_transferred,
             router_events: self.router_events.clone(),
             testing: self.testing,
+            from: self.from.clone(),
+            to: self.to.clone(),
         }
     }
 }
@@ -175,34 +192,16 @@ impl CtAction {
 }
 
 pub fn parse_token_changes_to_transfers(
-    address_token_changes: TokenChangesMap,
+    address_token_changes: Vec<ValueChange>,
     // transaction_from: Option<String>,
 ) -> Vec<CtAction> {
     let mut actions: Vec<CtAction> = Vec::new();
 
-    for (key, value) in address_token_changes {
-        let with_values: Vec<BalanceChange> = value
-            .iter()
-            .filter(|(_token_address, balance_change)| {
-                if !balance_change.difference.is_zero() {
-                    return true;
-                }
-                return false;
-            })
-            .map(|(_token_address, balance_change)| {
-                let balance_change_r = balance_change.clone();
-
-                balance_change_r
-                // balance_change.clone()
-            })
-            .collect();
-
-        if with_values.is_empty() {
-            continue;
-        }
-
+    for value in address_token_changes {
         let fields = ActionFields::CtTransfer(TransferFields {
-            tokens_transferred: with_values,
+            tokens_transferred: value.balance_changes.clone(),
+            from: value.from,
+            to: value.to,
             router_events: Vec::new(),
             testing: true,
         });
@@ -212,11 +211,47 @@ pub fn parse_token_changes_to_transfers(
             protocol_name: None,
             protocol_id: None,
             protocol: None,
-            addresses: vec![key.to_lowercase()],
+            addresses: vec![value.mint.to_lowercase()],
             event_ids: Vec::new(),
             ubo: None,
             fields: fields,
         });
+        // let with_values: Vec<BalanceChange> = value
+        //     .iter()
+        //     .filter(|(_token_address, balance_change)| {
+        //         if !balance_change.difference.is_zero() {
+        //             return true;
+        //         }
+        //         return false;
+        //     })
+        //     .map(|(_token_address, balance_change)| {
+        //         let balance_change_r = balance_change.clone();
+
+        //         balance_change_r
+        //         // balance_change.clone()
+        //     })
+        //     .collect();
+
+        // if with_values.is_empty() {
+        //     continue;
+        // }
+
+        // let fields = ActionFields::CtTransfer(TransferFields {
+        //     tokens_transferred: with_values,
+        //     router_events: Vec::new(),
+        //     testing: true,
+        // });
+
+        // actions.push(CtAction {
+        //     action_type: "cttransfer".to_string(),
+        //     protocol_name: None,
+        //     protocol_id: None,
+        //     protocol: None,
+        //     addresses: vec![key.to_lowercase()],
+        //     event_ids: Vec::new(),
+        //     ubo: None,
+        //     fields: fields,
+        // });
     }
 
     return actions;
@@ -258,12 +293,19 @@ pub fn parse_events_to_swap(
     }
 
     for (address, value) in tokens_mapped_address.clone() {
-        if (value.len() > 1) {
-            let elements = value
+        if value.len() > 1 {
+            let mut elements = value
                 .values()
                 .flatten()
                 .cloned()
                 .collect::<Vec<ValueChange>>();
+
+            if (elements[0].amount.is_positive() && elements[1].amount.is_negative()) {
+                elements.reverse();
+                // let temp = elements[0].clone();
+                // elements[0] = elements[1].clone();
+                // elements[1] = temp;
+            }
 
             let fields = ActionFields::CtSwap(SwapFields {
                 tokens_from: vec![elements[0].clone()],
@@ -271,6 +313,8 @@ pub fn parse_events_to_swap(
                 router_events: Vec::new(),
                 swap_hops: Vec::new(),
                 testing: true,
+                from: elements[0].from.clone(),
+                to: elements[1].to.clone(),
             });
 
             actions.push(CtAction {
@@ -284,16 +328,16 @@ pub fn parse_events_to_swap(
                 fields: fields,
             });
             // tokens_mapped_address.remove(&address);
+        } else {
+            let tesitng = value
+                .values()
+                .flatten()
+                .cloned()
+                .collect::<Vec<ValueChange>>();
+
+            // other.(tesitng);
+            other.extend(tesitng);
         }
-
-        let tesitng = value
-            .values()
-            .flatten()
-            .cloned()
-            .collect::<Vec<ValueChange>>();
-
-        // other.(tesitng);
-        other.extend(tesitng);
     }
 
     return (actions, other, tokens_mapped_address);
@@ -476,7 +520,7 @@ pub fn combine_token_transfers(
                         existing_by_token.from = Some(value.owner.to_string());
                         existing_by_token.amount_diff = Some(difference);
                     }
-                    existing_by_token.balance_changes.push(value.format());
+                    existing_by_token.balance_changes.push(value);
                     continue;
                 }
             }
@@ -500,7 +544,7 @@ pub fn combine_token_transfers(
                     None => None,
                 },
                 amount_diff_usd: None,
-                balance_changes: vec![value.format()],
+                balance_changes: vec![value],
                 amount_diff: None,
             };
 

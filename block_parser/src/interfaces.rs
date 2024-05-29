@@ -244,7 +244,7 @@ pub struct ValueChange {
     pub mint: String,
     pub amount: BigFloat,
     pub amount_usd: Option<BigFloat>,
-    pub balance_changes: Vec<BalanceChangedFormatted>,
+    pub balance_changes: Vec<BalanceChange>,
     pub amount_diff: Option<BigFloat>,
     pub amount_diff_usd: Option<BigFloat>,
 }

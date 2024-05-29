@@ -538,16 +538,16 @@ impl CtTransaction {
         let balance_changes_combined =
             combine_token_transfers(self.token_changes_owner.values.clone());
 
-        let (actions, other, changes_by_address) = parse_events_to_swap(balance_changes_combined);
+        let (swaps, other, changes_by_address) = parse_events_to_swap(balance_changes_combined);
 
         // let (swaps, other) =
         //     to_archive_parse_token_changes_to_swaps(self.token_changes_owner.values.clone());
 
-        // let transfers = parse_token_changes_to_transfers(self.token_changes_owner.values.clone());
+        let transfers = parse_token_changes_to_transfers(other);
 
-        // self.actions = [&transfers[..]].concat();
+        self.actions = [&swaps[..], &transfers[..]].concat();
         // self.actions = actions;
-        self.actions = actions;
+        // self.actions = actions;
         // self.set_actions(swaps)
         // return actions;
     }
