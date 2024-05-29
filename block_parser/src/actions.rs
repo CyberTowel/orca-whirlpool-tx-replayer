@@ -509,13 +509,13 @@ pub fn combine_token_transfers(
 
                     if value.value_transferred.is_positive() {
                         if existing_by_token.to.is_some() {
-                            panic!("to is already set, implement logic to handle this");
+                            println!("to is already set, implement logic to handle this");
                         }
                         existing_by_token.to = Some(value.owner.to_string());
                         existing_by_token.amount_diff = Some(difference);
                     } else {
                         if existing_by_token.from.is_some() {
-                            panic!("to is already set, implement logic to handle this");
+                            println!("from is already set, implement logic to handle this");
                         }
                         existing_by_token.from = Some(value.owner.to_string());
                         existing_by_token.amount_diff = Some(difference);

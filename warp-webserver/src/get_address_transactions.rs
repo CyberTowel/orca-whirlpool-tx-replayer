@@ -1,8 +1,8 @@
 use block_parser::{
     get_signatures::get_paginated_singatures,
     interfaces::{ArrayMapRequest, CtTransaction, TransactionParsedResponse},
-    rpc_pool_manager::{RpcPool},
-    token_db::{DbPool},
+    rpc_pool_manager::RpcPool,
+    token_db::DbPool,
     token_parser::PoolMeta,
     transactions_loader::{get_transaction_priced, TransactionError},
 };
@@ -11,8 +11,8 @@ use block_parser::{
 use moka::future::Cache;
 use serde::Serialize;
 use std::collections::VecDeque;
-use tokio::task::{JoinSet};
-use warp::{reply::Reply};
+use tokio::task::JoinSet;
+use warp::reply::Reply;
 
 // use crate::ArrayMapRequest;
 
@@ -67,8 +67,7 @@ pub async fn get_address_transactions_handler(
     //     results.push_back(result);
     // }
 
-    let _signatures_to_process: JoinSet<Result<CtTransaction, TransactionError>> =
-        JoinSet::new();
+    let _signatures_to_process: JoinSet<Result<CtTransaction, TransactionError>> = JoinSet::new();
 
     for signature in signatures {
         let rpc_connect = rpc_connection.clone();
