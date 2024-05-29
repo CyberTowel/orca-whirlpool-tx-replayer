@@ -1,7 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{
-    actions::{parse_token_changes_to_swaps, parse_token_changes_to_transfers},
+    actions::{
+        combine_token_transfers, parse_events_to_swap, parse_token_changes_to_transfers,
+        to_archive_parse_token_changes_to_swaps,
+    },
     interfaces::{
         CtTransaction,
         TokenChanges,
@@ -16,6 +19,7 @@ use chrono::DateTime;
 use num_bigfloat::BigFloat;
 use serde_json::json;
 use serde_json::value::Value;
+use solana_sdk::blake3::Hash;
 use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
 pub mod innner_test {
@@ -50,7 +54,7 @@ pub mod innner_test {
 
             let token_values_formatted = BalanceChangedFormatted {
                 owner: self.owner.to_string(),
-                mint: self.mint.to_string() + "2",
+                mint: self.mint.to_string(),
                 balance_post: get_rounded_amount(self.balance_post, 18),
                 balance_pre_usd: match self.balance_pre_usd {
                     Some(x) => Some(get_rounded_amount(x, 18)),
@@ -452,7 +456,7 @@ impl CtTransaction {
             token_changes_token_account: token_changes_token_accounts,
             tokens,
             token_prices: None,
-            actions: Vec::new(),
+            actions: vec![],
             // token_amounts: token_amounts,
         }
     }
@@ -483,7 +487,10 @@ impl CtTransaction {
             None
         };
 
+        // let dolar = combine_token_transfers(self.token_changes_owner.values.clone());
+
         TransactionParsedResponse {
+            // dolar,
             signer: self.signer.clone(),
             ubo: self.ubo.clone(),
             block_timestamp: self.block_timestamp,
@@ -503,8 +510,15 @@ impl CtTransaction {
             token_changes_owner: token_changes_owner,
             token_changes_token_account: token_changes_token_account,
             tokens: self.tokens.clone(),
+
             // actions: self.actions.clone(),
-            actions: self.actions.iter().map(|value| value.format()).collect(),
+            // actions: self.actions.iter().map(|value| value.format()).collect(),
+            actions: self
+                .actions
+                .clone()
+                .iter()
+                .map(|value| value.format())
+                .collect(),
             // token_prices: self.token_prices.clone(),
         }
     }
@@ -521,11 +535,19 @@ impl CtTransaction {
     pub fn create_actions(&mut self) {
         // let mut actions = Vec::new();
 
-        let (swaps, other) = parse_token_changes_to_swaps(self.token_changes_owner.values.clone());
+        let balance_changes_combined =
+            combine_token_transfers(self.token_changes_owner.values.clone());
 
-        let transfers = parse_token_changes_to_transfers(other);
+        let (actions, other, changes_by_address) = parse_events_to_swap(balance_changes_combined);
 
-        self.actions = [&swaps[..], &transfers[..]].concat();
+        // let (swaps, other) =
+        //     to_archive_parse_token_changes_to_swaps(self.token_changes_owner.values.clone());
+
+        // let transfers = parse_token_changes_to_transfers(self.token_changes_owner.values.clone());
+
+        // self.actions = [&transfers[..]].concat();
+        // self.actions = actions;
+        self.actions = actions;
         // self.set_actions(swaps)
         // return actions;
     }

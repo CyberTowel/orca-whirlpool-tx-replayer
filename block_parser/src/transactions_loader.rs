@@ -1,8 +1,6 @@
 use crate::{
-    interfaces::{
-        CtTransaction,
-        // TransactionParsed
-    },
+    actions::combine_token_transfers,
+    interfaces::CtTransaction,
     rpc_pool_manager::RpcPool,
     token_db::{get_token_prices_from_token_changes, DbPool},
 };
@@ -494,7 +492,7 @@ pub async fn get_transaction_priced(
     )
     .await;
 
-    // transaction.set_token_prices(token_prices);
+    transaction.set_token_prices(token_prices.clone());
     transaction.set_prices_to_token_changes(token_prices);
     transaction.create_actions();
     Ok(transaction)

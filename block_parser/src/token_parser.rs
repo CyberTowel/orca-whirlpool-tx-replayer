@@ -128,7 +128,9 @@ pub fn get_token_amounts(
     // let (token_changes_by_wallet, changes_by_token_account_address) =
     //     parse_balance_changes(rpc_transaction, account_keys);
 
-    // transaction_base.changes_by_token_account_address
+    // transaction_base.changes_by_token_account_address\
+
+    println!("parse toekn amounts");
 
     let token_changes_ubo = transaction_base
         .token_changes_owner
@@ -357,6 +359,7 @@ pub fn parse_balance_changes(
             balance_post: post,
             difference: post - pre,
             value_transferred: post - pre,
+            // value_transferred: BigFloat::from_f64(30000000.0),
             value_transferred_usd: None,
             mint: "sol".to_string(),
             owner: pubkey.to_string(),
@@ -481,6 +484,8 @@ fn merge_hashmap(
 
             let new_balance_post = existing.balance_post + new_balance;
             let new_diff_post = existing.difference + new_diff;
+
+            println!("{}", new_diff_post);
 
             let new_change = BalanceChange {
                 balance_pre: existing.balance_pre,
@@ -882,6 +887,7 @@ pub fn parse_balance_changes_new(
 
         existing_entry.balance_pre = amount_bf;
         existing_entry.difference = existing_entry.balance_post - amount_bf;
+        existing_entry.value_transferred = existing_entry.difference;
 
         // existing_entry_token_account.balance_pre = amount_bf;
         // existing_entry_token_account.difference =

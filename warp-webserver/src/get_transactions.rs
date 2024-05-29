@@ -1,14 +1,10 @@
 use moka::future::Cache;
 
-use warp::{Reply};
-
+use warp::Reply;
 
 use block_parser::{
-    interfaces::ArrayMapRequest,
-    rpc_pool_manager::RpcPool,
-    token_db::{DbPool},
-    token_parser::PoolMeta,
-    transactions_loader::{get_transaction_priced},
+    actions::combine_token_transfers, interfaces::ArrayMapRequest, rpc_pool_manager::RpcPool,
+    token_db::DbPool, token_parser::PoolMeta, transactions_loader::get_transaction_priced,
 };
 
 pub async fn handler(
@@ -27,7 +23,9 @@ pub async fn handler(
     }
 
     let transaction = transaction_req.unwrap();
+    // let dolar = combine_token_transfers(transaction.token_changes_owner.values.clone());
 
+    // Ok(warp::reply::json(&transaction.format(expand)))
     Ok(warp::reply::json(&transaction.format(expand)))
 }
 

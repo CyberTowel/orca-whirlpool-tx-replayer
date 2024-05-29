@@ -42,7 +42,7 @@ impl managed::Manager for RpcPoolManager {
             }
 
             if prop == "info_rpc" {
-                rpc_url = "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U";
+                // rpc_url = "https://api.solanarpc.dev/rpc/solana/mainnet?token=MjI4fE8yeW0zN0s3T251QnY5V1FMcXF4eGRxdVFNbVlaeUYxYWZXRGJLN0U";
             }
         }
 
