@@ -2,16 +2,18 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     actions::{
-        combine_token_transfers, parse_events_to_swap, parse_token_changes_to_transfers,
-        to_archive_parse_token_changes_to_swaps,
+        combine_sol_tokens, combine_token_transfers, parse_events_to_swap,
+        parse_token_changes_to_transfers, to_archive_parse_token_changes_to_swaps,
     },
     interfaces::{
         CtTransaction,
         TokenChanges,
         TransactionDescription,
         TransactionFees,
-        TransactionParsedResponse, // TransactionParsed,
-                                   // TransactionParsedResponse,
+        TransactionParsedResponse,
+        ValueChange,
+        ValueChangeFormatted, // TransactionParsed,
+                              // TransactionParsedResponse,
     },
     token_parser::BalanceHolder,
 };
@@ -457,6 +459,8 @@ impl CtTransaction {
             tokens,
             token_prices: None,
             actions: vec![],
+            changes_by_address: HashMap::new(),
+            value_changes: vec![],
             // token_amounts: token_amounts,
         }
     }
@@ -507,7 +511,7 @@ impl CtTransaction {
             contract_address: self.contract_address.clone(),
             fees: self.fees.clone().iter().map(|fees| fees.format()).collect(),
             fees_total: self.fees_total,
-            token_changes_owner: token_changes_owner,
+
             token_changes_token_account: token_changes_token_account,
             tokens: self.tokens.clone(),
 
@@ -519,7 +523,15 @@ impl CtTransaction {
                 .iter()
                 .map(|value| value.format())
                 .collect(),
-            // token_prices: self.token_prices.clone(),
+            changes_by_address: self.changes_by_address.clone(),
+            value_changes: self
+                .value_changes
+                .clone()
+                .iter()
+                .map(|value| value.format())
+                .collect(),
+            token_changes_owner: token_changes_owner,
+            // token_changes_owner: Some(self.token_changes_owner.format()), // token_prices: self.token_prices.clone(),
         }
     }
 
@@ -538,14 +550,47 @@ impl CtTransaction {
         let balance_changes_combined =
             combine_token_transfers(self.token_changes_owner.values.clone());
 
-        let (swaps, other, changes_by_address) = parse_events_to_swap(balance_changes_combined);
+        let teting_formatted: Vec<ValueChangeFormatted> = balance_changes_combined
+            .iter()
+            .map(|value| value.format())
+            .collect();
+
+        // println!("balance_changes_combined {:#?}", teting_formatted);
+
+        // println!("balance_changes_combined {:#?}", balance_changes_combined);
+
+        let (combined_lipsum, other_items) = combine_sol_tokens(balance_changes_combined.clone());
+
+        let tesitng: Vec<ValueChange> = other_items;
+        // .into_iter()
+        // .filter(|value_change| {
+        //     return value_change.mint != "sol";
+        // })
+        // .collect();
+
+        // let tesitng2: Vec<ValueChangeFormatted> = tesitng
+        //     .clone()
+        //     .into_iter()
+        //     .map(|value| value.format())
+        //     .collect();
+
+        // println!("tesitng length {:#?}", tesitng2);
+
+        let (swaps, other_testing, changes_by_address) =
+            parse_events_to_swap(combined_lipsum.clone());
 
         // let (swaps, other) =
         //     to_archive_parse_token_changes_to_swaps(self.token_changes_owner.values.clone());
 
-        let transfers = parse_token_changes_to_transfers(other);
+        // let swaps = vec![];
+
+        let transfers = parse_token_changes_to_transfers(other_testing, &self.signer);
 
         self.actions = [&swaps[..], &transfers[..]].concat();
+        // self.actions = transfers;
+        // self.changes_by_address = changes_by_address;
+        // self.value_changes = balance_changes_combined;
+        // println!("actions length {:#?}", self.actions.len());
         // self.actions = actions;
         // self.actions = actions;
         // self.set_actions(swaps)

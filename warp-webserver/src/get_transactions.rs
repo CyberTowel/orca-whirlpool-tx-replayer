@@ -3,8 +3,12 @@ use moka::future::Cache;
 use warp::Reply;
 
 use block_parser::{
-    actions::combine_token_transfers, interfaces::ArrayMapRequest, rpc_pool_manager::RpcPool,
-    token_db::DbPool, token_parser::PoolMeta, transactions_loader::get_transaction_priced,
+    actions::{combine_sol_tokens, combine_token_transfers},
+    interfaces::{ArrayMapRequest, ValueChangeFormatted},
+    rpc_pool_manager::RpcPool,
+    token_db::DbPool,
+    token_parser::PoolMeta,
+    transactions_loader::get_transaction_priced,
 };
 
 pub async fn handler(
@@ -23,9 +27,14 @@ pub async fn handler(
     }
 
     let transaction = transaction_req.unwrap();
-    // let dolar = combine_token_transfers(transaction.token_changes_owner.values.clone());
+    let dolar = combine_token_transfers(transaction.token_changes_owner.values.clone());
 
-    // Ok(warp::reply::json(&transaction.format(expand)))
+    let (combined_lipsum, sol_tokens) = combine_sol_tokens(dolar.clone());
+
+    // let testngasdfsa: Vec<ValueChangeFormatted> =
+    //     combined_lipsum.iter().map(|value| value.format()).collect();
+    // Ok(warp::reply::json(&testngasdfsa))
+
     Ok(warp::reply::json(&transaction.format(expand)))
 }
 

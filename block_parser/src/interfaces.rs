@@ -1,7 +1,6 @@
 use std::{clone, collections::HashMap};
 
 use num_bigfloat::BigFloat;
-use solana_sdk::blake3::Hash;
 
 use crate::actions::{CtAction, CtActionFormatted};
 
@@ -106,6 +105,8 @@ pub struct CtTransaction {
     pub token_prices: Option<HashMap<String, String>>,
     // pub actions: Vec<CtAction>,
     pub actions: Vec<CtAction>,
+    pub changes_by_address: HashMap<String, HashMap<String, Vec<ValueChange>>>,
+    pub value_changes: Vec<ValueChange>,
 }
 
 // #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -143,6 +144,8 @@ pub struct TransactionParsedResponse {
     pub tokens: Vec<String>,
     // pub actions: ActionsFormatted,
     pub actions: Vec<CtActionFormatted>,
+    pub changes_by_address: HashMap<String, HashMap<String, Vec<ValueChange>>>,
+    pub value_changes: Vec<ValueChangeFormatted>,
 }
 
 pub type Actions = Vec<CtAction>;

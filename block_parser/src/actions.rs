@@ -1,8 +1,12 @@
-use std::collections::HashMap;
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
+use num::complex::ComplexFloat;
 use num_bigfloat::BigFloat;
 use serde::{Deserialize, Serialize};
-use solana_sdk::blake3::Hash;
+use solana_sdk::{blake3::Hash, signer};
 
 use crate::{
     interfaces::{
@@ -79,9 +83,16 @@ pub struct TransferFields {
     // tokens_fee: Vec<TokenChanges>,
     pub from: Option<String>,
     pub to: Option<String>,
+    pub amount: BigFloat,
+    pub amount_usd: Option<BigFloat>,
     pub tokens_transferred: Vec<BalanceChange>,
     pub router_events: Vec<String>,
     pub testing: bool,
+    pub mint: String,
+    // pub key: String,
+    // pub value_transferred: BigFloat,
+    // pub value_transferred_usd: Option<BigFloat>,
+    // pub mint: String,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -92,6 +103,12 @@ pub struct TransferFieldsFormatted {
     pub testing: bool,
     pub from: Option<String>,
     pub to: Option<String>,
+    pub amount: String,
+    pub amount_usd: Option<String>,
+    pub mint: String,
+    // pub value_transferred: String,
+    // pub value_transferred_usd: Option<String>,
+    // pub mint: String,
 }
 
 impl ActionFields {
@@ -106,7 +123,7 @@ impl ActionFields {
 }
 
 impl ValueChange {
-    fn format(&self) -> ValueChangeFormatted {
+    pub fn format(&self) -> ValueChangeFormatted {
         let amount = get_rounded_amount(self.amount, 18);
         let amount_diff = match self.amount_diff {
             Some(x) => Some(get_rounded_amount(x, 18)),
@@ -173,6 +190,18 @@ impl TransferFields {
             testing: self.testing,
             from: self.from.clone(),
             to: self.to.clone(),
+            amount: get_rounded_amount(self.amount, 18),
+            amount_usd: match self.amount_usd {
+                Some(x) => Some(get_rounded_amount(x, 18)),
+                None => None,
+            },
+            mint: self.mint.clone(),
+            // value_transferred: get_rounded_amount(self.value_transferred, 18),
+            // value_transferred_usd: match self.value_transferred_usd {
+            //     Some(x) => Some(get_rounded_amount(x, 18)),
+            //     None => None,
+            // },
+            // mint: self.mint.clone(),
         }
     }
 }
@@ -193,18 +222,62 @@ impl CtAction {
 
 pub fn parse_token_changes_to_transfers(
     address_token_changes: Vec<ValueChange>,
+    signer: &String,
     // transaction_from: Option<String>,
 ) -> Vec<CtAction> {
     let mut actions: Vec<CtAction> = Vec::new();
 
+    // let mut transfer_keys = HashMap::new();
+
     for value in address_token_changes {
+        let mut tokens_transfered = vec![];
+        // let mut token_transfered_keys = HashMap::new();
+
+        for transfer in value.balance_changes.clone() {
+            //     let from_key =
+            //         transfer.value_transferred.abs().to_string() + "##" + &transfer.mint.to_string();
+
+            //     if token_transfered_keys.contains_key(&from_key) {
+            //         if transfer.owner == signer.to_string() {
+            //             println!("take the duplicate because it's from signer")
+            //         } else {
+            //             continue;
+            //         }
+            //     }
+
+            //     token_transfered_keys.insert(from_key, transfer.owner.clone());
+
+            tokens_transfered.push(transfer);
+        }
+
+        // let from_key = value.from.clone().unwrap_or("_".to_string())
+        //     + "##"
+        //     + &value.to.clone().unwrap_or("_".to_string().to_string())
+        //     + "##"
+        //     + &value.mint
+        //     + "##"
+        //     + &value.amount.to_string();
+
         let fields = ActionFields::CtTransfer(TransferFields {
-            tokens_transferred: value.balance_changes.clone(),
+            tokens_transferred: tokens_transfered.clone(),
+            amount: value.amount,
+            amount_usd: value.amount_usd,
             from: value.from,
             to: value.to,
             router_events: Vec::new(),
             testing: true,
+            mint: value.mint.clone(),
+            // key: from_key.clone(),
+            // value_transferred: value.amount,
+            // value_transferred_usd: value.amount_usd,
+            // mint: value.mint.clone(),
         });
+
+        // if transfer_keys.contains_key(&from_key) {
+        //     continue;
+        // }
+
+        // transfer_keys.insert(from_key, true);
 
         actions.push(CtAction {
             action_type: "cttransfer".to_string(),
@@ -262,7 +335,7 @@ pub fn parse_events_to_swap(
 ) -> (
     Vec<CtAction>,
     Vec<ValueChange>,
-    HashMap<std::string::String, HashMap<std::string::String, Vec<ValueChange>>>,
+    HashMap<String, HashMap<String, Vec<ValueChange>>>,
 ) {
     let mut actions: Vec<CtAction> = vec![];
     let mut other: Vec<ValueChange> = vec![];
@@ -273,24 +346,67 @@ pub fn parse_events_to_swap(
         let item_from = item.clone();
         let item_to = item.clone();
 
-        if (item_from.from.is_some()) {
+        // let from_key = item.from.clone().unwrap_or("_".to_string())
+        //     + "##"
+        //     + &item.to.clone().unwrap_or("_".to_string().to_string())
+        //     + "##"
+        //     + &item.mint
+        //     + "##"
+        //     + &item.amount.to_string();
+
+        // let to_key = item.to.clone().unwrap_or("_".to_string())
+        //     + "##"
+        //     + &item.from.clone().unwrap_or("_".to_string().to_string())
+        //     + "##"
+        //     + &item.mint
+        //     + "##"
+        //     + &item.amount.to_string();
+
+        // println!("{:#?}", from_key);
+        // if (tokens_keys_used.contains_key(&from_key) || tokens_keys_used.contains_key(&to_key)) {
+        //     println!("key already used");
+        //     continue;
+        // }
+
+        // println!("from_key: {:#?}", from_key);
+        // println!("to_key  : {:#?}", to_key);
+
+        // tokens_keys_used.insert(from_key.clone(), true);
+        // tokens_keys_used.insert(to_key.clone(), true);
+
+        // println!("tokens_keys_used {:#?}", tokens_keys_used);
+
+        if item_from.from.is_some() {
             tokens_mapped_address
-                .entry(item_from.clone().from.unwrap())
+                .entry(item_from.clone().from.unwrap().to_string())
                 .or_insert_with(HashMap::new)
                 .entry(item_from.mint.clone())
                 .or_insert_with(Vec::new)
                 .push(item_from);
         }
 
+        // if tokens_keys_used.contains_key(&from_key) || tokens_keys_used.contains_key(&to_key) {
+        //     println!("key already used");
+        //     continue;
+        // }
+
+        // address -> received (when to?)
+        // address -> sent (when from?)
+        // then check
+
         if (item_to.to.is_some()) {
             tokens_mapped_address
-                .entry(item_to.clone().to.unwrap())
+                .entry(item_to.clone().to.unwrap().to_string())
                 .or_insert_with(HashMap::new)
                 .entry(item_to.mint.clone())
                 .or_insert_with(Vec::new)
                 .push(item_to);
         }
     }
+
+    // return (actions, other, tokens_mapped_address);
+
+    let mut tokens_keys_used = HashMap::new();
 
     for (address, value) in tokens_mapped_address.clone() {
         if value.len() > 1 {
@@ -313,9 +429,34 @@ pub fn parse_events_to_swap(
                 router_events: Vec::new(),
                 swap_hops: Vec::new(),
                 testing: true,
-                from: elements[0].from.clone(),
+                from: elements[0].to.clone(),
                 to: elements[1].to.clone(),
             });
+
+            let from_key = elements[0].from.clone().unwrap_or("_".to_string())
+                + "##"
+                + &elements[0]
+                    .to
+                    .clone()
+                    .unwrap_or("_".to_string().to_string())
+                + "##"
+                + &elements[0].mint
+                + "##"
+                + &elements[0].amount.to_string();
+
+            let to_key = elements[1].from.clone().unwrap_or("_".to_string())
+                + "##"
+                + &elements[1]
+                    .to
+                    .clone()
+                    .unwrap_or("_".to_string().to_string())
+                + "##"
+                + &elements[1].mint
+                + "##"
+                + &elements[1].amount.to_string();
+
+            tokens_keys_used.insert(from_key, true);
+            tokens_keys_used.insert(to_key, true);
 
             actions.push(CtAction {
                 action_type: "ctswap".to_string(),
@@ -340,7 +481,24 @@ pub fn parse_events_to_swap(
         }
     }
 
-    return (actions, other, tokens_mapped_address);
+    let testing32 = other
+        .into_iter()
+        .filter({
+            |item| {
+                let to_key = item.from.clone().unwrap_or("_".to_string())
+                    + "##"
+                    + &item.to.clone().unwrap_or("_".to_string().to_string())
+                    + "##"
+                    + &item.mint
+                    + "##"
+                    + &item.amount.to_string();
+
+                return !tokens_keys_used.contains_key(&to_key);
+            }
+        })
+        .collect();
+
+    return (actions, testing32, tokens_mapped_address);
 
     // for item in items {
     //     if item.difference.is_positive() {
@@ -419,6 +577,106 @@ pub fn to_archive_parse_token_changes_to_swaps(
     return (actions, used_ref);
 }
 
+fn is_within_range(_value: String, _target: String) -> bool {
+    let value = BigFloat::from_str(&_value).unwrap();
+    let target = BigFloat::from_str(&_target).unwrap();
+
+    let lower_bound = target.mul(&BigFloat::from(0.9));
+    let upper_bound = target.mul(&BigFloat::from(1.1));
+    value >= lower_bound && value <= upper_bound
+}
+
+pub fn combine_sol_tokens(items: Vec<ValueChange>) -> (Vec<ValueChange>, Vec<ValueChange>) {
+    let mut sol_tokens = vec![];
+    let mut other = vec![];
+    items.iter().for_each(|item| {
+        if (item.mint == "sol" || item.mint == "So11111111111111111111111111111111111111112") {
+            sol_tokens.push(item.clone());
+        } else {
+            other.push(item.clone());
+        }
+    });
+
+    // let mut testing_sol: Vec<&ValueChange> = vec![];
+
+    // Create a HashSet to store unique amounts
+    // let mut unique_amounts = HashSet::new();
+
+    // // Filter the vector to keep only unique amounts
+    // sol_tokens.retain(|s| {
+    //     println!("{:#?}", s.amount.to_string());
+    //     unique_amounts.insert(s.amount.to_string())
+    // });
+
+    // // Print the filtered vector
+    // println!("length after {:?}", sol_tokens.len());
+
+    // Create a HashSet to store unique amounts within the 10% range
+    let mut unique_amounts: HashSet<String> = HashSet::new();
+
+    // Filter the vector to keep only unique amounts within the 10% range
+    // let filtered_vec: Vec<_> = sol_tokens
+    //     .into_iter()
+    //     .filter(|s| {
+    //         unique_amounts.get(&s.amount.to_string()).is_none()
+    //             || unique_amounts
+    //                 .iter()
+    //                 .any(|a| is_within_range(s.amount.to_string(), a.to_string()))
+    //     })
+    //     .inspect(|s| {
+    //         unique_amounts.insert(s.amount.to_string());
+    //     })
+    //     .collect();
+
+    let filtered_vec: Vec<_> = sol_tokens
+        .clone()
+        .into_iter()
+        .filter(|s| {
+            let within_range = unique_amounts
+                .iter()
+                .any(|a| is_within_range(s.amount.to_string(), a.to_string()));
+            if !within_range {
+                unique_amounts.insert(s.amount.to_string());
+            }
+            !within_range
+        })
+        .collect();
+
+    // let doarlasdf: Vec<&ValueChange> = sol_tokens
+    //     .iter()
+    //     .filter(|item| {
+    //         println!("{:#?}", item.format().amount);
+
+    //         let exisitng_item = testing_sol.iter().find(|next_item: &&&mut ValueChange| {
+    //             if next_item.amount == next_item.amount {
+    //                 println!("found");
+    //                 return false;
+    //             } else {
+    //                 return true;
+    //             }
+    //         });
+
+    //         if (!exisitng_item.is_some()) {
+    //             println!("not found ");
+    //             testing_sol.push(item.clone());
+    //         }
+
+    //         return exisitng_item.is_some();
+
+    //         // if exisitng_item.is_some() {
+    //         //     println!("found");
+    //         //     return
+    //         // }
+
+    //         // testing_sol.push(item.clone());
+    //     })
+    //     .collect();
+
+    other.extend(filtered_vec);
+
+    return (other.clone(), sol_tokens);
+}
+
 pub fn combine_token_transfers(
     address_token_changes: HashMap<String, HashMap<String, BalanceChange>>,
 ) -> Vec<ValueChange> {
@@ -486,8 +744,15 @@ pub fn combine_token_transfers(
                 // let dolar = exists_entry.unwrap();
 
                 let existing_by_token = exists_entry.unwrap().into_iter().find(|vc| {
+                    let from_to_cond = if (value.value_transferred.is_positive()) {
+                        vc.to.is_none()
+                    } else {
+                        vc.from.is_none()
+                    };
+
                     if vc.amount.abs() < value_to_find_upper
                         && vc.amount.abs() > value_to_find_lower
+                        && from_to_cond
                     {
                         // vc.balance_changes.push(value.format());
                         true
