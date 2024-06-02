@@ -1,7 +1,6 @@
 use get_transactions::handler;
 use moka::future::Cache;
-use serde::{Serialize};
-
+use serde::Serialize;
 
 use warp::Filter;
 mod get_address_transactions;
@@ -71,7 +70,7 @@ async fn main() {
     //     .and(warp::path::param::<String>())
     //     .map(|signature| get_user(signature));
 
-    let route = warp::path("path")
+    let route = warp::path("tx")
         .and(with_rpc_pool(rpc_connection_builder.clone()))
         .and(with_token_db_pool(db_pool_connection.clone()))
         .and(with_testing(cache.clone()))

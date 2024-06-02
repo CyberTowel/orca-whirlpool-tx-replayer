@@ -3,12 +3,8 @@ use moka::future::Cache;
 use warp::Reply;
 
 use block_parser::{
-    actions::{combine_sol_tokens, combine_token_transfers},
-    interfaces::{ArrayMapRequest, ValueChangeFormatted},
-    rpc_pool_manager::RpcPool,
-    token_db::DbPool,
-    token_parser::PoolMeta,
-    transactions_loader::get_transaction_priced,
+    interfaces::ArrayMapRequest, rpc_pool_manager::RpcPool, token_db::DbPool,
+    token_parser::PoolMeta, transactions_loader::get_transaction_priced,
 };
 
 pub async fn handler(
@@ -22,20 +18,28 @@ pub async fn handler(
 
     let transaction_req = get_transaction_priced(pool, db_pool, cache, signature).await;
 
-    if transaction_req.is_err() {
-        return Ok(warp::reply::json(&{}));
-    }
+    // if transaction_req.is_err() {
+    //     return Ok(warp::reply::json(&{}));
+    // }
 
-    let transaction = transaction_req.unwrap();
-    let dolar = combine_token_transfers(transaction.token_changes_owner.values.clone());
+    let mut transaction = transaction_req.unwrap();
+    let (dolar, removed, combined) = transaction.create_actions();
 
-    let (combined_lipsum, sol_tokens) = combine_sol_tokens(dolar.clone());
+    // let (combined_lipsum, sol_tokens) =
+    //     combine_sol_tokens(dolar.clone(), transaction.token_account_owners);
+
+    // let testing = parse_value_changes_to_transfers(combined_lipsum, &transaction.signer);
 
     // let testngasdfsa: Vec<ValueChangeFormatted> =
-    //     combined_lipsum.iter().map(|value| value.format()).collect();
+    //     dolar.iter().map(|value| value.format()).collect();
     // Ok(warp::reply::json(&testngasdfsa))
 
+    // let combined_formatted: Vec<ValueChangeFormatted> =
+    //     combined.iter().map(|value| value.format()).collect();
+
     Ok(warp::reply::json(&transaction.format(expand)))
+
+    // Ok(warp::reply::json(&transaction.format(expand)))
 }
 
 // fn parse_parsed_to_formatted(transaction_parsed: TransactionParsed) -> TransactionParsedResponse {

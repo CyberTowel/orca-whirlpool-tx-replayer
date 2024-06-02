@@ -1,11 +1,10 @@
-use std::collections::{HashMap, HashSet};
-
 use crate::{
-    actions::{
-        combine_sol_tokens, combine_token_transfers, parse_events_to_swap,
-        parse_token_changes_to_transfers, to_archive_parse_token_changes_to_swaps,
-    },
+    actions::combine_token_transfers,
+    ct_swap::parse_events_to_swap,
+    ct_transfer::parse_value_changes_to_transfers,
     interfaces::{
+        BalanceChange,
+        BalanceChangedFormatted,
         CtTransaction,
         TokenChanges,
         TransactionDescription,
@@ -18,11 +17,13 @@ use crate::{
     token_parser::BalanceHolder,
 };
 use chrono::DateTime;
+use num::ToPrimitive;
 use num_bigfloat::BigFloat;
-use serde_json::json;
 use serde_json::value::Value;
+use serde_json::{json, to_string};
 use solana_sdk::blake3::Hash;
-use solana_transaction_status::EncodedTransactionWithStatusMeta;
+use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
+use std::collections::{HashMap, HashSet};
 
 pub mod innner_test {
     use solana_transaction_status::EncodedTransactionWithStatusMeta;
@@ -78,6 +79,12 @@ pub mod innner_test {
                     Some(x) => Some(get_rounded_amount(x, 18)),
                     None => None,
                 },
+                inner_changes: self.inner_changes.clone().map(|value| {
+                    value
+                        .iter()
+                        .map(|value| value.format())
+                        .collect::<Vec<BalanceChangedFormatted>>()
+                }),
             };
 
             return token_values_formatted;
@@ -228,6 +235,7 @@ pub mod innner_test {
                                         fees: value.fees.clone(),
                                         value_transferred: value.value_transferred,
                                         value_transferred_usd: value_changed_price,
+                                        inner_changes: value.inner_changes.clone(),
                                     },
                                 )
                             })
@@ -346,6 +354,8 @@ impl CtTransaction {
 
         let instructions = v["message"]["instructions"].as_array().unwrap();
 
+        let singer_c = signer.clone();
+
         let dca_instruction = instructions.iter().find(|&x| {
             let program_id = x["programId"].as_str().unwrap();
             let data = x["data"].as_str();
@@ -359,12 +369,41 @@ impl CtTransaction {
                 && date_test == "ujjfjrldfld"
         });
 
-        let singer_c = signer.clone();
+        let mut ubo: String = signer.clone();
 
-        let ubo = match dca_instruction {
-            Some(x) => x["accounts"].as_array().unwrap()[2].as_str().unwrap(),
-            None => &singer_c,
-        };
+        if dca_instruction.is_some() {
+            let x = dca_instruction.unwrap();
+            ubo = x["accounts"].as_array().unwrap()[2]
+                .as_str()
+                .unwrap()
+                .to_string();
+        } else {
+            let instruction = instructions.iter().find(|&x| {
+                let program_id = x["programId"].as_str().unwrap();
+                let data = x["data"].as_str();
+
+                let date_test = match data {
+                    Some(x) => x.to_lowercase(),
+                    None => "".to_string(),
+                };
+
+                program_id == "DCA265Vj8a9CEuX1eb1LWRnDT7uK6q1xMipnNyatn23M"
+                    && date_test == "Exy129dPfhn".to_lowercase()
+            });
+
+            if instruction.is_some() {
+                let x = instruction.unwrap();
+                ubo = x["accounts"].as_array().unwrap()[6]
+                    .as_str()
+                    .unwrap()
+                    .to_string();
+            }
+        }
+
+        // let ubo = match dca_instruction {
+        //     Some(x) => x["accounts"].as_array().unwrap()[2].as_str().unwrap(),
+        //     None => &singer_c,
+        // };
 
         let datetime = DateTime::from_timestamp(block_time, 0)
             .unwrap()
@@ -403,7 +442,7 @@ impl CtTransaction {
             &testing,
             BalanceHolder::Owner,
             fees_map.clone(),
-            ubo,
+            &ubo,
         );
         // let mut serializer = Serializer::new();
 
@@ -414,6 +453,52 @@ impl CtTransaction {
             fees_map.clone(),
             &ubo,
         );
+
+        let post_token_balances: Option<Vec<UiTransactionTokenBalance>> =
+            transaction_meta.post_token_balances.into();
+
+        let pre_token_balances: Option<Vec<UiTransactionTokenBalance>> =
+            transaction_meta.pre_token_balances.into();
+
+        let mut token_account_owners = HashMap::new();
+
+        for balance in post_token_balances.unwrap() {
+            let owner: Option<String> = balance.owner.clone().into();
+            let index_usize = balance.account_index.to_usize().unwrap();
+            let pub_key_token_address = account_keys[index_usize].clone();
+
+            let dolar = pub_key_token_address["pubkey"].as_str().unwrap();
+
+            // let testing: Option<&str> = dolar.to_string();
+
+            token_account_owners.insert(dolar.to_string(), owner.unwrap());
+            // println!(
+            //     "token {:#?}, owner {}",
+            //     pub_key_token_address,
+            //     owner.unwrap()
+            // );
+        }
+
+        for balance in pre_token_balances.unwrap() {
+            let owner: Option<String> = balance.owner.clone().into();
+            let index_usize = balance.account_index.to_usize().unwrap();
+            let pub_key_token_address = account_keys[index_usize].clone();
+
+            let dolar = pub_key_token_address["pubkey"].as_str().unwrap();
+
+            // let testing: Option<&str> = dolar.to_string();
+
+            token_account_owners.insert(dolar.to_string(), owner.unwrap());
+            // println!(
+            //     "token {:#?}, owner {}",
+            //     pub_key_token_address,
+            //     owner.unwrap()
+            // );
+        }
+
+        // let index_usize = balance.account_index.to_usize().unwrap();
+
+        // let pub_key_token_address = account_keys[index_usize].clone();
 
         // let unique_tokens =
 
@@ -459,8 +544,10 @@ impl CtTransaction {
             tokens,
             token_prices: None,
             actions: vec![],
+            all_actions: vec![],
             changes_by_address: HashMap::new(),
             value_changes: vec![],
+            token_account_owners,
             // token_amounts: token_amounts,
         }
     }
@@ -531,6 +618,12 @@ impl CtTransaction {
                 .map(|value| value.format())
                 .collect(),
             token_changes_owner: token_changes_owner,
+            all_actions: self
+                .all_actions
+                .clone()
+                .iter()
+                .map(|value| value.format())
+                .collect(),
             // token_changes_owner: Some(self.token_changes_owner.format()), // token_prices: self.token_prices.clone(),
         }
     }
@@ -544,57 +637,51 @@ impl CtTransaction {
         // self.token_changes_token_account.set_prices(token_prices);
     }
 
-    pub fn create_actions(&mut self) {
-        // let mut actions = Vec::new();
+    pub fn create_actions(
+        &mut self,
+    ) -> (
+        HashMap<std::string::String, HashMap<std::string::String, BalanceChangedFormatted>>,
+        Vec<BalanceChange>,
+        Vec<ValueChange>,
+    ) {
+        let (balance_changes_combined, removed, combined) = combine_token_transfers(
+            self.token_changes_owner.values.clone(),
+            self.token_account_owners.clone(),
+            self.hash.clone(),
+        );
 
-        let balance_changes_combined =
-            combine_token_transfers(self.token_changes_owner.values.clone());
-
-        let teting_formatted: Vec<ValueChangeFormatted> = balance_changes_combined
+        let dolar = balance_changes_combined
             .iter()
-            .map(|value| value.format())
-            .collect();
+            .map(|(key, value)| {
+                let testing = value
+                    .iter()
+                    .map(|(key, value)| {
+                        let balance_change = value;
+                        let token_address = key.to_string();
 
-        // println!("balance_changes_combined {:#?}", teting_formatted);
+                        let token_values_formatted = balance_change.format();
 
-        // println!("balance_changes_combined {:#?}", balance_changes_combined);
+                        return (token_address, token_values_formatted);
+                    })
+                    .collect::<HashMap<String, BalanceChangedFormatted>>();
 
-        let (combined_lipsum, other_items) = combine_sol_tokens(balance_changes_combined.clone());
+                return (key.to_string(), testing);
+            })
+            .collect::<HashMap<String, HashMap<String, BalanceChangedFormatted>>>();
 
-        let tesitng: Vec<ValueChange> = other_items;
-        // .into_iter()
-        // .filter(|value_change| {
-        //     return value_change.mint != "sol";
-        // })
-        // .collect();
+        let (swaps, other_testing, _changes_by_address) = parse_events_to_swap(combined.clone());
 
-        // let tesitng2: Vec<ValueChangeFormatted> = tesitng
-        //     .clone()
-        //     .into_iter()
-        //     .map(|value| value.format())
-        //     .collect();
+        let transfers = parse_value_changes_to_transfers(other_testing, &self.signer);
 
-        // println!("tesitng length {:#?}", tesitng2);
+        self.all_actions = [&swaps[..], &transfers[..]].concat();
 
-        let (swaps, other_testing, changes_by_address) =
-            parse_events_to_swap(combined_lipsum.clone());
+        let testing = self
+            .all_actions
+            .iter()
+            .filter(|x| x.addresses.contains(&self.ubo.to_string()));
 
-        // let (swaps, other) =
-        //     to_archive_parse_token_changes_to_swaps(self.token_changes_owner.values.clone());
-
-        // let swaps = vec![];
-
-        let transfers = parse_token_changes_to_transfers(other_testing, &self.signer);
-
-        self.actions = [&swaps[..], &transfers[..]].concat();
-        // self.actions = transfers;
-        // self.changes_by_address = changes_by_address;
-        // self.value_changes = balance_changes_combined;
-        // println!("actions length {:#?}", self.actions.len());
-        // self.actions = actions;
-        // self.actions = actions;
-        // self.set_actions(swaps)
-        // return actions;
+        self.actions = testing.cloned().collect();
+        return (dolar, removed, combined);
     }
 }
 

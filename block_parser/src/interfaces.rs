@@ -105,8 +105,10 @@ pub struct CtTransaction {
     pub token_prices: Option<HashMap<String, String>>,
     // pub actions: Vec<CtAction>,
     pub actions: Vec<CtAction>,
+    pub all_actions: Vec<CtAction>,
     pub changes_by_address: HashMap<String, HashMap<String, Vec<ValueChange>>>,
     pub value_changes: Vec<ValueChange>,
+    pub token_account_owners: HashMap<String, String>,
 }
 
 // #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -146,6 +148,7 @@ pub struct TransactionParsedResponse {
     pub actions: Vec<CtActionFormatted>,
     pub changes_by_address: HashMap<String, HashMap<String, Vec<ValueChange>>>,
     pub value_changes: Vec<ValueChangeFormatted>,
+    pub all_actions: Vec<CtActionFormatted>,
 }
 
 pub type Actions = Vec<CtAction>;
@@ -213,6 +216,7 @@ pub struct BalanceChange {
     pub fees: Option<Vec<TransactionFees>>,
     pub value_transferred: BigFloat,
     pub value_transferred_usd: Option<BigFloat>,
+    pub inner_changes: Option<Vec<BalanceChange>>,
 }
 
 // #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -238,6 +242,7 @@ pub struct BalanceChangedFormatted {
     pub value_transferred_usd: Option<String>,
     pub difference_usd: Option<String>,
     pub fees: Option<Vec<TransactionFeesFormatted>>,
+    pub inner_changes: Option<Vec<BalanceChangedFormatted>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

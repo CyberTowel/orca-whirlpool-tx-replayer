@@ -130,8 +130,6 @@ pub fn get_token_amounts(
 
     // transaction_base.changes_by_token_account_address\
 
-    println!("parse toekn amounts");
-
     let token_changes_ubo = transaction_base
         .token_changes_owner
         .values
@@ -289,6 +287,7 @@ pub fn parse_balance_changes(
             mint: mint.clone(),
             owner: owner_address.clone(),
             fees: None,
+            inner_changes: None,
         };
 
         *token_entry_token_account_address.or_default() = BalanceChange {
@@ -304,6 +303,7 @@ pub fn parse_balance_changes(
             mint: mint.clone(),
             owner: owner_address.clone(),
             fees: None,
+            inner_changes: None,
         };
     }
 
@@ -364,6 +364,7 @@ pub fn parse_balance_changes(
             mint: "sol".to_string(),
             owner: pubkey.to_string(),
             fees: None,
+            inner_changes: None,
         };
 
         let owner_entry = changes_by_owner.entry(pubkey.to_string());
@@ -485,8 +486,6 @@ fn merge_hashmap(
             let new_balance_post = existing.balance_post + new_balance;
             let new_diff_post = existing.difference + new_diff;
 
-            println!("{}", new_diff_post);
-
             let new_change = BalanceChange {
                 balance_pre: existing.balance_pre,
                 decimals: existing.decimals,
@@ -501,6 +500,7 @@ fn merge_hashmap(
                 owner: existing.owner.clone(),
                 value_transferred_usd: None,
                 fees: None,
+                inner_changes: None,
             };
 
             map1.insert(item, new_change);
@@ -779,8 +779,6 @@ pub fn parse_balance_changes_new(
     fees: HashMap<String, TransactionFees>,
     _ubo: &str,
 ) -> HashMap<std::string::String, HashMap<std::string::String, BalanceChange>> {
-    // println!("Fee {:#?} to substract from: {:#?}", fees, ubo);
-
     let post_balances = transaction.clone().meta.unwrap().post_balances;
     let pre_balances = transaction.clone().meta.unwrap().pre_balances;
 
@@ -841,6 +839,7 @@ pub fn parse_balance_changes_new(
             owner: owner_address.clone(),
             value_transferred_usd: None,
             fees: None,
+            inner_changes: None,
         };
 
         // *token_entry_token_account_address.or_default() = BalanceChange {
@@ -900,16 +899,6 @@ pub fn parse_balance_changes_new(
         let pre = BigFloat::from_u64(pre_balances[index]);
         let post = BigFloat::from_u64(post_balances[index]);
 
-        // let post_test = post
-        // let fee_item = BigFloat::from_u64(fee); //.mul(&BigFloat::from_u64(10).pow(&BigFloat::from_i8(9)));
-        // .pow(&BigFloat::from_i8(9));
-
-        // println!(
-        //     "fee = {} Fee item: {:#?}",
-        //     fee,
-        //     fee_item.to_f64().to_string()
-        // );
-
         let key = pubkey.clone() + "##" + "sol";
 
         let fee_for_address = fees.get(key.as_str());
@@ -933,7 +922,6 @@ pub fn parse_balance_changes_new(
             fee = Some(vec![fee_amount.clone()]);
         }
 
-        // println!("Fee found: {:#?}", fee);
         let item = BalanceChange {
             balance_pre: pre,
             balance_pre_usd: None,
@@ -947,32 +935,14 @@ pub fn parse_balance_changes_new(
             decimals: 9,
             mint: "sol".to_string(),
             owner: pubkey.to_string(),
+            inner_changes: None,
         };
-
-        // let owner_entry = changes_by_owner.entry(pubkey.to_string());
 
         let owner_entry = changes_by_owner.entry(pubkey.to_string());
 
-        // match balance_holder {
-        //     BalanceHolder::Owner => changes_by_owner.entry(pubkey.to_string()),
-        //     BalanceHolder::TokenAddress => changes_by_owner.entry(pubkey.to_string()),
-        // };
-
         let token_entry = owner_entry.or_default().entry("sol".to_string());
-        // let token_account_address_entry =
-        //     changes_by_token_account_address.entry(pubkey.to_string());
-
-        // let token_entry_token_account_address = token_account_address_entry
-        //     .or_default()
-        //     .entry("sol".to_string());
-
-        // if (fee.is_some()) {
-        //     println!("Fee found: {:#?}", item);
-        // }
 
         *token_entry.or_default() = item.clone();
-
-        // *token_entry_token_account_address.or_default() = item.clone();
     }
 
     return changes_by_owner;

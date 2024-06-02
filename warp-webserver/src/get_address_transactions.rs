@@ -107,7 +107,14 @@ pub async fn get_address_transactions_handler(
     // }
 
     while let Some(handle) = tasks.pop_front() {
-        let res: Result<CtTransaction, TransactionError> = handle.await.unwrap();
+        let request = handle.await;
+
+        if (request.is_err()) {
+            println!("Error processing signature");
+            // continue;
+        }
+
+        let res: Result<CtTransaction, TransactionError> = request.unwrap();
 
         // let res = result.unwrap();
         // results.push(result);
