@@ -332,6 +332,7 @@ impl CtTransaction {
         rpc_transaction: &EncodedTransactionWithStatusMeta,
         block_time: i64,
         block_number: u64,
+        ubo_override: Option<String>,
     ) -> Self {
         // let token_a_address: &str = "So11111111111111111111111111111111111111112";
         // let token_b_address: &str = "CymqTrLSVZ97v87Z4W3dkF4ipZE1kYyeasmN2VckUL4J";
@@ -398,6 +399,10 @@ impl CtTransaction {
                     .unwrap()
                     .to_string();
             }
+        }
+
+        if (ubo_override.is_some()) {
+            ubo = ubo_override.unwrap();
         }
 
         // let ubo = match dca_instruction {

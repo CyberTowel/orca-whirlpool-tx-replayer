@@ -100,7 +100,7 @@ Processed {:?} until {:?} ({:#?})
         pub rpc_type: Option<String>,
     }
 
-    #[async_trait]
+    // #[async_trait]
     impl managed::Manager for RpcPoolManager {
         type Type = RpcClient;
         type Error = Error;

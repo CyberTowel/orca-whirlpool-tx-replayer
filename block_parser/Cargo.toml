@@ -6,23 +6,26 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-solana-client = "=1.16.18"
-solana-sdk = "=1.16.18"
-solana-transaction-status = "=1.16.18"
-solana-account-decoder = "=1.16.18"
-deadpool = {version = "0.10.0"}
+solana-client.workspace = true
+solana-sdk.workspace = true
+solana-transaction-status.workspace = true
+# solana-account-decoder.workspace = true
+deadpool.workspace = true
 async-trait = "0.1.79"
 chrono = "0.4.35"
 num-bigfloat = {version = "1.7.1", features=["serde"]}
 serde_json = "1.0.115"
 serde = "1.0.197"
 num = "0.4.1"
-borsh = "0.9.1"
-solana-program = "=1.16.18"
-deadpool-postgres = "0.12.1"
+borsh.workspace = true
+solana-program.workspace = true
+deadpool-postgres.workspace = true
 pg_bigdecimal = "0.1.5"
 rust_decimal = {version = "1.34.3", features = ["maths", "db-postgres"] }
 rust_decimal_macros = "1.34"
 tokio-postgres = { version = "0.7.10", features=["with-chrono-0_4", "with-serde_json-1"]}
 tokio = { version = "1", features = ["full"] }
 moka.workspace = true
+spl-associated-token-account = "3.0.2"
+mpl-bubblegum = "1.4.0"
+mpl-token-metadata = "4.1.2"

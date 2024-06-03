@@ -957,7 +957,7 @@ pub fn calc_token_usd_total(
 
     let balance_pre_priced = match token_price {
         Some(x) => {
-            let price = BigFloat::from_str(x).unwrap();
+            let price = BigFloat::from_str(x).unwrap_or(BigFloat::from(0));
 
             Some(
                 value

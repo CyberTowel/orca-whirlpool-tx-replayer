@@ -5,10 +5,10 @@ edition = { workspace = true }
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-solana-client = "1.16.18"
-solana-program = "1.16.18"
-solana-sdk = "1.16.18"
-solana-transaction-status = "1.16.18"
+solana-client.workspace = true
+solana-program.workspace = true
+solana-sdk.workspace = true
+solana-transaction-status.workspace = true
 futures = "0.3.28"
 anyhow = "1.0.79"
 clap = { workspace = true }

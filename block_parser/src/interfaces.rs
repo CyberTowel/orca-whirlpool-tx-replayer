@@ -8,6 +8,7 @@ use crate::actions::{CtAction, CtActionFormatted};
 pub struct ArrayMapRequest {
     // an_array: Vec<String>,
     pub expand: Option<Vec<String>>,
+    pub from_hash: Option<String>,
     // testing: bool,
     // a_map: HashMap<String, String>,
 }

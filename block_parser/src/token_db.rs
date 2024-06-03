@@ -93,7 +93,7 @@ pub struct PriceItemDb {
 //     fn setDb(&self, db: DbPool);
 // }
 
-#[async_trait]
+// #[async_trait]
 impl managed::Manager for DbClientPoolManager {
     type Type = TokenDbClient;
     type Error = TPError;

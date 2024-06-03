@@ -16,7 +16,7 @@ use tokio_postgres::NoTls;
 // use tokio_postgres::types::Json;
 
 // use crate::raydium_saver::pg_saving::create_db_pool;
-use crate::token_parser::{TokenPriceOracleValues};
+use crate::token_parser::TokenPriceOracleValues;
 
 pub fn testing() {}
 
@@ -72,7 +72,7 @@ pub struct PriceItemDb {
 //     fn setDb(&self, db: DbPool);
 // }
 
-#[async_trait]
+// #[async_trait]
 impl managed::Manager for DbClientPoolManager {
     type Type = TokenDbClient;
     type Error = TPError;

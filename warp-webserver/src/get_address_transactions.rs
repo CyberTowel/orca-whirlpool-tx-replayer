@@ -40,7 +40,7 @@ pub async fn get_address_transactions_handler(
 
     let expand = params.expand.clone();
 
-    let before_signature_param = None;
+    let before_signature_param = params.from_hash;
     let sample_rate = None;
 
     let (signatures, next_hash) = get_paginated_singatures(
@@ -50,6 +50,8 @@ pub async fn get_address_transactions_handler(
         sample_rate,
     )
     .await;
+
+    // println!("address: {:#?}", address);
 
     // let mut results = VecDeque::new();
     // let mut futures = Vec::new();
@@ -74,11 +76,19 @@ pub async fn get_address_transactions_handler(
         let db_connect = db_pool.clone();
         let cache_connect = cache.clone();
 
+        let address_to_set = address.clone();
+
         let handle = tokio::spawn(async move {
             // wait for ratelimiting
             // tester.wait().await;
-            let results =
-                get_transaction_priced(rpc_connect, db_connect, cache_connect, signature).await;
+            let results = get_transaction_priced(
+                rpc_connect,
+                db_connect,
+                cache_connect,
+                signature,
+                Some(address_to_set),
+            )
+            .await;
             return results;
         });
 

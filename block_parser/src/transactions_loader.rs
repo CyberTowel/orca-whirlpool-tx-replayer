@@ -31,6 +31,7 @@ pub async fn get_transction(
     signature: String,
     // pool_id: Option<String>,
     rpc_connection: &RpcClient,
+    ubo_override: Option<String>,
     // db_client: &TokenDbClient,
     // my_cache: Cache<String, Option<PoolMeta>>,
 ) -> Result<CtTransaction, TransactionError> {
@@ -62,10 +63,14 @@ pub async fn get_transction(
         version: confirmed_tx.transaction.version,
     };
 
+    let rpc_data = serde_json::to_string(&transaction).unwrap();
+    // println!("transaction: {:#?}", rpc_data);
+
     let block_time = confirmed_tx.block_time.unwrap();
     let block_number = confirmed_tx.slot;
 
-    let mut _transaction_base = CtTransaction::new(&transaction, block_time, block_number);
+    let mut _transaction_base =
+        CtTransaction::new(&transaction, block_time, block_number, ubo_override);
 
     _transaction_base.create_actions();
 
@@ -127,7 +132,7 @@ pub async fn to_archive_get_parsed_transaction(
     _sol_price_18: Option<String>,
     // transaction_base: CtTransaction,
 ) -> Result<CtTransaction, TransactionError> {
-    let transaction_base = CtTransaction::new(transaction, block_time, block_number);
+    let transaction_base = CtTransaction::new(transaction, block_time, block_number, None);
 
     return Ok(transaction_base);
 
@@ -463,6 +468,7 @@ pub async fn get_transaction_priced(
     db_pool: DbPool,
     _cache: Cache<String, Option<PoolMeta>>,
     signature: String,
+    ubo_override: Option<String>,
 ) -> Result<CtTransaction, TransactionError> {
     let rpc_connect = pool.get().await.unwrap(); // Get a connection from the pool
 
@@ -470,6 +476,7 @@ pub async fn get_transaction_priced(
         signature.clone(),
         // None,
         &rpc_connect,
+        ubo_override,
         // &token_db_connect,
         // cache,
     )

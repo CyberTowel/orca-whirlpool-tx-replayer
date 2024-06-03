@@ -14,24 +14,24 @@ whirlpool_base = { workspace = true }
 anchor-lang = { workspace = true }
 
 # Struct sqlx::types::Decimal
-solana-program = "=1.16.18"
-anchor-client = "0.29.0"
-solana-sdk = "=1.16.18"
-solana-client = "=1.16.18"
-solana-transaction-status = "=1.16.18"
-solana-account-decoder = "=1.16.18"
-mpl-token-metadata = { version = "1.9.0", features = ["no-entrypoint"] }
+solana-program.workspace = true
+anchor-client = "0.30.0"
+solana-sdk.workspace = true
+solana-client.workspace = true
+solana-transaction-status.workspace = true
+# solana-account-decoder.workspace = true
+# mpl-token-metadata = { version = "4.1.2"}
 chrono = "0.4.35"
-deadpool = {version = "0.10.0"}
+deadpool.workspace = true
 # internal
 async-trait = "0.1.79"
 arl = "0.2.0"
-deadpool-postgres = "0.12.1"
+deadpool-postgres.workspace = true
 num = "0.4.1"
 num-bigfloat = "1.7.1"
 serde_json = "1.0.115"
 serde = "1.0.197"
-borsh = "0.9.1"
+borsh.workspace = true
 pg_bigdecimal = "0.1.5"
 
 helpers = { path = "../helpers" }

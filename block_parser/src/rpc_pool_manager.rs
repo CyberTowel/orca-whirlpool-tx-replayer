@@ -17,7 +17,7 @@ pub enum Error {}
 
 const WSS_URL: &str = "wss://api.mainnet-beta.solana.com/";
 
-#[async_trait]
+// #[async_trait]
 impl managed::Manager for RpcPoolManager {
     type Type = RpcClient;
     type Error = Error;

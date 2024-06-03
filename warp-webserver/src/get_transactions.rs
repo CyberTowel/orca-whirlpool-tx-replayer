@@ -16,14 +16,17 @@ pub async fn handler(
 ) -> Result<impl Reply, warp::Rejection> {
     let expand = params.expand.clone();
 
-    let transaction_req = get_transaction_priced(pool, db_pool, cache, signature).await;
+    let rpc: deadpool::managed::Object<block_parser::rpc_pool_manager::RpcPoolManager> =
+        pool.clone().get().await.unwrap();
+
+    let transaction_req = get_transaction_priced(pool, db_pool, cache, signature, None).await;
 
     // if transaction_req.is_err() {
     //     return Ok(warp::reply::json(&{}));
     // }
 
     let mut transaction = transaction_req.unwrap();
-    let (dolar, removed, combined) = transaction.create_actions();
+    // let (dolar, removed, combined) = transaction.create_actions();
 
     // let (combined_lipsum, sol_tokens) =
     //     combine_sol_tokens(dolar.clone(), transaction.token_account_owners);
@@ -36,6 +39,13 @@ pub async fn handler(
 
     // let combined_formatted: Vec<ValueChangeFormatted> =
     //     combined.iter().map(|value| value.format()).collect();
+
+    // let rpc = pool.clone().get().await.unwrap();
+
+    //DDr7CZBbahsXK1wGjZqag7DhrkTQMrULDk6M4tJ3o5z2 not found
+    //Ewdf4DJLzuMCmMs52HsJCCVKggV7gRddWmgN4f3uoLPf not found
+    //Epn14cfr6Jsz5cQrKhWYPmjwqhUmXX7dQK14vPaZfUEN not found
+    //F4bEvVmHJPjYjfW7S2FFPpJiiwXFjXF47YP9XtNfz2Bq not found
 
     Ok(warp::reply::json(&transaction.format(expand)))
 
