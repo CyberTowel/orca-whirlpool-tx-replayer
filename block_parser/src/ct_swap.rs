@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use num_bigfloat::BigFloat;
-use serde_json::Value;
+
 
 use crate::{
     actions::{ActionFields, CtAction, SwapFields},
@@ -20,7 +20,7 @@ pub fn parse_events_to_swap(
 
     let mut tokens_mapped_address = HashMap::new();
 
-    let mut tokens_mapped_address_new: HashMap<String, HashMap<String, Vec<ValueChange>>> =
+    let _tokens_mapped_address_new: HashMap<String, HashMap<String, Vec<ValueChange>>> =
         HashMap::new();
 
     let mut tokens_keys_used = HashMap::new();
@@ -38,7 +38,7 @@ pub fn parse_events_to_swap(
                 .push(item_from);
         }
 
-        if (item_to.to.is_some()) {
+        if item_to.to.is_some() {
             tokens_mapped_address
                 .entry(item_to.clone().to.unwrap().to_string())
                 .or_insert_with(HashMap::new)
@@ -50,7 +50,7 @@ pub fn parse_events_to_swap(
 
     for (address, value) in tokens_mapped_address.clone() {
         if value.len() > 1 {
-            let mut elements = value
+            let elements = value
                 .values()
                 .flatten()
                 .cloned()
@@ -59,7 +59,7 @@ pub fn parse_events_to_swap(
             let elements_formatted: Vec<ValueChangeFormatted> =
                 elements.clone().iter().map(|vc| vc.format()).collect();
 
-            let elements_formatted_json = serde_json::to_string(&elements_formatted).unwrap();
+            let _elements_formatted_json = serde_json::to_string(&elements_formatted).unwrap();
 
             let address_received: Vec<ValueChange> = elements
                 .iter()
@@ -82,7 +82,7 @@ pub fn parse_events_to_swap(
             //     // elements[1] = temp;
             // }
 
-            if (address_received.len() <= 0 || address_sent.len() <= 0) {
+            if address_received.len() <= 0 || address_sent.len() <= 0 {
                 // println!(
                 //     "address_received length: {}, address_sent length: {} so not a swap",
                 //     address_received.len(),
@@ -106,11 +106,11 @@ pub fn parse_events_to_swap(
             let key_2 = address_received[0].to.clone().unwrap_or("_".to_string());
             let mut from_to_key = key_1.clone() + "_" + &key_2.clone();
 
-            if (key_1 < key_2) {
+            if key_1 < key_2 {
                 from_to_key = key_2.clone() + "_" + &key_1.clone();
             }
 
-            if (tokens_keys_used.contains_key(&from_to_key)) {
+            if tokens_keys_used.contains_key(&from_to_key) {
                 continue;
             }
 
@@ -173,25 +173,25 @@ pub fn parse_events_to_swap(
 
             let addresses = match fields.clone() {
                 ActionFields::CtSwap(SwapFields {
-                    tokens_from,
-                    tokens_to,
-                    router_events,
-                    swap_hops,
-                    testing,
+                    tokens_from: _,
+                    tokens_to: _,
+                    router_events: _,
+                    swap_hops: _,
+                    testing: _,
                     from,
                     to,
-                    from_to_key,
-                    tokens_from_total_usd,
-                    tokens_to_total_usd,
+                    from_to_key: _,
+                    tokens_from_total_usd: _,
+                    tokens_to_total_usd: _,
                     // address_received,
                     // address_sent,
                 }) => {
                     let mut testing = Vec::new();
-                    if (from.is_some()) {
+                    if from.is_some() {
                         testing.push(from.unwrap());
                     }
 
-                    if (to.is_some()) {
+                    if to.is_some() {
                         testing.push(to.unwrap());
                     }
 
@@ -255,7 +255,7 @@ pub fn parse_events_to_swap(
         })
         .collect();
 
-    let lipsum = testing32
+    let _lipsum = testing32
         .iter()
         .map(|item| item.format())
         .collect::<Vec<ValueChangeFormatted>>();

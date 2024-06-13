@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use num_bigfloat::BigFloat;
 
 use crate::{
-    actions::{ActionFields, CtAction, CtActionFormatted, TransferFields},
-    interfaces::{ValueChange, ValueChangeFormatted},
+    actions::{ActionFields, CtAction, TransferFields},
+    interfaces::{ValueChange},
 };
 
 pub fn parse_value_changes_to_transfers(
     address_token_changes: Vec<ValueChange>,
-    signer: &String,
+    _signer: &String,
 ) -> Vec<CtAction> {
     let mut token_transfered_keys = HashMap::new();
     let mut token_transfered_keys_new: HashMap<String, Vec<ValueChange>> = HashMap::new();
@@ -20,11 +20,11 @@ pub fn parse_value_changes_to_transfers(
         let key_2 = value_change.from.clone().unwrap_or("_".to_string());
         let mut from_to_key = key_1.clone() + "_" + &key_2.clone();
 
-        if (key_1 < key_2) {
+        if key_1 < key_2 {
             from_to_key = key_2.clone() + "_" + &key_1.clone();
         }
 
-        if (!token_transfered_keys.contains_key(&from_to_key)) {
+        if !token_transfered_keys.contains_key(&from_to_key) {
 
             // let mut value_change = value_change.clone();
             // value_change.from = Some(key_2.clone());
@@ -33,7 +33,7 @@ pub fn parse_value_changes_to_transfers(
             // continue;
         }
 
-        if (token_transfered_keys_new.contains_key(&from_to_key)) {
+        if token_transfered_keys_new.contains_key(&from_to_key) {
             let value_changes = token_transfered_keys_new.get_mut(&from_to_key).unwrap();
             value_changes.push(value_change.clone());
             continue;
@@ -45,7 +45,7 @@ pub fn parse_value_changes_to_transfers(
 
     // let combined_json = serde_json::to_string(&token_transfered_keys_new).unwrap();
 
-    let testing: Vec<CtAction> = token_transfered_keys
+    let _testing: Vec<CtAction> = token_transfered_keys
         .values()
         .into_iter()
         .map(|item| {
@@ -66,10 +66,10 @@ pub fn parse_value_changes_to_transfers(
             });
 
             let mut address = Vec::new();
-            if (item.from.is_some()) {
+            if item.from.is_some() {
                 address.push(item.from.clone().unwrap());
             }
-            if (item.to.is_some()) {
+            if item.to.is_some() {
                 address.push(item.to.clone().unwrap());
             }
 
@@ -117,7 +117,7 @@ pub fn parse_value_changes_to_transfers(
                 // mint: value.mint.clone(),
             });
 
-            let mut address = Vec::new();
+            let address = Vec::new();
             // if (item.from.is_some()) {
             //     address.push(item.from.clone().unwrap());
             // }

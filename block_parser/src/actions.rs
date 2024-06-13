@@ -1,18 +1,11 @@
-use core::hash;
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
+use std::collections::HashMap;
 
 use num::complex::ComplexFloat;
 use num_bigfloat::BigFloat;
-use serde::{de::value, Deserialize, Serialize};
-use solana_sdk::{blake3::Hash, signer};
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    interfaces::{
-        BalanceChange, BalanceChangedFormatted, TokenChangesMap, ValueChange, ValueChangeFormatted,
-    },
+    interfaces::{BalanceChange, BalanceChangedFormatted, ValueChange, ValueChangeFormatted},
     token_parser::get_rounded_amount,
 };
 
@@ -74,7 +67,7 @@ pub struct SwapFieldsFormatted {
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
-pub struct address_from_to {
+pub struct AddressFromTo {
     sent: Vec<ValueChange>,
     received: Vec<ValueChange>,
 }
@@ -268,7 +261,7 @@ pub fn combine_sol_tokens(
     let mut other = vec![];
 
     items.iter().for_each(|item| {
-        if (item.mint == "sol" || item.mint == "So11111111111111111111111111111111111111112") {
+        if item.mint == "sol" || item.mint == "So11111111111111111111111111111111111111112" {
             sol_tokens.push(item.clone());
         } else {
             other.push(item.clone());
@@ -279,10 +272,10 @@ pub fn combine_sol_tokens(
         .clone()
         .iter_mut()
         .map(|item| {
-            if (item.mint == "sol") {
+            if item.mint == "sol" {
                 let testing = token_account_owner.get(&item.to.clone().unwrap_or("_".to_string()));
 
-                if (testing.is_some()) {
+                if testing.is_some() {
                     item.to = Some(testing.unwrap().to_string());
                 }
             }
@@ -339,7 +332,7 @@ fn remove_zero_balance(
 fn cobine_sol_transfers(
     mut used_ref: HashMap<String, HashMap<String, BalanceChange>>,
     token_account_owners: HashMap<String, String>,
-    hash: String,
+    _hash: String,
 ) -> (
     HashMap<String, HashMap<String, BalanceChange>>,
     Vec<BalanceChange>,
@@ -348,7 +341,7 @@ fn cobine_sol_transfers(
 
     let mut sol_tokens = vec![];
 
-    used_ref.clone().into_iter().for_each(|(key, value)| {
+    used_ref.clone().into_iter().for_each(|(_key, value)| {
         let mut other = vec![];
 
         value.iter().for_each(|item| {
@@ -393,7 +386,7 @@ fn cobine_sol_transfers(
                 }
             });
 
-            if (existing_by_token.is_some()) {
+            if existing_by_token.is_some() {
                 removed_sol_tokens.push(value.clone());
                 return false;
             }
@@ -407,7 +400,7 @@ fn cobine_sol_transfers(
 
     let mut testing: HashMap<String, HashMap<String, BalanceChange>> = HashMap::new();
 
-    used_ref.clone().into_iter().for_each(|(owner, mut value)| {
+    used_ref.clone().into_iter().for_each(|(owner, value)| {
         // let mut other = vec![];
 
         let mut new: HashMap<String, BalanceChange> = HashMap::new();
@@ -419,7 +412,7 @@ fn cobine_sol_transfers(
 
             let mut cloned = item.1.clone();
 
-            if (cloned.mint == "sol") {
+            if cloned.mint == "sol" {
                 cloned.mint = "So11111111111111111111111111111111111111112".to_string();
             }
 
@@ -427,20 +420,19 @@ fn cobine_sol_transfers(
 
             let exisiting_item = new.get_mut(&key);
 
-            if (exisiting_item.is_some()) {
+            if exisiting_item.is_some() {
                 let item = exisiting_item.unwrap(); //.clone();
 
                 item.value_transferred = item.value_transferred + &cloned.value_transferred;
                 item.difference = item.difference + &cloned.difference;
 
-                if (item.value_transferred_usd.is_some() && cloned.value_transferred_usd.is_some())
-                {
+                if item.value_transferred_usd.is_some() && cloned.value_transferred_usd.is_some() {
                     let value_1 = item.value_transferred_usd.unwrap();
                     let value_2 = cloned.value_transferred_usd.unwrap();
                     item.value_transferred_usd = Some(value_1 + &value_2);
                 }
 
-                if (item.difference_usd.is_some() && cloned.difference_usd.is_some()) {
+                if item.difference_usd.is_some() && cloned.difference_usd.is_some() {
                     let value_1 = item.difference_usd.unwrap();
                     let value_2 = cloned.difference_usd.unwrap();
                     item.difference_usd = Some(value_1 + &value_2);
@@ -465,11 +457,11 @@ fn combine_to_value_changes(
 ) -> Vec<ValueChange> {
     let mut changes_by_token: HashMap<String, Vec<ValueChange>> = HashMap::new();
 
-    for (test, value) in used_ref.clone() {
+    for (_test, value) in used_ref.clone() {
         for (key, value) in value {
             let exists_entry = changes_by_token.get_mut(&key.to_string());
 
-            if (exists_entry.is_some()) {
+            if exists_entry.is_some() {
                 let value_to_found = value.value_transferred.abs();
 
                 let value_to_find_upper = value_to_found.clone().mul(&BigFloat::from(1.1));
@@ -478,7 +470,7 @@ fn combine_to_value_changes(
                 // let dolar = exists_entry.unwrap();
 
                 let existing_by_token = exists_entry.unwrap().into_iter().find(|vc| {
-                    let from_to_cond = if (value.value_transferred.is_positive()) {
+                    let from_to_cond = if value.value_transferred.is_positive() {
                         vc.to.is_none()
                     } else {
                         vc.from.is_none()
@@ -495,7 +487,7 @@ fn combine_to_value_changes(
                     }
                 });
 
-                if (existing_by_token.is_some()) {
+                if existing_by_token.is_some() {
                     let existing_by_token = existing_by_token.unwrap();
 
                     let existing_value = existing_by_token.amount;
@@ -527,7 +519,7 @@ fn combine_to_value_changes(
             let mut from = None;
             let mut to = None;
 
-            if (value.value_transferred.is_positive()) {
+            if value.value_transferred.is_positive() {
                 to = Some(value.owner.to_string());
             } else {
                 from = Some(value.owner.to_string());

@@ -10,8 +10,7 @@ use crate::{
         TransactionDescription,
         TransactionFees,
         TransactionParsedResponse,
-        ValueChange,
-        ValueChangeFormatted, // TransactionParsed,
+        ValueChange, // TransactionParsed,
                               // TransactionParsedResponse,
     },
     token_parser::BalanceHolder,
@@ -19,10 +18,10 @@ use crate::{
 use chrono::DateTime;
 use num::ToPrimitive;
 use num_bigfloat::BigFloat;
-use serde::de::value;
+
 use serde_json::value::Value;
-use serde_json::{json, to_string};
-use solana_sdk::blake3::Hash;
+use serde_json::{json};
+
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::collections::{HashMap, HashSet};
 
@@ -402,7 +401,7 @@ impl CtTransaction {
             }
         }
 
-        if (ubo_override.is_some()) {
+        if ubo_override.is_some() {
             ubo = ubo_override.unwrap();
         }
 

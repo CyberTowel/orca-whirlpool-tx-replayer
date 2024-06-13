@@ -1,5 +1,4 @@
 use crate::{
-    actions::combine_token_transfers,
     interfaces::CtTransaction,
     rpc_pool_manager::RpcPool,
     token_db::{get_token_prices_from_token_changes, DbPool},
@@ -63,7 +62,7 @@ pub async fn get_transction(
         version: confirmed_tx.transaction.version,
     };
 
-    let rpc_data = serde_json::to_string(&transaction).unwrap();
+    let _rpc_data = serde_json::to_string(&transaction).unwrap();
     // println!("transaction: {:#?}", rpc_data);
 
     let block_time = confirmed_tx.block_time.unwrap();

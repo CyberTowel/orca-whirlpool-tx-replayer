@@ -119,7 +119,7 @@ pub async fn get_address_transactions_handler(
     while let Some(handle) = tasks.pop_front() {
         let request = handle.await;
 
-        if (request.is_err()) {
+        if request.is_err() {
             println!("Error processing signature");
             // continue;
         }
