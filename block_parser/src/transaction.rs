@@ -19,6 +19,7 @@ use crate::{
 use chrono::DateTime;
 use num::ToPrimitive;
 use num_bigfloat::BigFloat;
+use serde::de::value;
 use serde_json::value::Value;
 use serde_json::{json, to_string};
 use solana_sdk::blake3::Hash;
@@ -676,14 +677,20 @@ impl CtTransaction {
 
         let (swaps, other_testing, _changes_by_address) = parse_events_to_swap(combined.clone());
 
-        let transfers = parse_value_changes_to_transfers(other_testing, &self.signer);
+        // let testing: Vec<ValueChangeFormatted> =
+        //     combined.iter().map(|value| value.format()).collect();
+
+        let transfers = parse_value_changes_to_transfers(other_testing.clone(), &self.signer);
+
+        // println!("combined_json {:#?}", combined_json);
 
         self.all_actions = [&swaps[..], &transfers[..]].concat();
+        // self.all_actions = swaps.clone();
 
         let testing = self
             .all_actions
             .iter()
-            .filter(|x| x.addresses.contains(&self.ubo.to_string()));
+            .filter(|x| x.addresses.contains(&self.ubo.to_string()) || true);
 
         self.actions = testing.cloned().collect();
         return (dolar, removed, combined);

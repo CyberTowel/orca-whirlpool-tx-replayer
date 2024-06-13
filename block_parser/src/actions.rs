@@ -58,6 +58,7 @@ pub struct CtActionFormatted {
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct SwapFieldsFormatted {
     // tokens_fee: Vec<TokenChanges>,
+    pub from_to_key: String,
     pub tokens_from: Vec<ValueChangeFormatted>,
     pub tokens_to: Vec<ValueChangeFormatted>,
     pub swap_hops: Vec<String>,
@@ -65,11 +66,23 @@ pub struct SwapFieldsFormatted {
     pub testing: bool,
     pub to: Option<String>,
     pub from: Option<String>,
+    pub tokens_from_total_usd: Option<String>,
+    pub tokens_to_total_usd: Option<String>,
+    // pub elements: Vec<ValueChangeFormatted>,
+    // pub address_received: Vec<ValueChangeFormatted>,
+    // pub address_sent: Vec<ValueChangeFormatted>,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug)]
+pub struct address_from_to {
+    sent: Vec<ValueChange>,
+    received: Vec<ValueChange>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct SwapFields {
     // tokens_fee: Vec<TokenChanges>,
+    pub from_to_key: String,
     pub from: Option<String>,
     pub to: Option<String>,
     pub tokens_from: Vec<ValueChange>,
@@ -77,6 +90,12 @@ pub struct SwapFields {
     pub swap_hops: Vec<String>,
     pub router_events: Vec<String>,
     pub testing: bool,
+    pub tokens_from_total_usd: Option<BigFloat>,
+    pub tokens_to_total_usd: Option<BigFloat>,
+    // pub elements: Vec<ValueChangeFormatted>,
+    // pub elements: address_from_to,
+    // pub address_received: Vec<ValueChangeFormatted>,
+    // pub address_sent: Vec<ValueChangeFormatted>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug)]
@@ -84,12 +103,13 @@ pub struct TransferFields {
     // tokens_fee: Vec<TokenChanges>,
     pub from: Option<String>,
     pub to: Option<String>,
-    pub amount: BigFloat,
+    // pub amount: BigFloat,
     pub amount_usd: Option<BigFloat>,
     pub tokens_transferred: Vec<BalanceChange>,
+    pub tokens_transferred_new: Vec<ValueChange>,
     pub router_events: Vec<String>,
     pub testing: bool,
-    pub mint: String,
+    // pub mint: String,
     // pub key: String,
     // pub value_transferred: BigFloat,
     // pub value_transferred_usd: Option<BigFloat>,
@@ -104,9 +124,10 @@ pub struct TransferFieldsFormatted {
     pub testing: bool,
     pub from: Option<String>,
     pub to: Option<String>,
-    pub amount: String,
+    // pub amount: String,
     pub amount_usd: Option<String>,
-    pub mint: String,
+    // pub mint: String,
+    pub value_changes: Vec<ValueChangeFormatted>,
     // pub value_transferred: String,
     // pub value_transferred_usd: Option<String>,
     // pub mint: String,
@@ -173,6 +194,18 @@ impl SwapFields {
             testing: self.testing,
             to: self.to.clone(),
             from: self.from.clone(),
+            from_to_key: self.from_to_key.clone(),
+            tokens_from_total_usd: match self.tokens_from_total_usd {
+                Some(x) => Some(get_rounded_amount(x, 18)),
+                None => None,
+            },
+            tokens_to_total_usd: match self.tokens_to_total_usd {
+                Some(x) => Some(get_rounded_amount(x, 18)),
+                None => None,
+            },
+            // address_received: self.address_received.clone(),
+            // address_sent: self.address_sent.clone(),
+            // elements: self.elements.clone(),
         }
     }
 }
@@ -191,12 +224,18 @@ impl TransferFields {
             testing: self.testing,
             from: self.from.clone(),
             to: self.to.clone(),
-            amount: get_rounded_amount(self.amount, 18),
+            // amount: get_rounded_amount(self.amount, 18),
             amount_usd: match self.amount_usd {
                 Some(x) => Some(get_rounded_amount(x, 18)),
                 None => None,
             },
-            mint: self.mint.clone(),
+            // mint: self.mint.clone(),
+            value_changes: self
+                .tokens_transferred_new
+                .clone()
+                .iter()
+                .map(|vc| vc.format())
+                .collect(),
             // value_transferred: get_rounded_amount(self.value_transferred, 18),
             // value_transferred_usd: match self.value_transferred_usd {
             //     Some(x) => Some(get_rounded_amount(x, 18)),

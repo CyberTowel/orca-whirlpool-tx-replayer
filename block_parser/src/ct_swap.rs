@@ -1,8 +1,11 @@
 use std::collections::HashMap;
 
+use num_bigfloat::BigFloat;
+use serde_json::Value;
+
 use crate::{
     actions::{ActionFields, CtAction, SwapFields},
-    interfaces::ValueChange,
+    interfaces::{ValueChange, ValueChangeFormatted},
 };
 
 pub fn parse_events_to_swap(
@@ -16,6 +19,9 @@ pub fn parse_events_to_swap(
     let mut other: Vec<ValueChange> = vec![];
 
     let mut tokens_mapped_address = HashMap::new();
+
+    let mut tokens_mapped_address_new: HashMap<String, HashMap<String, Vec<ValueChange>>> =
+        HashMap::new();
 
     let mut tokens_keys_used = HashMap::new();
 
@@ -50,15 +56,54 @@ pub fn parse_events_to_swap(
                 .cloned()
                 .collect::<Vec<ValueChange>>();
 
-            if (elements[0].amount.is_positive() && elements[1].amount.is_negative()) {
-                elements.reverse();
-                // let temp = elements[0].clone();
-                // elements[0] = elements[1].clone();
-                // elements[1] = temp;
+            let elements_formatted: Vec<ValueChangeFormatted> =
+                elements.clone().iter().map(|vc| vc.format()).collect();
+
+            let elements_formatted_json = serde_json::to_string(&elements_formatted).unwrap();
+
+            let address_received: Vec<ValueChange> = elements
+                .iter()
+                .filter(|item| item.to.clone().unwrap_or("".to_string()) == address.clone())
+                // .map(|vc)
+                .cloned()
+                .collect();
+
+            let address_sent: Vec<ValueChange> = elements
+                .iter()
+                .filter(|item| item.from.clone().unwrap_or("".to_string()) == address.clone())
+                // .map(|vc| vc.format())
+                .cloned()
+                .collect();
+
+            // if (elements[0].amount.is_positive() && elements[1].amount.is_negative()) {
+            //     elements.reverse();
+            //     // let temp = elements[0].clone();
+            //     // elements[0] = elements[1].clone();
+            //     // elements[1] = temp;
+            // }
+
+            if (address_received.len() <= 0 || address_sent.len() <= 0) {
+                // println!(
+                //     "address_received length: {}, address_sent length: {} so not a swap",
+                //     address_received.len(),
+                //     address_sent.len()
+                // );
+
+                // let tesitng = value
+                //     .values()
+                //     .flatten()
+                //     .cloned()
+                //     .collect::<Vec<ValueChange>>();
+
+                // other.(tesitng);
+                other.extend(address_received);
+                other.extend(address_sent);
+
+                continue;
             }
 
-            let key_1 = elements[0].to.clone().unwrap_or("_".to_string());
-            let key_2 = elements[1].to.clone().unwrap_or("_".to_string());
+            let key_1 = address_sent[0].to.clone().unwrap_or("_".to_string());
+            let key_2 = address_received[0].to.clone().unwrap_or("_".to_string());
             let mut from_to_key = key_1.clone() + "_" + &key_2.clone();
 
             if (key_1 < key_2) {
@@ -69,14 +114,34 @@ pub fn parse_events_to_swap(
                 continue;
             }
 
+            let usd_total_sent = address_sent
+                .clone()
+                .iter()
+                .fold(BigFloat::from(0), |acc, x| {
+                    acc.add(&x.amount_usd.clone().unwrap_or(BigFloat::from(0)))
+                });
+
+            let usd_total_received = address_received
+                .clone()
+                .iter()
+                .fold(BigFloat::from(0), |acc, x| {
+                    acc.add(&x.amount_usd.clone().unwrap_or(BigFloat::from(0)))
+                });
+
             let fields = ActionFields::CtSwap(SwapFields {
-                tokens_from: vec![elements[0].clone()],
-                tokens_to: vec![elements[1].clone()],
+                from_to_key: from_to_key.clone(),
+                tokens_from: address_sent.clone(),
+                tokens_to: address_received.clone(),
                 router_events: Vec::new(),
                 swap_hops: Vec::new(),
                 testing: true,
-                from: elements[0].to.clone(),
-                to: elements[1].to.clone(),
+                from: address_sent[0].to.clone(),
+                to: address_received[0].to.clone(),
+                tokens_from_total_usd: Some(usd_total_sent),
+                tokens_to_total_usd: Some(usd_total_received),
+                // elements: elements_formatted.clone(),
+                // address_received,
+                // address_sent,
             });
 
             // let from_key = elements[0].from.clone().unwrap_or("_".to_string())
@@ -115,6 +180,11 @@ pub fn parse_events_to_swap(
                     testing,
                     from,
                     to,
+                    from_to_key,
+                    tokens_from_total_usd,
+                    tokens_to_total_usd,
+                    // address_received,
+                    // address_sent,
                 }) => {
                     let mut testing = Vec::new();
                     if (from.is_some()) {
@@ -154,7 +224,7 @@ pub fn parse_events_to_swap(
         }
     }
 
-    let testing32 = other
+    let testing32: Vec<ValueChange> = other
         .into_iter()
         .filter({
             |item| {
@@ -170,14 +240,25 @@ pub fn parse_events_to_swap(
                 let key_2 = item.from.clone().unwrap_or("_".to_string());
                 let mut from_to_key = key_1.clone() + "_" + &key_2.clone();
 
-                if (key_1 < key_2) {
+                if key_1 < key_2 {
                     from_to_key = key_2.clone() + "_" + &key_1.clone();
                 }
 
-                return !tokens_keys_used.contains_key(&from_to_key);
+                if tokens_keys_used.contains_key(&from_to_key) {
+                    return false;
+                }
+
+                tokens_keys_used.insert(from_to_key.clone(), true);
+
+                return true;
             }
         })
         .collect();
+
+    let lipsum = testing32
+        .iter()
+        .map(|item| item.format())
+        .collect::<Vec<ValueChangeFormatted>>();
 
     return (actions, testing32, tokens_mapped_address);
 
