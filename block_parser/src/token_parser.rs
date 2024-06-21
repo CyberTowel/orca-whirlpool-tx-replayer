@@ -579,6 +579,8 @@ pub fn get_price(
 
     let token_quote_price_18 = if stable_coin_ref {
         BigFloat::from_i16(1) * BigFloat::from(BigFloat::from(10).pow(&BigFloat::from(18)))
+    } else if sol_price_db.len() == 0 {
+        BigFloat::from_str("0").unwrap()
     } else {
         BigFloat::from_str(sol_price_db).unwrap()
     };

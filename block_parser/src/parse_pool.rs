@@ -2,8 +2,7 @@ use deadpool::managed::Object;
 use moka::future::Cache;
 use serde_json::Value;
 use solana_transaction_status::{
-    option_serializer::OptionSerializer, UiInnerInstructions,
-    UiInstruction, UiParsedInstruction,
+    option_serializer::OptionSerializer, UiInnerInstructions, UiInstruction, UiParsedInstruction,
 };
 
 use crate::{
@@ -67,6 +66,12 @@ pub async fn parse_pool_price(
     }
 
     let pool_meta_opt = pool_meta_req.unwrap();
+
+    if !pool_meta_opt.is_some() {
+        // println!("No pool_meta_req: {}", pool_id_clone);
+        return None;
+        // return Ok(transaction_base);
+    }
 
     let pool_meta = pool_meta_opt.unwrap();
 
