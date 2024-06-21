@@ -4,7 +4,6 @@ use block_parser::token_db::{DbClientPoolManager, DbPool};
 use block_parser::token_parser::PoolMeta;
 use clap::Parser;
 use consumer::start_workers;
-use deadpool::managed::Pool;
 
 use moka::future::Cache;
 use std::collections::VecDeque;

@@ -9,8 +9,7 @@ use moka::future::Cache;
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signature};
 use solana_transaction_status::{
-    option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta, UiInnerInstructions,
-    UiInstruction, UiParsedInstruction, UiTransactionEncoding,
+    EncodedTransactionWithStatusMeta, UiTransactionEncoding,
 };
 use std::str::FromStr;
 

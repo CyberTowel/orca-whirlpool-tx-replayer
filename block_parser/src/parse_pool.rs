@@ -1,10 +1,9 @@
 use deadpool::managed::Object;
 use moka::future::Cache;
 use serde_json::Value;
-use solana_sdk::{signature, signers};
 use solana_transaction_status::{
-    option_serializer::OptionSerializer, EncodedTransactionWithStatusMeta, UiInnerInstructions,
-    UiInstruction, UiParsedInstruction, UiTransactionEncoding,
+    option_serializer::OptionSerializer, UiInnerInstructions,
+    UiInstruction, UiParsedInstruction,
 };
 
 use crate::{
@@ -14,7 +13,7 @@ use crate::{
     token_db::DbClientPoolManager,
     token_parser::{
         get_price, get_token_amounts, parse_token_amounts_new, parse_token_price_oracle_values,
-        PoolMeta, TokenAmountsSwap, TokenPriceResult,
+        PoolMeta,
     },
 };
 
@@ -142,7 +141,7 @@ pub async fn parse_pool_price(
 
     let reponse = db_client.save_token_values(token_price_values.clone());
 
-    if (reponse.is_err()) {
+    if reponse.is_err() {
         println!("Error saving price item: {:#?}", reponse);
     }
 

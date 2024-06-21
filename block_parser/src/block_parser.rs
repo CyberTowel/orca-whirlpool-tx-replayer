@@ -11,8 +11,7 @@ use crate::{
     rpc_pool_manager::RpcPoolManager,
     token_db::DbClientPoolManager,
     token_parser::PoolMeta,
-    transaction_ingest::ingest_transaction,
-    transactions_loader::to_replace_parse_transaction_and_save_values, // transactions_loader::{parse_transaction_and_save_values},
+    transaction_ingest::ingest_transaction, // transactions_loader::{parse_transaction_and_save_values},
 };
 
 #[derive(Debug)]

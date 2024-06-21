@@ -1,7 +1,6 @@
 use block_parser::rpc_pool_manager::{RpcPool, RpcPoolManager};
 use block_parser::token_db::{DbClientPoolManager, DbPool};
 use block_parser::token_parser::PoolMeta;
-use block_parser::transaction_ingest::ingest_transaction;
 use block_parser::{block_parser::parse_block, interfaces::ParserConnections};
 use moka::future::Cache;
 
@@ -25,7 +24,7 @@ async fn main() {
 
     let db_pool_connection = DbPool::builder(db_mgr).max_size(1000).build().unwrap();
 
-    let connect = rpc_connection_builder.clone().get().await.unwrap();
+    // let connect = rpc_connection_builder.clone().get().await.unwrap();
 
     let connections = ParserConnections {
         rpc_connection,
@@ -41,13 +40,13 @@ async fn main() {
 
     let counter_value = 272017655; //connect.get_slot().await.unwrap_or(265757043);
 
-    let signature =
+    let _signature =
         "3QWhRiQh9HSS8VjMWrc74JmRNvtfyAFrP612oEoBuftHjC6zJa3qo6SdDAJ16hw88pdVSZ6YS1UeTKRE9V9aR7e5"
             // "2gCeBpDFx4wXK4jwDa7X3Sq7wwK7Zoz1GFmryXefatMA3rDJiBod8cfeQPmKvfvCuweMPmUXKvCrEncz2bTuPTG3"
             // "5msERHwCbzDLWgmcx11pCz1GjGiVR7Vx49QaJmuNRyD75DkaH8dWYfx5j9qFdry39XRW2va9oLag9tDDZuuUYqrY"
             .to_string();
 
-    let result = parse_block(
+    let _result = parse_block(
         counter_value as u64,
         &rpc_connection_c,
         &rpc_connection_builder_c,

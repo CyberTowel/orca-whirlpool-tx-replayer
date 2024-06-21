@@ -3,7 +3,7 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use deadpool::managed::RecycleResult;
 use deadpool::managed::{self, Metrics, Pool};
 use deadpool_postgres::{Manager, ManagerConfig, RecyclingMethod};
-use num::{FromPrimitive, ToPrimitive};
+use num::FromPrimitive;
 use num_bigfloat::BigFloat;
 use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
@@ -456,10 +456,6 @@ impl TokenDbClient {
             )
             .await
             .unwrap();
-
-        let block_time = input.block_timestamp;
-        let transaction_datetime = DateTime::from_timestamp(block_time, 0).unwrap();
-        // .to_rfc3339();
 
         let datetime_input: DateTime<Utc> =
             chrono::DateTime::from_str(&input.block_datetime).unwrap();

@@ -1,7 +1,5 @@
 pub mod raydium {
 
-    
-
     use std::str::FromStr;
 
     use deadpool::managed::{self, Metrics, Pool};
@@ -251,67 +249,5 @@ Processed {:?} until {:?} ({:#?})
         let next_item = Option::from(b[0].to_string());
 
         return (item_to_process.to_vec(), next_item);
-    }
-}
-
-pub mod pg_saving {
-    use deadpool::managed::Pool;
-    use deadpool_postgres::Manager;
-
-    #[derive(Debug)]
-    pub struct PriceDbItem {
-        pub price_token_ref: String,
-        pub price_usd: String,
-        pub datetime: String,
-        pub signature: String,
-        pub token_a_amount: String,
-        pub token_b_amount: String,
-        pub pool_address: String,
-        pub token_a_address: String,
-        pub token_b_address: String,
-        pub token_b_price_rel: String,
-        // pub token_a_address: String,
-        // pub token_b_address: String,
-        // pub ubo: String,
-        // pub ubo_pool_perc: String,
-        // pub ubo_token_a_amount: i64,
-        // pub ubo_token_b_amount: i64,
-        // pub ubo_token_a_pool_amount: i64,
-        // pub ubo_token_b_pool_amount: i64,
-    }
-
-    pub async fn _save_price_to_db(_price_item: PriceDbItem, pool: &Pool<Manager>) {
-        let _conn = pool.get().await.unwrap();
-
-        // let testing = conn
-        //     .execute(
-        //         "INSERT INTO token_prices (
-        //             price,
-        //             datetime,
-        //             signature,
-        //             token_a_address,
-        //             token_b_address,
-        //              pool_address,
-        //             token_a_amount,
-        //         token_b_amount) VALUES ($1,
-        //                  $2,
-        //                  $3,
-        //                  $4,
-        //                  $5,
-        //                  $6,
-        //                  $7,
-        //                  $8)",
-        //         &[
-        //             &price_item.price_usd,
-        //             &price_item.datetime,
-        //             &price_item.signature,
-        //             &price_item.token_a_address,
-        //             &price_item.token_b_address,
-        //             &price_item.pool_address,
-        //             &price_item.token_a_amount,
-        //             &price_item.token_b_amount,
-        //         ],
-        //     )
-        //     .await;
     }
 }
