@@ -1,3 +1,4 @@
+use block_parser::interfaces::ParserConnections;
 use block_parser::rpc_pool_manager::{RpcPool, RpcPoolManager};
 use block_parser::token_db::{DbClientPoolManager, DbPool};
 use block_parser::token_parser::PoolMeta;
@@ -41,13 +42,6 @@ struct Args {
     block_amount: Option<usize>,
     #[clap(long)]
     worker_amount: Option<usize>,
-}
-
-pub struct ParserConnections {
-    pub rpc_connection: Pool<RpcPoolManager>,
-    pub rpc_connection_builder: Pool<RpcPoolManager>,
-    pub db_client: Pool<DbClientPoolManager>,
-    pub my_cache: Cache<String, Option<PoolMeta>>,
 }
 
 pub struct BlockParsedDebug {

@@ -452,7 +452,7 @@ impl TokenDbClient {
             $8::NUMERIC,
             $9::NUMERIC,
             $10::NUMERIC
-            ) ON CONFLICT ON CONSTRAINT token_prices_v2_pkey DO update set
+            ) ON CONFLICT ON CONSTRAINT token_prices_v3_pkey DO update set
             conversion_ref=excluded.conversion_ref, 
             token_address=excluded.token_address, 
             price=excluded.price, 

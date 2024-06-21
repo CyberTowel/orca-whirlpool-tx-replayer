@@ -3,18 +3,18 @@ use chrono::{DateTime, NaiveDateTime, Utc};
 use deadpool::managed::RecycleResult;
 use deadpool::managed::{self, Metrics, Pool};
 use deadpool_postgres::{Manager, ManagerConfig, RecyclingMethod};
-use num::FromPrimitive;
+use num::{FromPrimitive, ToPrimitive};
 use num_bigfloat::BigFloat;
 use pg_bigdecimal::{BigDecimal, PgNumeric};
 use rust_decimal::Decimal;
 use tokio::task::JoinSet;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::{str::FromStr, sync::Arc};
 
 use tokio_postgres::{Error as TPError, NoTls};
 
-use crate::interfaces::PriceItem;
+use crate::interfaces::{CtTransaction, PriceItem};
 use crate::token_parser::TokenPriceOracleValues;
 
 // use crate::token_parser::TokenPriceOracleValues;
@@ -86,6 +86,7 @@ pub struct PriceItemDb {
     pub trade_price_fixed: BigFloat,
     pub oracle_id: String,
     pub blocknumber: String,
+    pub token_address_pool_ref: String,
 }
 
 // pub trait SetDb {
@@ -224,6 +225,12 @@ impl TokenDbClient {
         input: &TokenPriceOracleValues,
     ) -> Result<(), TPError> {
         let result = self.invoke(self.insert_token_usd_values_inn(signature, input));
+
+        return result;
+    }
+
+    pub fn insert_transaction_values(&self, input: &CtTransaction) -> Result<(), TPError> {
+        let result = self.invoke(self.insert_transaction_inn(input));
 
         return result;
     }
@@ -396,40 +403,130 @@ impl TokenDbClient {
         return Ok(());
     }
 
+    pub async fn insert_transaction_inn(&self, input: &CtTransaction) -> Result<(), TPError> {
+        let dolar = self.db_pool.clone();
+
+        let db_connect = match dolar {
+            Some(x) => x,
+            None => panic!("No db connection"),
+        };
+
+        let client = db_connect.get().await.unwrap();
+
+        // let action_types = input.actions.
+        let unique_types: Vec<String> = input
+            .actions
+            .iter()
+            .map(|s| s.action_type.clone())
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+
+        let stmt = client
+            .prepare_cached(
+                "INSERT INTO transactions (
+            signer,
+            ubo,
+            block_timestamp,
+            block_datetime,
+            hash, 
+            block_number,
+            chain_id,
+            transaction_data, 
+            action_types
+            ) VALUES ($1::TEXT, 
+                $2::TEXT,  
+                $3::NUMERIC,  
+                $4::TIMESTAMP,  
+                $5::TEXT,       
+                $6::NUMERIC, 
+                $7::NUMERIC,
+                $8::JSON, 
+                $9
+            )  ON CONFLICT ON CONSTRAINT transactions_pkey DO Update
+            SET 
+            ubo = excluded.ubo,
+            signer = excluded.signer,
+            block_timestamp = excluded.block_timestamp,
+            block_datetime = excluded.block_datetime,
+            block_number = excluded.block_number,
+            transaction_data = excluded.transaction_data,
+            action_types = excluded.action_types
+                ",
+            )
+            .await
+            .unwrap();
+
+        let block_time = input.block_timestamp;
+        let transaction_datetime = DateTime::from_timestamp(block_time, 0).unwrap();
+        // .to_rfc3339();
+
+        let datetime_input: DateTime<Utc> =
+            chrono::DateTime::from_str(&input.block_datetime).unwrap();
+        let datetime_pg: NaiveDateTime = datetime_input.naive_utc();
+
+        client
+            .query(
+                &stmt,
+                &[
+                    &input.ubo,
+                    &input.signer,
+                    &Decimal::from_str(&input.block_timestamp.to_string()).unwrap(),
+                    &datetime_pg,
+                    &input.hash,
+                    // &input.block_number.to_i64().unwrap(),
+                    &Decimal::from_u64(input.block_number).unwrap(),
+                    &Decimal::from_i16(input.chain_id).unwrap(),
+                    &serde_json::to_value(&input.format(None, false)).unwrap(),
+                    &unique_types,
+                    // &Decimal::from_i128(input.usd_total_pool_18).unwrap(),
+                    // &Decimal::from_i128(input.usd_total_ubo_18).unwrap(),
+                    // &Decimal::from_i128(input.usd_diff_ubo_18).unwrap(),
+                    // &Decimal::from_i128(input.usd_diff_pool_18).unwrap(),
+                ],
+            )
+            .await
+            .unwrap();
+
+        return Ok(());
+    }
+
     pub async fn save_token_values_inn(&self, input: &PriceItem) -> Result<(), TPError> {
         let price_ref_1 = "USD";
 
         let value1 = PriceItemDb {
             conversion_ref: price_ref_1.to_string(),
-            token_address: input.token_base_address.to_string(),
-            price: input.token_new_price_18,
-            trade_price: input.token_trade_price_18,
+            token_address: input.token_address.to_string(),
+            price: input.price,
+            trade_price: input.trade_price,
             datetime: input.datetime.to_string(),
-            transaction_hash: input.signature.to_string(),
-            price_fixed: input.token_new_price_fixed,
-            trade_price_fixed: input.token_trade_price_fixed,
+            transaction_hash: input.transaction_hash.to_string(),
+            price_fixed: input.price_fixed,
+            trade_price_fixed: input.trade_price_fixed,
             oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
-            blocknumber: input.block_number.to_string(),
+            blocknumber: input.blocknumber.to_string(),
+            token_address_pool_ref: input.token_address_pool_ref.to_string(),
         };
 
         let price_ref_2 = "SOL";
 
         let value2 = PriceItemDb {
             conversion_ref: price_ref_2.to_string(),
-            token_address: input.token_base_address.to_string(),
-            price: input.token_new_price_in_token_quote_18,
-            trade_price: input.token_trade_price_in_token_quote_18,
+            token_address: input.token_address.to_string(),
+            price: input.price_in_token_quote_18,
+            trade_price: input.trade_price_in_token_quote_18,
             datetime: input.datetime.to_string(),
-            transaction_hash: input.signature.to_string(),
-            price_fixed: input.token_new_price_in_token_quote_fixed,
-            trade_price_fixed: input.token_trade_price_in_token_quote_fixed,
+            transaction_hash: input.transaction_hash.to_string(),
+            price_fixed: input.price_in_token_quote_fixed,
+            trade_price_fixed: input.trade_price_in_token_quote_fixed,
             oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
-            blocknumber: input.block_number.to_string(),
+            blocknumber: input.blocknumber.to_string(),
+            token_address_pool_ref: input.token_address_pool_ref.to_string(),
         };
 
         let _result_1 = self.insert_token_price_inn(value1).await;
 
-        if input.token_base_address == "So11111111111111111111111111111111111111112" {
+        if input.token_address == "So11111111111111111111111111111111111111112" {
             return Ok(());
         }
 
@@ -464,7 +561,8 @@ impl TokenDbClient {
             oracle_id, 
             blocknumber, 
             price_trade,
-            price_trade_fixed
+            price_trade_fixed,
+            token_address_pool_ref
     ) VALUES ($1::TEXT, 
             $2::TEXT, 
             $3::NUMERIC, 
@@ -474,8 +572,9 @@ impl TokenDbClient {
             $7::TEXT,
             $8::NUMERIC,
             $9::NUMERIC,
-            $10::NUMERIC
-            ) ON CONFLICT ON CONSTRAINT token_prices_v2_pkey DO update set
+            $10::NUMERIC, 
+            $11::TEXT
+            ) ON CONFLICT ON CONSTRAINT token_prices_v3_pkey DO update set
             conversion_ref=excluded.conversion_ref, 
             token_address=excluded.token_address, 
             price=excluded.price, 
@@ -485,7 +584,8 @@ impl TokenDbClient {
             blocknumber=excluded.blocknumber,
             price_trade=excluded.price_trade, 
             price_trade_fixed=excluded.price_trade_fixed, 
-            crawled_at = now()::timestamp with time zone
+            crawled_at = now()::timestamp with time zone,
+            token_address_pool_ref = excluded.token_address_pool_ref
             RETURNING *
             ;",
             )
@@ -512,6 +612,7 @@ impl TokenDbClient {
                     &Decimal::from_str(&input.blocknumber).unwrap(),
                     &trade_price_numeric as &(dyn tokio_postgres::types::ToSql + Sync),
                     &trade_price_numeric_fixed as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &input.token_address_pool_ref,
                 ],
             )
             .await;

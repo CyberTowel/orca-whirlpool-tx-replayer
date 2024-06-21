@@ -36,6 +36,49 @@ pub struct TokenPriceResult {
     pub token_trade_price_in_token_quote_fixed: BigFloat,
 }
 
+impl TokenPriceResult {
+    pub fn format(&self) -> TokenPriceResultFormatted {
+        TokenPriceResultFormatted {
+            token_quote_price_18: get_rounded_amount(self.token_quote_price_18, 18),
+            token_new_price_18: get_rounded_amount(self.token_new_price_18, 18),
+            token_new_price_fixed: get_rounded_amount(self.token_new_price_fixed, 18),
+            token_new_price_in_token_quote_18: get_rounded_amount(
+                self.token_new_price_in_token_quote_18,
+                18,
+            ),
+            token_new_price_in_token_quote_fixed: get_rounded_amount(
+                self.token_new_price_in_token_quote_fixed,
+                18,
+            ),
+
+            token_trade_price_18: get_rounded_amount(self.token_trade_price_18, 18),
+            token_trade_price_fixed: get_rounded_amount(self.token_trade_price_fixed, 18),
+            token_trade_price_in_token_quote_18: get_rounded_amount(
+                self.token_trade_price_in_token_quote_18,
+                18,
+            ),
+            token_trade_price_in_token_quote_fixed: get_rounded_amount(
+                self.token_trade_price_in_token_quote_fixed,
+                18,
+            ),
+        }
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct TokenPriceResultFormatted {
+    pub token_quote_price_18: String,
+    pub token_new_price_18: String,
+    pub token_new_price_fixed: String,
+    pub token_new_price_in_token_quote_18: String,
+    pub token_new_price_in_token_quote_fixed: String,
+
+    pub token_trade_price_18: String,
+    pub token_trade_price_fixed: String,
+    pub token_trade_price_in_token_quote_18: String,
+    pub token_trade_price_in_token_quote_fixed: String,
+}
+
 #[derive(Debug)]
 pub struct TokenAmountsSwap {
     pub token_amounts_quote: TokenAmounts,

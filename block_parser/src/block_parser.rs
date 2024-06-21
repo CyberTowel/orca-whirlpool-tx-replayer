@@ -11,8 +11,8 @@ use crate::{
     rpc_pool_manager::RpcPoolManager,
     token_db::DbClientPoolManager,
     token_parser::PoolMeta,
-    transactions_loader::to_replace_parse_transaction_and_save_values,
-    // transactions_loader::{parse_transaction_and_save_values},
+    transaction_ingest::ingest_transaction,
+    transactions_loader::to_replace_parse_transaction_and_save_values, // transactions_loader::{parse_transaction_and_save_values},
 };
 
 #[derive(Debug)]
@@ -44,6 +44,8 @@ pub async fn parse_block(
 > {
     let start = std::time::Instant::now();
     let connection = rpc_connection.get().await.unwrap();
+
+    // println!("======== block_number: {}", block_number);
     // let db_connection = db_client.get().await.unwrap();
 
     let rpc_block_config = RpcBlockConfig {
@@ -91,17 +93,23 @@ pub async fn parse_block(
         )
         .unwrap();
 
+    // println!(
+    //     "============== information loaded - start parsing block {} ",
+    //     block_number
+    // );
+
     for transaction in block_transactions {
         let sol_price_db_c = sol_price_db.clone();
-        let rpc_conn = rpc_connection.get().await.unwrap();
-        let rpc_build_conn = rpc_connection_builder.get().await.unwrap();
-        let db_conn = db_client.get().await.unwrap();
+        // let rpc_conn = rpc_connection.get().await.unwrap();
+        // let rpc_build_conn = rpc_connection_builder.get().await.unwrap();
+        // let db_conn = db_client.get().await.unwrap();
+
+        let testing = rpc_connection_builder.clone();
+        let testng_db = db_client.clone();
 
         let signature = json!(transaction.transaction);
 
         let _signature = signature["signatures"][0].as_str().unwrap().to_string();
-
-        // let transaction_encoded = transaction;
 
         let signature = json!(transaction.transaction);
 
@@ -110,19 +118,28 @@ pub async fn parse_block(
         let cache_clone = my_cache.clone();
 
         tokio::spawn(async move {
-            to_replace_parse_transaction_and_save_values(
+            ingest_transaction(
+                &testing,
+                &testng_db,
+                cache_clone,
                 signature,
                 None,
-                &rpc_conn,
-                &rpc_build_conn,
-                &db_conn,
-                &cache_clone,
-                &transaction,
-                block_time,
-                block_number,
                 Some(sol_price_db_c),
             )
             .await;
+            // to_replace_parse_transaction_and_save_values(
+            //     signature,
+            //     None,
+            //     &rpc_conn,
+            //     &rpc_build_conn,
+            //     &db_conn,
+            //     &cache_clone,
+            //     &transaction,
+            //     block_time,
+            //     block_number,
+            //     Some(sol_price_db_c),
+            // )
+            // .await;
         });
     }
 

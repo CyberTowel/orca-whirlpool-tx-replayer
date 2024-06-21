@@ -6,12 +6,12 @@ use crate::{
         BalanceChange,
         BalanceChangedFormatted,
         CtTransaction,
+        CtTransactionFormatted,
         TokenChanges,
         TransactionDescription,
         TransactionFees,
-        TransactionParsedResponse,
         ValueChange, // TransactionParsed,
-                              // TransactionParsedResponse,
+                     // TransactionParsedResponse,
     },
     token_parser::BalanceHolder,
 };
@@ -19,9 +19,10 @@ use chrono::DateTime;
 use num::ToPrimitive;
 use num_bigfloat::BigFloat;
 
+use serde_json::json;
 use serde_json::value::Value;
-use serde_json::{json};
 
+use solana_sdk::inner_instruction;
 use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionTokenBalance};
 use std::collections::{HashMap, HashSet};
 
@@ -355,6 +356,8 @@ impl CtTransaction {
 
         let instructions = v["message"]["instructions"].as_array().unwrap();
 
+        let inner_instructions = transaction_meta.inner_instructions.clone();
+
         let singer_c = signer.clone();
 
         let dca_instruction = instructions.iter().find(|&x| {
@@ -553,6 +556,8 @@ impl CtTransaction {
             changes_by_address: HashMap::new(),
             value_changes: vec![],
             token_account_owners,
+            instructions: instructions.to_owned(),
+            inner_instructions,
             // token_amounts: token_amounts,
         }
     }
@@ -561,23 +566,24 @@ impl CtTransaction {
         self.token_prices = Some(token_prices);
     }
 
-    pub fn format(&self, expand: Option<Vec<String>>) -> TransactionParsedResponse {
+    pub fn format(&self, expand: Option<Vec<String>>, expand_all: bool) -> CtTransactionFormatted {
         let expands = expand.clone().unwrap_or_default();
 
-        let token_changes_owner = if expands.contains(&"token_changes_owner".to_string()) {
-            Some(self.token_changes_owner.format())
-        } else {
-            None
-        };
+        let token_changes_owner =
+            if expands.contains(&"token_changes_owner".to_string()) || expand_all {
+                Some(self.token_changes_owner.format())
+            } else {
+                None
+            };
 
         let token_changes_token_account =
-            if expands.contains(&"token_changes_token_account".to_string()) {
+            if expands.contains(&"token_changes_token_account".to_string()) || expand_all {
                 Some(self.token_changes_token_account.format())
             } else {
                 None
             };
 
-        let addresses = if expands.contains(&"addresses".to_string()) {
+        let addresses = if expands.contains(&"addresses".to_string()) || expand_all {
             Some(self.addresses.clone())
         } else {
             None
@@ -585,7 +591,7 @@ impl CtTransaction {
 
         // let dolar = combine_token_transfers(self.token_changes_owner.values.clone());
 
-        TransactionParsedResponse {
+        CtTransactionFormatted {
             // dolar,
             signer: self.signer.clone(),
             ubo: self.ubo.clone(),

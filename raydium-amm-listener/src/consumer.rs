@@ -1,11 +1,12 @@
 use block_parser::block_parser::parse_block;
+use block_parser::interfaces::ParserConnections;
 use flume::{Receiver, Sender};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::helpers::retry_blocks;
-use crate::{BlockParsedDebug, ParserConnections};
+use crate::BlockParsedDebug;
 
 pub fn start_workers(
     tx_completed: Sender<Option<BlockParsedDebug>>,

@@ -4,11 +4,13 @@ pub mod ct_swap;
 pub mod ct_transfer;
 pub mod get_signatures;
 pub mod interfaces;
+pub mod parse_pool;
 mod pool_state;
 pub mod rpc_pool_manager;
 pub mod token_db;
 pub mod token_parser;
 pub mod transaction;
+pub mod transaction_ingest;
 pub mod transactions_loader;
 
 #[cfg(test)]

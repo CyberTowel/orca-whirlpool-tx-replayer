@@ -47,7 +47,7 @@ pub async fn handler(
     //Epn14cfr6Jsz5cQrKhWYPmjwqhUmXX7dQK14vPaZfUEN not found
     //F4bEvVmHJPjYjfW7S2FFPpJiiwXFjXF47YP9XtNfz2Bq not found
 
-    Ok(warp::reply::json(&transaction.format(expand)))
+    Ok(warp::reply::json(&transaction.format(expand, false)))
 
     // Ok(warp::reply::json(&transaction.format(expand)))
 }

@@ -1,8 +1,17 @@
 use std::{clone, collections::HashMap};
 
+use deadpool::managed::Pool;
+use moka::future::Cache;
 use num_bigfloat::BigFloat;
+use serde_json::Value;
+use solana_transaction_status::{option_serializer::OptionSerializer, UiInnerInstructions};
 
-use crate::actions::{CtAction, CtActionFormatted};
+use crate::{
+    actions::{CtAction, CtActionFormatted},
+    rpc_pool_manager::RpcPoolManager,
+    token_db::DbClientPoolManager,
+    token_parser::PoolMeta,
+};
 
 #[derive(serde::Deserialize, Debug, clone::Clone)]
 pub struct ArrayMapRequest {
@@ -110,6 +119,8 @@ pub struct CtTransaction {
     pub changes_by_address: HashMap<String, HashMap<String, Vec<ValueChange>>>,
     pub value_changes: Vec<ValueChange>,
     pub token_account_owners: HashMap<String, String>,
+    pub instructions: Vec<Value>,
+    pub inner_instructions: OptionSerializer<Vec<UiInnerInstructions>>,
 }
 
 // #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -119,7 +130,7 @@ pub struct CtTransaction {
 // // }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct TransactionParsedResponse {
+pub struct CtTransactionFormatted {
     // pub dolar: Vec<ValueChange>,
     pub signer: String,
     pub ubo: String,
@@ -157,19 +168,19 @@ pub type ActionsFormatted = Vec<CtActionFormatted>;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PriceItem {
-    pub signature: String,
-    pub token_quote_address: String,
-    pub token_base_address: String,
+    pub transaction_hash: String,
+    pub token_address_pool_ref: String,
+    pub token_address: String,
 
-    pub token_new_price_18: BigFloat,
-    pub token_new_price_in_token_quote_18: BigFloat,
-    pub token_new_price_fixed: BigFloat,
-    pub token_new_price_in_token_quote_fixed: BigFloat,
+    pub price: BigFloat,
+    pub price_in_token_quote_18: BigFloat,
+    pub price_fixed: BigFloat,
+    pub price_in_token_quote_fixed: BigFloat,
 
-    pub token_trade_price_18: BigFloat,
-    pub token_trade_price_in_token_quote_18: BigFloat,
-    pub token_trade_price_fixed: BigFloat,
-    pub token_trade_price_in_token_quote_fixed: BigFloat,
+    pub trade_price: BigFloat,
+    pub trade_price_in_token_quote_18: BigFloat,
+    pub trade_price_fixed: BigFloat,
+    pub trade_price_in_token_quote_fixed: BigFloat,
 
     pub usd_total_pool: BigFloat,
 
@@ -177,31 +188,13 @@ pub struct PriceItem {
     pub signer: String,
     pub ubo: String,
     pub pool_address: String,
-    pub block_number: String,
+    pub blocknumber: String,
 }
 
 // #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 // pub struct Action {
 //     action_type: String,
 // }
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct PriceItemResponse {
-    pub token_quote_address: String,
-    pub token_base_address: String,
-
-    // pub token_new_price_18: String,
-    // pub token_new_price_in_token_quote_18: String,
-    // pub token_new_price_fixed: String,
-    // pub token_new_price_in_token_quote_fixed: String,
-    pub token_price_usd_18: String,
-    pub token_trade_price_in_token_quote_18: String,
-    pub token_price_usd_fixed: String,
-    pub token_trade_price_in_token_quote_fixed: String,
-
-    pub usd_total_pool_18: String,
-    pub pool_address: String,
-}
 
 #[derive(Default, Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BalanceChange {
@@ -267,4 +260,11 @@ pub struct ValueChangeFormatted {
     pub amount_usd: Option<String>,
     pub balance_changes: Vec<BalanceChangedFormatted>,
     pub amount_diff: Option<String>,
+}
+
+pub struct ParserConnections {
+    pub rpc_connection: Pool<RpcPoolManager>,
+    pub rpc_connection_builder: Pool<RpcPoolManager>,
+    pub db_client: Pool<DbClientPoolManager>,
+    pub my_cache: Cache<String, Option<PoolMeta>>,
 }

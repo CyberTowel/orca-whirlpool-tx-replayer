@@ -1,0 +1,10 @@
+[package]
+name = "parser-debugger"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+block_parser = { path = "../block_parser" }
+deadpool.workspace = true
+moka.workspace = true

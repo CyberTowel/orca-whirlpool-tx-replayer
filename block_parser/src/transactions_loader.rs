@@ -381,57 +381,6 @@ pub async fn to_archive_get_parsed_transaction(
     // );
 }
 
-fn _find_raydium_inner_instruction(
-    inner_instructions: &OptionSerializer<Vec<UiInnerInstructions>>,
-) -> Vec<std::string::String> {
-    let mut inner_instruction_accounts: Vec<String> = Vec::new();
-
-    match &inner_instructions {
-        OptionSerializer::Some(ixs) => {
-            ixs.iter().for_each(|x| {
-                x.instructions.iter().for_each(|i| match i {
-                    UiInstruction::Compiled(_ix) => {
-                        panic!("inplement this UiParsedInstruction Compiled")
-                    }
-                    UiInstruction::Parsed(ix) => match ix {
-                        UiParsedInstruction::Parsed(x) => match x.parsed.get("data") {
-                            Some(d) => match d {
-                                serde_json::Value::String(_data) => {
-                                    panic!("inplement this UiParsedInstruction")
-                                    // let maybe_market =
-                                    //     parse_market_from_data(data.to_string(), block_time);
-                                    // match maybe_market {
-                                    //     Some(market) => markets_vector.push(market),
-                                    //     None => {}
-                                    // }
-                                }
-                                _ => {}
-                            },
-                            None => {}
-                        },
-                        UiParsedInstruction::PartiallyDecoded(d) => {
-                            if d.program_id == "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8" {
-                                inner_instruction_accounts.extend(d.to_owned().accounts);
-                            }
-
-                            // let maybe_market = parse_market_from_data(d.data.clone(), block_time);
-
-                            // match maybe_market {
-                            //     Some(market) => markets_vector.push(market),
-                            //     None => {}
-                            // }
-                        }
-                    },
-                })
-            });
-        }
-        OptionSerializer::None => {}
-        OptionSerializer::Skip => {}
-    };
-
-    inner_instruction_accounts
-}
-
 // fn parse_base_to_parsed(
 //     transaction_base: CtTransaction,
 //     _price_item_c: Option<PriceItem>,

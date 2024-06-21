@@ -127,6 +127,22 @@
       },
       "args": [],
       "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'parser debugger'",
+      "cargo": {
+        "args": ["build", "--bin=parser-debugger", "--package=parser-debugger"],
+        "filter": {
+          "name": "parser-debugger",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "internalConsoleOptions": "openOnSessionStart"
     }
   ]
 }

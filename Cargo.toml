@@ -3,7 +3,7 @@ members = [
   "raydium_amm_saver",
   "raydium-amm-listener", 
   "block_parser",
-"helpers", "warp-webserver"]
+"helpers", "warp-webserver", "parser-debugger"]
 
 resolver = "2"
 

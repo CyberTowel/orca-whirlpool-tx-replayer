@@ -1,6 +1,6 @@
 use block_parser::{
     get_signatures::get_paginated_singatures,
-    interfaces::{ArrayMapRequest, CtTransaction, TransactionParsedResponse},
+    interfaces::{ArrayMapRequest, CtTransaction, CtTransactionFormatted},
     rpc_pool_manager::RpcPool,
     token_db::DbPool,
     token_parser::PoolMeta,
@@ -21,7 +21,7 @@ pub struct Response {
     adddress: String,
     next_hash: Option<String>,
     success: bool,
-    transactions: Vec<TransactionParsedResponse>,
+    transactions: Vec<CtTransactionFormatted>,
     // signature: Vec<String>,
 }
 
@@ -96,7 +96,7 @@ pub async fn get_address_transactions_handler(
     }
 
     let _crawled_signatures: Vec<String> = Vec::new();
-    let mut transactions = Vec::<TransactionParsedResponse>::new();
+    let mut transactions = Vec::<CtTransactionFormatted>::new();
 
     // while let Some(res) = signatures_to_process.join_next().await {
     //     crawled_signatures.push("tesitng".to_string());
@@ -136,7 +136,7 @@ pub async fn get_address_transactions_handler(
 
         let tesitng = res.unwrap();
 
-        let result = tesitng.format(expand.clone());
+        let result = tesitng.format(expand.clone(), false);
 
         // println!("Processing signature: {:#?}", result.actions);
         // let testing = res.unwrap();
