@@ -38,7 +38,7 @@ async fn main() {
     let db_client_c = connections.db_client.clone();
     let my_cache_c = connections.my_cache.clone();
 
-    let counter_value = 272017655; //connect.get_slot().await.unwrap_or(265757043);
+    let counter_value = 273106189; //connect.get_slot().await.unwrap_or(265757043);
 
     let _signature =
         "3QWhRiQh9HSS8VjMWrc74JmRNvtfyAFrP612oEoBuftHjC6zJa3qo6SdDAJ16hw88pdVSZ6YS1UeTKRE9V9aR7e5"

@@ -8,9 +8,7 @@ use moka::future::Cache;
 
 use solana_client::{nonblocking::rpc_client::RpcClient, rpc_config::RpcTransactionConfig};
 use solana_sdk::{commitment_config::CommitmentConfig, signature::Signature};
-use solana_transaction_status::{
-    EncodedTransactionWithStatusMeta, UiTransactionEncoding,
-};
+use solana_transaction_status::{EncodedTransactionWithStatusMeta, UiTransactionEncoding};
 use std::str::FromStr;
 
 use crate::{
@@ -25,7 +23,7 @@ pub struct TransactionError {
     pub message: String,
 }
 
-pub async fn get_transction(
+pub async fn get_transction_from_signature(
     signature: String,
     // pool_id: Option<String>,
     rpc_connection: &RpcClient,
@@ -77,6 +75,19 @@ pub async fn get_transction(
 
 pub enum Error {
     Msg(String),
+}
+
+pub fn parse_transaction_ecoded(
+    transaction: &EncodedTransactionWithStatusMeta,
+    block_time: i64,
+    block_number: u64,
+    ubo_override: Option<String>,
+) -> Result<CtTransaction, TransactionError> {
+    let mut _transaction_base =
+        CtTransaction::new(&transaction, block_time, block_number, ubo_override);
+
+    _transaction_base.create_actions();
+    return Ok(_transaction_base);
 }
 
 pub async fn to_replace_parse_transaction_and_save_values(
@@ -419,7 +430,7 @@ pub async fn get_transaction_priced(
 ) -> Result<CtTransaction, TransactionError> {
     let rpc_connect = pool.get().await.unwrap(); // Get a connection from the pool
 
-    let rpc_response = get_transction(
+    let rpc_response = get_transction_from_signature(
         signature.clone(),
         // None,
         &rpc_connect,

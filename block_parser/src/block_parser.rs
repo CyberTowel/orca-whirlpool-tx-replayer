@@ -124,6 +124,9 @@ pub async fn parse_block(
                 signature,
                 None,
                 Some(sol_price_db_c),
+                &transaction,
+                block_time,
+                block_number,
             )
             .await;
             // to_replace_parse_transaction_and_save_values(

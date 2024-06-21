@@ -1,9 +1,10 @@
 use crate::{
     parse_pool::parse_pool_price, rpc_pool_manager::RpcPool, token_db::DbPool,
-    token_parser::PoolMeta, transactions_loader::get_transction,
+    token_parser::PoolMeta, transactions_loader::parse_transaction_ecoded,
 };
 
 use moka::future::Cache;
+use solana_transaction_status::EncodedTransactionWithStatusMeta;
 
 pub async fn ingest_transaction(
     pool: &RpcPool,
@@ -12,21 +13,23 @@ pub async fn ingest_transaction(
     signature: String,
     ubo_override: Option<String>,
     sol_price_18: Option<String>,
+    transaction: &EncodedTransactionWithStatusMeta,
+    block_time: i64,
+    block_number: u64,
 ) {
     let rpc_connect = pool.get().await.unwrap(); // Get a connection from the pool
 
     let db_client_pricing = db_pool.get().await.unwrap();
     let db_client = db_pool.get().await.unwrap();
 
-    let rpc_response = get_transction(
-        signature.clone(),
-        // None,
-        &rpc_connect,
+    let rpc_response = parse_transaction_ecoded(
+        transaction,
+        block_time,
+        block_number,
         ubo_override,
         // &token_db_connect,
         // cache,
-    )
-    .await;
+    );
 
     if rpc_response.is_err() {
         println!("Error getting transaction: {}", signature);
