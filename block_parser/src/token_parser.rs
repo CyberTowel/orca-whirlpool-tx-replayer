@@ -686,7 +686,7 @@ pub struct TokenAmountsPriced {
     usd_total_pool_18: BigFloat,
     usd_diff_pool_18: BigFloat,
     usd_total_ubo_18: BigFloat,
-    usd_diff_ubo_18: BigFloat,
+    pub usd_diff_ubo_18: BigFloat,
 }
 
 pub fn parse_token_amounts_new(

@@ -121,6 +121,12 @@ pub async fn parse_pool_price(
 
     let swap_token_amounts_priced = parse_token_amounts_new(&token_amounts, &token_prices);
 
+    let testing = token_amounts.token_amounts_base.amount_diff_ubo_18;
+
+    let dolar = swap_token_amounts_priced
+        .token_amounts_priced_b
+        .usd_diff_ubo_18;
+
     let token_price_values = PriceItem {
         transaction_hash: transaction.hash.to_string(),
         token_address_pool_ref: pool_meta.quote_mint.to_string(),
@@ -142,6 +148,9 @@ pub async fn parse_pool_price(
         pool_address: pool_id_clone.clone(),
         usd_total_pool: swap_token_amounts_priced.usd_total_pool_18,
         blocknumber: transaction.block_number.to_string(),
+
+        amount_diff_ubo: testing,
+        usd_diff_ubo: dolar,
     };
 
     let reponse = db_client.save_token_values(token_price_values.clone());

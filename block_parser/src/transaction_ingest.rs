@@ -39,6 +39,16 @@ pub async fn ingest_transaction(
 
     let rpc_response = rpc_response.unwrap();
 
+    let saved = db_client.insert_transaction_values(&rpc_response);
+    if saved.is_err() {
+        println!("Error saving transaction values: {:#?}", saved);
+    }
+
+    // if rpc_response.err.is_some() {
+    //     println!("Error in transaction: {:#?}", rpc_response.err);
+    //     return;
+    // }
+
     let pool_meta_opt = parse_pool_price(
         rpc_response.clone(),
         rpc_connect,
@@ -61,11 +71,6 @@ pub async fn ingest_transaction(
     // if (reponse.is_err()) {
     //     println!("Error saving price item: {:#?}", reponse);
     // }
-
-    let saved = db_client.insert_transaction_values(&rpc_response);
-    if saved.is_err() {
-        println!("Error saving transaction values: {:#?}", saved);
-    }
 
     // println!("Saved transaction: {}", signature);
 }

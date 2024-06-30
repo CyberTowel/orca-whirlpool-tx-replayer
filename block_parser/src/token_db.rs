@@ -87,6 +87,8 @@ pub struct PriceItemDb {
     pub oracle_id: String,
     pub blocknumber: String,
     pub token_address_pool_ref: String,
+    pub amount_diff_ubo: BigFloat,
+    pub usd_diff_ubo: BigFloat,
 }
 
 // pub trait SetDb {
@@ -433,7 +435,8 @@ impl TokenDbClient {
             block_number,
             chain_id,
             transaction_data, 
-            action_types
+            action_types, 
+            has_error
             ) VALUES ($1::TEXT, 
                 $2::TEXT,  
                 $3::NUMERIC,  
@@ -442,7 +445,8 @@ impl TokenDbClient {
                 $6::NUMERIC, 
                 $7::NUMERIC,
                 $8::JSON, 
-                $9
+                $9,
+                $10
             )  ON CONFLICT ON CONSTRAINT transactions_pkey DO Update
             SET 
             ubo = excluded.ubo,
@@ -451,7 +455,8 @@ impl TokenDbClient {
             block_datetime = excluded.block_datetime,
             block_number = excluded.block_number,
             transaction_data = excluded.transaction_data,
-            action_types = excluded.action_types
+            action_types = excluded.action_types, 
+            has_error = excluded.has_error
                 ",
             )
             .await
@@ -475,6 +480,7 @@ impl TokenDbClient {
                     &Decimal::from_i16(input.chain_id).unwrap(),
                     &serde_json::to_value(&input.format(None, false)).unwrap(),
                     &unique_types,
+                    &input.err.is_some(),
                     // &Decimal::from_i128(input.usd_total_pool_18).unwrap(),
                     // &Decimal::from_i128(input.usd_total_ubo_18).unwrap(),
                     // &Decimal::from_i128(input.usd_diff_ubo_18).unwrap(),
@@ -502,6 +508,8 @@ impl TokenDbClient {
             oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
             blocknumber: input.blocknumber.to_string(),
             token_address_pool_ref: input.token_address_pool_ref.to_string(),
+            amount_diff_ubo: input.amount_diff_ubo,
+            usd_diff_ubo: input.usd_diff_ubo,
         };
 
         let price_ref_2 = "SOL";
@@ -518,6 +526,8 @@ impl TokenDbClient {
             oracle_id: "feed80ec-c187-47f5-8684-41931fc780e9".to_string(),
             blocknumber: input.blocknumber.to_string(),
             token_address_pool_ref: input.token_address_pool_ref.to_string(),
+            amount_diff_ubo: input.amount_diff_ubo,
+            usd_diff_ubo: input.usd_diff_ubo,
         };
 
         let _result_1 = self.insert_token_price_inn(value1).await;
@@ -558,7 +568,9 @@ impl TokenDbClient {
             blocknumber, 
             price_trade,
             price_trade_fixed,
-            token_address_pool_ref
+            token_address_pool_ref,
+            amount_diff_ubo,
+            usd_diff_ubo
     ) VALUES ($1::TEXT, 
             $2::TEXT, 
             $3::NUMERIC, 
@@ -569,7 +581,9 @@ impl TokenDbClient {
             $8::NUMERIC,
             $9::NUMERIC,
             $10::NUMERIC, 
-            $11::TEXT
+            $11::TEXT, 
+            $12::NUMERIC, 
+            $13::NUMERIC
             ) ON CONFLICT ON CONSTRAINT token_prices_v3_pkey DO update set
             conversion_ref=excluded.conversion_ref, 
             token_address=excluded.token_address, 
@@ -581,7 +595,9 @@ impl TokenDbClient {
             price_trade=excluded.price_trade, 
             price_trade_fixed=excluded.price_trade_fixed, 
             crawled_at = now()::timestamp with time zone,
-            token_address_pool_ref = excluded.token_address_pool_ref
+            token_address_pool_ref = excluded.token_address_pool_ref, 
+            amount_diff_ubo = excluded.amount_diff_ubo, 
+            usd_diff_ubo = excluded.usd_diff_ubo
             RETURNING *
             ;",
             )
@@ -593,6 +609,9 @@ impl TokenDbClient {
 
         let trade_price_numeric = parse_value_to_numeric(&input.trade_price, Some(0));
         let trade_price_numeric_fixed = parse_value_to_numeric(&input.trade_price_fixed, None);
+
+        let amount_diff_ubo = parse_value_to_numeric(&input.amount_diff_ubo, Some(0));
+        let usd_diff_ubo = parse_value_to_numeric(&input.usd_diff_ubo, Some(0));
 
         let insert_result = client
             .query(
@@ -609,6 +628,8 @@ impl TokenDbClient {
                     &trade_price_numeric as &(dyn tokio_postgres::types::ToSql + Sync),
                     &trade_price_numeric_fixed as &(dyn tokio_postgres::types::ToSql + Sync),
                     &input.token_address_pool_ref,
+                    &amount_diff_ubo as &(dyn tokio_postgres::types::ToSql + Sync),
+                    &usd_diff_ubo as &(dyn tokio_postgres::types::ToSql + Sync),
                 ],
             )
             .await;

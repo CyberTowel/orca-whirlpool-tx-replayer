@@ -420,6 +420,11 @@ impl CtTransaction {
 
         let _signature = signature["signatures"][0].as_str().unwrap().to_string();
 
+        // if(_signature == "31ViJLKsomm4L6nMrob1S6uc7Tsm1dZCB7srrU7cnRqcBWMLWZV372QHAYC8TCuEp9Hihe6kfHQ2N2pnN2evwM88".to_string()){
+        //     println!("testing err, {:#?}", transaction_meta.err);
+
+        // }
+
         let fee = transaction_meta.fee;
 
         let fee_big_float = BigFloat::from_u64(fee); //.mul(&BigFloat::from(10).pow(&BigFloat::from(9)));
@@ -524,6 +529,7 @@ impl CtTransaction {
         //     parse_balance_changes(&transaction_clone_meta, &testing.clone());
 
         Self {
+            err: transaction_meta.err,
             signer: signer,
             ubo: ubo.to_string(),
             from: singer_c,

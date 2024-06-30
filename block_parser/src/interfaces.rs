@@ -4,6 +4,7 @@ use deadpool::managed::Pool;
 use moka::future::Cache;
 use num_bigfloat::BigFloat;
 use serde_json::Value;
+use solana_sdk::transaction::TransactionError;
 use solana_transaction_status::{option_serializer::OptionSerializer, UiInnerInstructions};
 
 use crate::{
@@ -121,6 +122,7 @@ pub struct CtTransaction {
     pub token_account_owners: HashMap<String, String>,
     pub instructions: Vec<Value>,
     pub inner_instructions: OptionSerializer<Vec<UiInnerInstructions>>,
+    pub err: Option<TransactionError>,
 }
 
 // #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -183,6 +185,9 @@ pub struct PriceItem {
     pub trade_price_in_token_quote_fixed: BigFloat,
 
     pub usd_total_pool: BigFloat,
+
+    pub amount_diff_ubo: BigFloat,
+    pub usd_diff_ubo: BigFloat,
 
     pub datetime: String,
     pub signer: String,
