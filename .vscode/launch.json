@@ -143,6 +143,22 @@
       "cwd": "${workspaceFolder}",
       "console": "internalConsole",
       "internalConsoleOptions": "openOnSessionStart"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'kafka-ingest'",
+      "cargo": {
+        "args": ["build", "--bin=kafka-ingest", "--package=kafka-ingest"],
+        "filter": {
+          "name": "kafka-ingest",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole",
+      "internalConsoleOptions": "openOnSessionStart"
     }
   ]
 }

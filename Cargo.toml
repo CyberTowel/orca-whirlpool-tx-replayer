@@ -3,7 +3,7 @@ members = [
   "raydium_amm_saver",
   "raydium-amm-listener", 
   "block_parser",
-"helpers", "warp-webserver", "parser-debugger"]
+"helpers", "warp-webserver", "parser-debugger", "kafka-ingest"]
 
 resolver = "2"
 
